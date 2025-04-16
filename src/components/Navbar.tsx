@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 
 const Navbar: React.FC = () => {
   return (
-    <nav className="sheikah-border bg-zelda-dark/50 backdrop-blur-sm">
-      <div className="container mx-auto px-4">
+    <nav className="sheikah-border bg-zelda-dark/50 backdrop-blur-sm mx-8 my-4">
+      <div className="container mx-auto">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="text-2xl font-serif text-zelda-gold">
             Portfolio
