@@ -6,7 +6,7 @@
 
 body {
   @apply bg-zelda-dark text-white;
-  background: linear-gradient(rgba(26, 26, 26, 0.95), rgba(26, 26, 26, 0.95));
+  background: linear-gradient(to bottom, #0b2e36 0%, #1b3f42 100%);
   position: relative;
 }
 
