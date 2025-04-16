@@ -39,30 +39,33 @@ const App: React.FC = () => {
         opacity: { value: 0.15 },
         size: { value: 1.5 },
         move: { enable: true, speed: 0.2 },
-      },
-      detectRetina: true,
+      }
     }),
     []
   );
 
   return (
     <Router>
-      <div className="min-h-screen">
-        <Navbar />
-        <main className="container mx-auto px-4 py-8">
+      <div className="min-h-screen relative">
+        <div className="fixed inset-0 -z-10">
           <Particles
             id="tsparticles"
             particlesLoaded={particlesLoaded}
             options={options}
           />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/portfolio" element={<Portfolio />} />
-            <Route path="/blog" element={<Blog />} />
-            <Route path="/contact" element={<Contact />} />
-          </Routes>
-        </main>
+        </div>
+        <div className="relative z-10">
+          <Navbar />
+          <main className="container mx-auto px-4 py-8">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/portfolio" element={<Portfolio />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/contact" element={<Contact />} />
+            </Routes>
+          </main>
+        </div>
       </div>
     </Router>
   );
