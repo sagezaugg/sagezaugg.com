@@ -7,7 +7,7 @@ const Navbar: React.FC = () => {
       <div className="container mx-auto">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="text-2xl font-serif text-zelda-gold">
-            Portfolio
+            Sage Zaugg
           </Link>
           
           <div className="flex space-x-4">

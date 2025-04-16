@@ -22,7 +22,11 @@ const Home: React.FC = () => {
           whileTap={{ scale: 0.95 }}
           className="inline-block"
         >
-          <Link to="/portfolio" className="sheikah-border px-8 py-3 text-lg text-zelda-light-blue hover:text-zelda-gold transition-colors duration-300">View My Work</Link>
+          <div className="sheikah-border">
+            <Link to="/portfolio" className="px-8 py-3 text-lg text-zelda-light-blue hover:text-zelda-gold transition-colors duration-300 block">
+              View My Work
+            </Link>
+          </div>
         </motion.div>
       </motion.div>
     </div>

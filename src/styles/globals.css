@@ -42,6 +42,7 @@ body::after {
   @apply border-2 border-zelda-light-blue rounded-lg shadow-sheikah;
   position: relative;
   overflow: hidden;
+  isolation: isolate;
 }
 
 .sheikah-border::before {
@@ -53,6 +54,7 @@ body::after {
   bottom: 0;
   background: linear-gradient(45deg, transparent, rgba(139, 184, 232, 0.1), transparent);
   animation: borderGlow 3s linear infinite;
+  z-index: -1;
 }
 
 @keyframes borderGlow {
