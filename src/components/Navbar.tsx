@@ -33,7 +33,7 @@ const Navbar: React.FC = () => {
             <Link to="/" className="nav-link">Home</Link>
             <Link to="/about" className="nav-link">About</Link>
             <Link to="/portfolio" className="nav-link">Portfolio</Link>
-            <Link to="/blog" className="nav-link">Blog</Link>
+            {/* <Link to="/blog" className="nav-link">Blog</Link> */}
             <Link to="/contact" className="nav-link">Contact</Link>
           </div>
         </div>
@@ -44,7 +44,7 @@ const Navbar: React.FC = () => {
             <Link to="/" className="block nav-link">Home</Link>
             <Link to="/about" className="block nav-link">About</Link>
             <Link to="/portfolio" className="block nav-link">Portfolio</Link>
-            <Link to="/blog" className="block nav-link">Blog</Link>
+            {/* <Link to="/blog" className="block nav-link">Blog</Link> */}
             <Link to="/contact" className="block nav-link">Contact</Link>
           </div>
         </div>
