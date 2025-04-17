@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { SOCIAL_LINKS } from '../utils/socialConstants';
 
 const Contact: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -96,7 +97,7 @@ const Contact: React.FC = () => {
           </p>
           <div className="flex justify-center space-x-4">
             <a
-              href="https://www.linkedin.com/in/your-profile"
+              href={SOCIAL_LINKS.linkedin}
               target="_blank"
               rel="noopener noreferrer"
               className="text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300"
@@ -104,7 +105,7 @@ const Contact: React.FC = () => {
               LinkedIn
             </a>
             <a
-              href="https://github.com/your-username"
+              href={SOCIAL_LINKS.github}
               target="_blank"
               rel="noopener noreferrer"
               className="text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300"
@@ -112,7 +113,7 @@ const Contact: React.FC = () => {
               GitHub
             </a>
             <a
-              href="https://twitter.com/your-handle"
+              href={SOCIAL_LINKS.twitter}
               target="_blank"
               rel="noopener noreferrer"
               className="text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300"
