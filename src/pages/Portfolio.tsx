@@ -1,5 +1,5 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React from "react";
+import { motion } from "framer-motion";
 
 interface Project {
   title: string;
@@ -15,22 +15,22 @@ const projects: Project[] = [
     description: "A brief description of your first project and its impact.",
     technologies: ["React", "TypeScript", "Node.js"],
     imageUrl: "/placeholder1.jpg",
-    link: "#"
+    link: "#",
   },
   {
     title: "Project 2",
     description: "A brief description of your second project and its impact.",
     technologies: ["Python", "Django", "PostgreSQL"],
     imageUrl: "/placeholder2.jpg",
-    link: "#"
+    link: "#",
   },
   {
     title: "Project 3",
     description: "A brief description of your third project and its impact.",
     technologies: ["Vue.js", "Firebase", "TailwindCSS"],
     imageUrl: "/placeholder3.jpg",
-    link: "#"
-  }
+    link: "#",
+  },
 ];
 
 const Portfolio: React.FC = () => {
@@ -57,15 +57,13 @@ const Portfolio: React.FC = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-zelda-dark/80 to-transparent" />
             </div>
-            
+
             <h3 className="text-2xl font-serif text-zelda-gold mb-2">
               {project.title}
             </h3>
-            
-            <p className="text-zelda-light-blue mb-4">
-              {project.description}
-            </p>
-            
+
+            <p className="text-zelda-light-blue mb-4">{project.description}</p>
+
             <div className="flex flex-wrap gap-2 mb-4">
               {project.technologies.map((tech, techIndex) => (
                 <span
@@ -76,7 +74,7 @@ const Portfolio: React.FC = () => {
                 </span>
               ))}
             </div>
-            
+
             <a
               href={project.link}
               className="inline-block text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300"
@@ -90,4 +88,4 @@ const Portfolio: React.FC = () => {
   );
 };
 
-export default Portfolio; 
+export default Portfolio;

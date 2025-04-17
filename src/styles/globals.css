@@ -80,7 +80,7 @@ body::after {
 }
 
 .project-card {
-  @apply sheikah-border p-6 transition-all duration-300;
+  @apply sheikah-border p-6;
 }
 
 .project-card:hover {
