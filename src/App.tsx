@@ -46,7 +46,7 @@ const App: React.FC = () => {
 
   return (
     <Router>
-      <div className="min-h-screen relative">
+      <div className="min-h-screen relative overflow-hidden">
         <div className="fixed inset-0 -z-10">
           <Particles
             id="tsparticles"
@@ -54,9 +54,9 @@ const App: React.FC = () => {
             options={options}
           />
         </div>
-        <div className="relative z-10">
+        <div className="relative z-10 h-full">
           <Navbar />
-          <main className="container mx-auto px-4 py-8">
+          <main className="container mx-auto px-4 py-8 h-full">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />

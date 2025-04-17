@@ -4,10 +4,18 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:wght@400;500;600&display=swap');
 
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  height: 100%;
+}
+
 body {
   @apply bg-zelda-dark text-white;
   background: linear-gradient(to bottom, #0b2e36 0%, #4e7c76 100%);
   position: relative;
+  min-height: 100vh;
 }
 
 body::before {
