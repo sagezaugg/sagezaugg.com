@@ -45,7 +45,14 @@ body::after {
   isolation: isolate;
 }
 
-.sheikah-border::before {
+.sheikah-border-animated {
+  @apply border-2 border-zelda-light-blue rounded-lg shadow-sheikah;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.sheikah-border-animated::before {
   content: '';
   position: absolute;
   top: 0;

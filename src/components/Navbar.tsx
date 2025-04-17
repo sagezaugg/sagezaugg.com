@@ -5,7 +5,7 @@ const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <nav className="sheikah-border bg-zelda-dark/50 backdrop-blur-sm mx-4 sm:mx-8 my-4">
+    <nav className="sheikah-border-animated bg-zelda-dark/50 backdrop-blur-sm mx-4 sm:mx-8 my-4">
       <div className="container mx-auto">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="text-xl sm:text-2xl font-serif text-zelda-gold whitespace-nowrap px-4">
