@@ -44,12 +44,30 @@ export const TimelineItem: React.FC<TimelineItemProps> = ({ item, index }) => {
     <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.5, delay: index * 0.2 }}
-      className="sheikah-border p-6"
+      whileHover={{ 
+        scale: 1.05,
+        transition: { 
+          duration: 0.15,
+          ease: "easeOut"
+        }
+      }}
+      transition={{ 
+        duration: 0.5, 
+        delay: index * 0.2,
+        scale: {
+          duration: 0.15,
+          ease: "easeOut"
+        }
+      }}
+      className="relative sheikah-border p-4 sm:p-6 overflow-hidden"
     >
-      <div className="flex items-start">
-        <div className="w-32 flex-shrink-0">
-          <div className="flex flex-col items-end">
+      {/* Blurred background */}
+      <div className="absolute inset-0 bg-slate-800/20 backdrop-blur-[1px]" />
+      
+      {/* Content */}
+      <div className="relative flex flex-col sm:flex-row sm:items-start gap-4">
+        <div className="w-full sm:w-32 flex-shrink-0">
+          <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 sm:gap-0">
             <span 
               className="text-zelda-gold font-serif text-2xl tracking-tight"
               aria-label={`From ${item.startYear} to ${isCurrent ? 'present' : item.endYear}`}
@@ -57,13 +75,16 @@ export const TimelineItem: React.FC<TimelineItemProps> = ({ item, index }) => {
               {item.startYear}
             </span>
             {!isSingleYear && (
-              <span className="text-zelda-gold font-serif text-lg tracking-tight">
-                {isCurrent ? 'Present' : item.endYear}
-              </span>
+              <>
+                <span className="text-zelda-gold font-serif text-xl sm:hidden">-</span>
+                <span className="text-zelda-gold font-serif text-xl tracking-tight sm:mt-1">
+                  {isCurrent ? 'Present' : item.endYear}
+                </span>
+              </>
             )}
           </div>
         </div>
-        <div className="ml-4 flex-1">
+        <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">
             <OrganizationLogo logo={item.organization.logo} name={item.organization.name} />
             <div>
@@ -73,16 +94,16 @@ export const TimelineItem: React.FC<TimelineItemProps> = ({ item, index }) => {
                   href={item.organization.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-zelda-light-blue hover:text-zelda-gold transition-colors"
+                  className="text-zelda-light-blue hover:text-zelda-gold transition-colors text-sm sm:text-base"
                 >
                   {item.organization.name}
                 </a>
               ) : (
-                <span className="text-zelda-light-blue">{item.organization.name}</span>
+                <span className="text-zelda-light-blue text-sm sm:text-base">{item.organization.name}</span>
               )}
             </div>
           </div>
-          <p className="text-zelda-light-blue">{item.description}</p>
+          <p className="text-zelda-light-blue text-sm sm:text-base">{item.description}</p>
         </div>
       </div>
     </motion.div>
