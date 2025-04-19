@@ -54,8 +54,8 @@ const Navbar: React.FC = () => {
             <Link to="/about" className="nav-link">
               About
             </Link>
-            <Link to="/portfolio" className="nav-link">
-              Portfolio
+            <Link to="/projects" className="nav-link">
+              Projects
             </Link>
             <Link to="/blog" className="nav-link">
               Blog
@@ -75,8 +75,8 @@ const Navbar: React.FC = () => {
             <Link to="/about" className="block nav-link">
               About
             </Link>
-            <Link to="/portfolio" className="block nav-link">
-              Portfolio
+            <Link to="/projects" className="block nav-link">
+              Projects
             </Link>
             <Link to="/blog" className="block nav-link">
               Blog
