@@ -1,5 +1,5 @@
 import React from "react";
-import { TimelineItem, TimelineItem as TimelineItemType } from "./TimelineItem";
+import { TimelineItem } from "./TimelineItem";
 import { TimelineItemInterface } from "../../utils/aboutConstants";
 
 interface TimelineProps {

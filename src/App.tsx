@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -94,13 +94,9 @@ const AnimatedRoutes: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  const [init, setInit] = useState(false);
-
   useEffect(() => {
     initParticlesEngine(async (engine) => {
       await loadSlim(engine);
-    }).then(() => {
-      setInit(true);
     });
   }, []);
 
