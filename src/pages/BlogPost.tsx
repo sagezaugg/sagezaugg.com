@@ -2,6 +2,7 @@ import React from "react";
 import { useParams } from "react-router-dom";
 import { BLOG_POSTS } from "../utils/blogConstants";
 import ReactMarkdown from "react-markdown";
+import { motion } from "framer-motion";
 
 const BlogPost: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
@@ -9,46 +10,86 @@ const BlogPost: React.FC = () => {
 
   if (!post) {
     return (
-      <div className="py-12 text-center">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="py-12 text-center"
+      >
         <h2 className="text-4xl font-serif text-zelda-gold mb-4">
           Post Not Found
         </h2>
         <p className="text-zelda-light-blue">
           The blog post you're looking for doesn't exist.
         </p>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="py-12 max-w-4xl mx-auto">
-      {/* Blurred background */}
-      <div className="absolute inset-0 bg-slate-800/20 backdrop-blur-[1px] -z-10" />
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className="py-12 max-w-4xl mx-auto"
+    >
+      <motion.article
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+        className="sheikah-border p-8 relative"
+      >
+        {/* Blurred background */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8 }}
+          className="absolute inset-0 bg-slate-800/20 backdrop-blur-[1px] rounded-lg -z-10"
+        />
 
-      <article className="sheikah-border p-8">
-        <div className="flex items-center justify-between mb-6">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="flex items-center justify-between mb-6"
+        >
           <span className="text-zelda-light-blue">{post.date}</span>
           <span className="text-zelda-gold">{post.readTime}</span>
-        </div>
+        </motion.div>
 
-        <h1 className="text-4xl font-serif text-zelda-gold mb-6">
+        <motion.h1
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+          className="text-4xl font-serif text-zelda-gold mb-6"
+        >
           {post.title}
-        </h1>
+        </motion.h1>
 
-        <div className="mb-6">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+          className="mb-6"
+        >
           <span className="px-3 py-1 text-sm bg-zelda-dark/25 text-zelda-light-blue rounded-full">
             {post.category}
           </span>
-        </div>
+        </motion.div>
 
-        <div className="prose prose-lg max-w-none">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.7 }}
+          className="prose prose-lg max-w-none"
+        >
           <p className="text-zelda-light-blue mb-8">{post.excerpt}</p>
           <div className="prose prose-lg max-w-none">
             <ReactMarkdown>{post.body}</ReactMarkdown>
           </div>
-        </div>
-      </article>
-    </div>
+        </motion.div>
+      </motion.article>
+    </motion.div>
   );
 };
 
