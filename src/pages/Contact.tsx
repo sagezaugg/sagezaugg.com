@@ -70,7 +70,7 @@ const Contact: React.FC = () => {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 bg-zelda-dark border border-zelda-light-blue rounded focus:outline-none focus:ring-2 focus:ring-zelda-gold text-white"
+                className="w-full px-4 py-2 bg-black/25 border border-zelda-light-blue rounded focus:outline-none focus:ring-2 focus:ring-zelda-gold text-white"
               />
             </div>
 
@@ -88,7 +88,7 @@ const Contact: React.FC = () => {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 bg-zelda-dark border border-zelda-light-blue rounded focus:outline-none focus:ring-2 focus:ring-zelda-gold text-white"
+                className="w-full px-4 py-2 bg-black/25 border border-zelda-light-blue rounded focus:outline-none focus:ring-2 focus:ring-zelda-gold text-white"
               />
             </div>
 
@@ -106,7 +106,7 @@ const Contact: React.FC = () => {
                 value={formData.subject}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 bg-zelda-dark border border-zelda-light-blue rounded focus:outline-none focus:ring-2 focus:ring-zelda-gold text-white"
+                className="w-full px-4 py-2 bg-black/25 border border-zelda-light-blue rounded focus:outline-none focus:ring-2 focus:ring-zelda-gold text-white"
               />
             </div>
 
@@ -124,7 +124,7 @@ const Contact: React.FC = () => {
                 onChange={handleChange}
                 required
                 rows={6}
-                className="w-full px-4 py-2 bg-zelda-dark border border-zelda-light-blue rounded focus:outline-none focus:ring-2 focus:ring-zelda-gold text-white"
+                className="w-full px-4 py-2 bg-black/25 border border-zelda-light-blue rounded focus:outline-none focus:ring-2 focus:ring-zelda-gold text-white"
               />
             </div>
 
