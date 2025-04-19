@@ -28,16 +28,16 @@ const BlogPost: React.FC = () => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-      className="py-12 max-w-4xl mx-auto"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="py-6 sm:py-12 max-w-4xl mx-auto sm:px-6"
     >
       <motion.article
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
-        className="sheikah-border p-8 relative"
+        className="sheikah-border p-4 sm:p-8 relative"
       >
         {/* Blurred background */}
         <motion.div
@@ -61,7 +61,7 @@ const BlogPost: React.FC = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.5 }}
-          className="text-4xl font-serif text-zelda-gold mb-6"
+          className="text-3xl sm:text-4xl font-serif text-zelda-gold mb-4 sm:mb-6"
         >
           {post.title}
         </motion.h1>
@@ -81,10 +81,10 @@ const BlogPost: React.FC = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.7 }}
-          className="prose prose-lg max-w-none [&_a]:text-zelda-light-blue [&_a:hover]:text-zelda-gold [&_a]:transition-colors [&_a]:duration-200"
+          className="prose prose-sm sm:prose-lg max-w-none [&_a]:text-zelda-light-blue [&_a:hover]:text-zelda-gold [&_a]:transition-colors [&_a]:duration-200"
         >
           <p className="text-zelda-light-blue mb-8">{post.excerpt}</p>
-          <div className="prose prose-lg max-w-none [&_a]:text-zelda-light-blue [&_a:hover]:text-zelda-gold [&_a]:transition-colors [&_a]:duration-200">
+          <div className="prose prose-sm sm:prose-lg max-w-none [&_a]:text-zelda-light-blue [&_a:hover]:text-zelda-gold [&_a]:transition-colors [&_a]:duration-200">
             <ReactMarkdown>{post.body}</ReactMarkdown>
           </div>
         </motion.div>
