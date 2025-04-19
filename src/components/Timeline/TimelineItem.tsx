@@ -1,20 +1,9 @@
 import React from "react";
 import { Card } from "../common/Card";
-
-export interface TimelineItem {
-  startYear: string;
-  endYear: string;
-  title: string;
-  description: string;
-  organization: {
-    name: string;
-    logo?: string;
-    website?: string;
-  };
-}
+import { TimelineItemInterface } from "../../utils/aboutConstants";
 
 interface TimelineItemProps {
-  item: TimelineItem;
+  item: TimelineItemInterface;
   index: number;
 }
 

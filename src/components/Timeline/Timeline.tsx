@@ -1,8 +1,9 @@
-import React from 'react';
-import { TimelineItem, TimelineItem as TimelineItemType } from './TimelineItem';
+import React from "react";
+import { TimelineItem, TimelineItem as TimelineItemType } from "./TimelineItem";
+import { TimelineItemInterface } from "../../utils/aboutConstants";
 
 interface TimelineProps {
-  items: TimelineItemType[];
+  items: TimelineItemInterface[];
 }
 
 export const Timeline: React.FC<TimelineProps> = ({ items }) => (
@@ -11,4 +12,4 @@ export const Timeline: React.FC<TimelineProps> = ({ items }) => (
       <TimelineItem key={index} item={item} index={index} />
     ))}
   </div>
-); 
+);
