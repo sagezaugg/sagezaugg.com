@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import "./styles/globals.css";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
@@ -12,6 +18,80 @@ import BlogPost from "./pages/BlogPost";
 import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
 import { type Container, type ISourceOptions } from "@tsparticles/engine";
+
+const PageTransition: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.3 }}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
+const AnimatedRoutes: React.FC = () => {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route
+          path="/"
+          element={
+            <PageTransition>
+              <Home />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/about"
+          element={
+            <PageTransition>
+              <About />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/projects"
+          element={
+            <PageTransition>
+              <Portfolio />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/blog"
+          element={
+            <PageTransition>
+              <Blog />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/blog/:postId"
+          element={
+            <PageTransition>
+              <BlogPost />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/contact"
+          element={
+            <PageTransition>
+              <Contact />
+            </PageTransition>
+          }
+        />
+      </Routes>
+    </AnimatePresence>
+  );
+};
 
 const App: React.FC = () => {
   const [init, setInit] = useState(false);
@@ -58,14 +138,7 @@ const App: React.FC = () => {
         <div className="relative z-10 h-full">
           <Navbar />
           <main className="container mx-auto px-4 py-8 h-full">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/projects" element={<Portfolio />} />
-              <Route path="/blog" element={<Blog />} />
-              <Route path="/blog/:postId" element={<BlogPost />} />
-              <Route path="/contact" element={<Contact />} />
-            </Routes>
+            <AnimatedRoutes />
           </main>
         </div>
       </div>
