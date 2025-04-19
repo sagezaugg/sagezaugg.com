@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/logo.svg" alt="Zelda Portfolio Logo" width="200" />
+  <img src="public/android-chrome-192x192.png" alt="Zelda Portfolio Logo" width="200" />
   
   # 🗡️ Zelda-Inspired Portfolio Website 🛡️
   
@@ -37,8 +37,8 @@
 1. Clone the repository:
 
 ```bash
-git clone [your-repo-url]
-cd portfolio-website
+git clone git@github.com:sagezaugg/sagezaugg.com.git
+cd sagezaugg.com
 ```
 
 2. Install dependencies:
@@ -70,9 +70,7 @@ src/
   ├── pages/         # Page components
   ├── assets/        # Images, fonts, and other static assets
   ├── styles/        # Global styles and Tailwind configuration
-  ├── hooks/         # Custom React hooks
-  ├── utils/         # Utility functions
-  └── serverless/    # AWS Lambda functions
+  ├── utils/         # Utility functions and constants
 ```
 
 ## 🎨 Customization
@@ -81,7 +79,7 @@ src/
 2. Modify the color scheme in `tailwind.config.js`
 3. Add your own images to the `src/assets` directory
 4. Customize animations in the components using Framer Motion
-5. Configure particle effects in `src/components/Particles.tsx`
+5. Configure particle effects in `src/App.tsx`
 
 ## 🤝 Contributing
 
