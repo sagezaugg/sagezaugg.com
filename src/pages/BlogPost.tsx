@@ -1,5 +1,5 @@
 import React from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { BLOG_POSTS } from "../utils/blogConstants";
 import ReactMarkdown from "react-markdown";
 import { motion } from "framer-motion";
@@ -87,6 +87,34 @@ const BlogPost: React.FC = () => {
           <div className="prose prose-lg max-w-none">
             <ReactMarkdown>{post.body}</ReactMarkdown>
           </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.8 }}
+          className="mt-8 pt-6 border-t border-zelda-dark/25"
+        >
+          <Link
+            to="/blog"
+            className="inline-flex items-center text-zelda-light-blue hover:text-zelda-gold transition-colors duration-200"
+          >
+            <svg
+              className="w-5 h-5 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
+            </svg>
+            Back to Blog Posts
+          </Link>
         </motion.div>
       </motion.article>
     </motion.div>
