@@ -81,10 +81,10 @@ const BlogPost: React.FC = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.7 }}
-          className="prose prose-lg max-w-none"
+          className="prose prose-lg max-w-none [&_a]:text-zelda-light-blue [&_a:hover]:text-zelda-gold [&_a]:transition-colors [&_a]:duration-200"
         >
           <p className="text-zelda-light-blue mb-8">{post.excerpt}</p>
-          <div className="prose prose-lg max-w-none">
+          <div className="prose prose-lg max-w-none [&_a]:text-zelda-light-blue [&_a:hover]:text-zelda-gold [&_a]:transition-colors [&_a]:duration-200">
             <ReactMarkdown>{post.body}</ReactMarkdown>
           </div>
         </motion.div>
