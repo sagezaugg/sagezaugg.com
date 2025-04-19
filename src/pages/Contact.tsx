@@ -2,6 +2,10 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { SOCIAL_LINKS } from "../utils/socialConstants";
 import { sendContactEmail, ContactFormData } from "../services/emailService";
+import GithubButton from "../components/Social/GithubButton";
+import LinkedInButton from "../components/Social/LinkedInButton";
+import TwitterButton from "../components/Social/TwitterButton";
+import EmailButton from "../components/Social/EmailButton";
 
 const Contact: React.FC = () => {
   const [formData, setFormData] = useState<ContactFormData>({
@@ -147,30 +151,10 @@ const Contact: React.FC = () => {
           <div className="text-center">
             <p className="text-zelda-light-blue mb-4">Or connect with me on:</p>
             <div className="flex justify-center space-x-6">
-              <a
-                href={SOCIAL_LINKS.linkedin}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300"
-              >
-                LinkedIn
-              </a>
-              <a
-                href={SOCIAL_LINKS.github}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300"
-              >
-                GitHub
-              </a>
-              <a
-                href={SOCIAL_LINKS.twitter}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300"
-              >
-                Twitter
-              </a>
+              <EmailButton email={SOCIAL_LINKS.email} />
+              <LinkedInButton url={SOCIAL_LINKS.linkedin} />
+              <GithubButton url={SOCIAL_LINKS.github} />
+              <TwitterButton url={SOCIAL_LINKS.twitter} />
             </div>
           </div>
         </div>
