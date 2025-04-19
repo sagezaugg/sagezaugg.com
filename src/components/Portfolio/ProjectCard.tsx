@@ -1,6 +1,7 @@
 import React from "react";
 import { Project } from "../../utils/portfolioConstants";
 import { Card } from "../common/Card";
+import GithubButton from "../Social/GithubButton";
 
 interface ProjectCardProps {
   project: Project;
@@ -44,14 +45,9 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, index }) => {
           View Project →
         </a>
         {project.githubLink && (
-          <a
-            href={project.githubLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300"
-          >
-            GitHub →
-          </a>
+          <div className="ml-auto">
+            <GithubButton url={project.githubLink} />
+          </div>
         )}
       </div>
     </Card>
