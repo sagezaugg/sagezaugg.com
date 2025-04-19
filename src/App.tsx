@@ -35,7 +35,7 @@ const App: React.FC = () => {
       },
       fpsLimit: 120,
       particles: {
-        number: { value: 25 },
+        number: { value: 30 },
         color: { value: "#ffffff" },
         opacity: { value: 0.15 },
         size: { value: 1.5 },
