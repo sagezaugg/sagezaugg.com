@@ -1,6 +1,7 @@
 import React from "react";
 import { useParams } from "react-router-dom";
 import { BLOG_POSTS } from "../utils/blogConstants";
+import ReactMarkdown from "react-markdown";
 
 const BlogPost: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
@@ -37,9 +38,11 @@ const BlogPost: React.FC = () => {
           </span>
         </div>
 
-        <div className="prose prose-invert max-w-none">
-          <p className="text-zelda-light-blue">{post.excerpt}</p>
-          {/* Add more content here as needed */}
+        <div className="prose prose-lg max-w-none">
+          <p className="text-zelda-light-blue mb-8">{post.excerpt}</p>
+          <div className="prose prose-lg max-w-none">
+            <ReactMarkdown>{post.body}</ReactMarkdown>
+          </div>
         </div>
       </article>
     </div>

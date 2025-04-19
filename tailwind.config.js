@@ -27,7 +27,47 @@ module.exports = {
           '100%': { boxShadow: '0 0 20px rgba(139, 184, 232, 0.8)' },
         },
       },
+      typography: (theme) => ({
+        DEFAULT: {
+          css: {
+            color: theme('colors.zelda-light-blue'),
+            h1: {
+              color: theme('colors.zelda-gold'),
+              fontFamily: theme('fontFamily.serif').join(', '),
+            },
+            h2: {
+              color: theme('colors.zelda-gold'),
+              fontFamily: theme('fontFamily.serif').join(', '),
+            },
+            h3: {
+              color: theme('colors.zelda-gold'),
+              fontFamily: theme('fontFamily.serif').join(', '),
+            },
+            strong: {
+              color: theme('colors.zelda-gold'),
+            },
+            a: {
+              color: theme('colors.zelda-teal'),
+              '&:hover': {
+                color: theme('colors.zelda-gold'),
+              },
+            },
+            li: {
+              color: theme('colors.zelda-light-blue'),
+            },
+            ul: {
+              li: {
+                '&::marker': {
+                  color: theme('colors.zelda-gold'),
+                },
+              },
+            },
+          },
+        },
+      }),
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
 } 
