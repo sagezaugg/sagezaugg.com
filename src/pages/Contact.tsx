@@ -129,13 +129,21 @@ const Contact: React.FC = () => {
             </div>
 
             <div className="flex justify-center">
-              <button
-                type="submit"
-                disabled={status === "sending"}
-                className="px-6 py-2 bg-zelda-gold text-zelda-dark rounded hover:bg-zelda-light-blue transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="inline-block"
               >
-                {status === "sending" ? "Sending..." : "Send Message"}
-              </button>
+                <div className="sheikah-border">
+                  <button
+                    type="submit"
+                    disabled={status === "sending"}
+                    className="px-8 py-3 text-lg text-zelda-light-blue hover:text-zelda-gold transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {status === "sending" ? "Sending..." : "Send Message"}
+                  </button>
+                </div>
+              </motion.div>
             </div>
 
             {status === "success" && (
@@ -149,7 +157,7 @@ const Contact: React.FC = () => {
             )}
           </form>
 
-          <div className="text-center">
+          <div className="text-center mt-4">
             <p className="text-zelda-light-blue mb-4">Or connect with me on:</p>
             <div className="flex justify-center space-x-6">
               <EmailButton email={SOCIAL_LINKS.email} />
