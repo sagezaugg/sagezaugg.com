@@ -1,7 +1,7 @@
 import React from "react";
-import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { BlogPost } from "../../utils/blogConstants";
+import { Card } from "../common/Card";
 
 interface BlogPostCardProps {
   post: BlogPost;
@@ -9,52 +9,28 @@ interface BlogPostCardProps {
 }
 
 const BlogPostCard: React.FC<BlogPostCardProps> = ({ post, index }) => (
-  <motion.article
-    initial={{ opacity: 0, x: -20 }}
-    animate={{ opacity: 1, x: 0 }}
-    whileHover={{
-      scale: 1.05,
-      transition: {
-        duration: 0.15,
-        ease: "easeOut",
-      },
-    }}
-    transition={{
-      duration: 0.5,
-      delay: index * 0.2,
-      scale: {
-        duration: 0.15,
-        ease: "easeOut",
-      },
-    }}
-    className="sheikah-border p-6 relative"
-  >
-    {/* Blurred background */}
-    <div className="absolute inset-0 bg-slate-800/20 backdrop-blur-[1px] -z-10" />
-
-    <div className="relative z-10">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-zelda-light-blue">{post.date}</span>
-        <span className="text-zelda-gold">{post.readTime}</span>
-      </div>
-
-      <h3 className="text-2xl font-serif text-zelda-gold mb-2">{post.title}</h3>
-
-      <p className="text-zelda-light-blue mb-4">{post.excerpt}</p>
-
-      <div className="flex items-center justify-between">
-        <span className="px-3 py-1 text-sm bg-zelda-dark/25 text-zelda-light-blue rounded-full">
-          {post.category}
-        </span>
-        <Link
-          to={`/blog/${index}`}
-          className="text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300"
-        >
-          Read More →
-        </Link>
-      </div>
+  <Card index={index} className="p-6">
+    <div className="flex items-center justify-between mb-4">
+      <span className="text-zelda-light-blue">{post.date}</span>
+      <span className="text-zelda-gold">{post.readTime}</span>
     </div>
-  </motion.article>
+
+    <h3 className="text-2xl font-serif text-zelda-gold mb-2">{post.title}</h3>
+
+    <p className="text-zelda-light-blue mb-4">{post.excerpt}</p>
+
+    <div className="flex items-center justify-between">
+      <span className="px-3 py-1 text-sm bg-zelda-dark/25 text-zelda-light-blue rounded-full">
+        {post.category}
+      </span>
+      <Link
+        to={`/blog/${index}`}
+        className="text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300"
+      >
+        Read More →
+      </Link>
+    </div>
+  </Card>
 );
 
 export default BlogPostCard;
