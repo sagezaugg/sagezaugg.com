@@ -1,6 +1,6 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Project } from '../../utils/portfolioConstants';
+import React from "react";
+import { motion } from "framer-motion";
+import { Project } from "../../utils/portfolioConstants";
 
 interface ProjectCardProps {
   project: Project;
@@ -13,26 +13,26 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, index }) => {
       key={index}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ 
+      whileHover={{
         scale: 1.05,
-        transition: { 
+        transition: {
           duration: 0.15,
-          ease: "easeOut"
-        }
+          ease: "easeOut",
+        },
       }}
-      transition={{ 
-        duration: 0.5, 
+      transition={{
+        duration: 0.5,
         delay: index * 0.2,
         scale: {
           duration: 0.15,
-          ease: "easeOut"
-        }
+          ease: "easeOut",
+        },
       }}
       className="relative sheikah-border p-4 sm:p-6 overflow-hidden"
     >
       {/* Blurred background */}
       <div className="absolute inset-0 bg-slate-800/20 backdrop-blur-[1px]" />
-      
+
       <div className="relative">
         <div className="relative h-48 mb-4 overflow-hidden rounded-lg">
           <img
@@ -81,4 +81,4 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, index }) => {
       </div>
     </motion.div>
   );
-}; 
+};

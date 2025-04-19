@@ -22,6 +22,9 @@ const BlogPost: React.FC = () => {
 
   return (
     <div className="py-12 max-w-4xl mx-auto">
+      {/* Blurred background */}
+      <div className="absolute inset-0 bg-slate-800/20 backdrop-blur-[1px] -z-10" />
+
       <article className="sheikah-border p-8">
         <div className="flex items-center justify-between mb-6">
           <span className="text-zelda-light-blue">{post.date}</span>
@@ -33,7 +36,7 @@ const BlogPost: React.FC = () => {
         </h1>
 
         <div className="mb-6">
-          <span className="px-3 py-1 text-sm bg-zelda-teal/20 text-zelda-light-blue rounded-full">
+          <span className="px-3 py-1 text-sm bg-zelda-dark/25 text-zelda-light-blue rounded-full">
             {post.category}
           </span>
         </div>
