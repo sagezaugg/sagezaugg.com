@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { BlogPost } from "../../utils/blogConstants";
 
 interface BlogPostCardProps {
@@ -27,9 +28,12 @@ const BlogPostCard: React.FC<BlogPostCardProps> = ({ post, index }) => (
       <span className="px-3 py-1 text-sm bg-zelda-teal/20 text-zelda-light-blue rounded-full">
         {post.category}
       </span>
-      <button className="text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300">
+      <Link
+        to={`/blog/${index}`}
+        className="text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300"
+      >
         Read More →
-      </button>
+      </Link>
     </div>
   </motion.article>
 );

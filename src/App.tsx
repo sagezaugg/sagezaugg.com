@@ -7,6 +7,7 @@ import About from "./pages/About";
 import Portfolio from "./pages/Portfolio";
 import Blog from "./pages/Blog";
 import Contact from "./pages/Contact";
+import BlogPost from "./pages/BlogPost";
 
 import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
@@ -39,7 +40,7 @@ const App: React.FC = () => {
         opacity: { value: 0.15 },
         size: { value: 1.5 },
         move: { enable: true, speed: 0.2 },
-      }
+      },
     }),
     []
   );
@@ -62,6 +63,7 @@ const App: React.FC = () => {
               <Route path="/about" element={<About />} />
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:postId" element={<BlogPost />} />
               <Route path="/contact" element={<Contact />} />
             </Routes>
           </main>
