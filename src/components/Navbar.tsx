@@ -66,21 +66,47 @@ const Navbar: React.FC = () => {
       </div>
 
       {/* Mobile menu */}
-      <div className={`md:hidden ${isOpen ? "block" : "hidden"}`}>
+      <div
+        className={`md:hidden transition-all duration-300 ease-in-out ${
+          isOpen
+            ? "max-h-48 opacity-100 visible"
+            : "max-h-0 opacity-0 invisible"
+        }`}
+      >
         <div className="px-4 pt-2 pb-3 space-y-1">
-          <Link to="/" className="block nav-link">
+          <Link
+            to="/"
+            className="block nav-link"
+            onClick={() => setIsOpen(false)}
+          >
             Home
           </Link>
-          <Link to="/about" className="block nav-link">
+          <Link
+            to="/about"
+            className="block nav-link"
+            onClick={() => setIsOpen(false)}
+          >
             About
           </Link>
-          <Link to="/projects" className="block nav-link">
+          <Link
+            to="/projects"
+            className="block nav-link"
+            onClick={() => setIsOpen(false)}
+          >
             Projects
           </Link>
-          <Link to="/blog" className="block nav-link">
+          <Link
+            to="/blog"
+            className="block nav-link"
+            onClick={() => setIsOpen(false)}
+          >
             Blog
           </Link>
-          <Link to="/contact" className="block nav-link">
+          <Link
+            to="/contact"
+            className="block nav-link"
+            onClick={() => setIsOpen(false)}
+          >
             Contact
           </Link>
         </div>
