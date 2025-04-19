@@ -1,6 +1,6 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import React from "react";
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 
 const Home: React.FC = () => {
   return (
@@ -23,7 +23,10 @@ const Home: React.FC = () => {
           className="inline-block"
         >
           <div className="sheikah-border">
-            <Link to="/portfolio" className="px-8 py-3 text-lg text-zelda-light-blue hover:text-zelda-gold transition-colors duration-300 block">
+            <Link
+              to="/projects"
+              className="px-8 py-3 text-lg text-zelda-light-blue hover:text-zelda-gold transition-colors duration-300 block"
+            >
               View My Work
             </Link>
           </div>
@@ -33,4 +36,4 @@ const Home: React.FC = () => {
   );
 };
 
-export default Home; 
+export default Home;
