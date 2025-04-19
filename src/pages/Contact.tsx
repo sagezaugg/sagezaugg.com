@@ -6,6 +6,7 @@ import GithubButton from "../components/Social/GithubButton";
 import LinkedInButton from "../components/Social/LinkedInButton";
 import TwitterButton from "../components/Social/TwitterButton";
 import EmailButton from "../components/Social/EmailButton";
+import { Card } from "../components/common/Card";
 
 const Contact: React.FC = () => {
   const [formData, setFormData] = useState<ContactFormData>({
@@ -53,7 +54,7 @@ const Contact: React.FC = () => {
         transition={{ duration: 0.8 }}
         className="max-w-2xl mx-auto"
       >
-        <div className="sheikah-border p-8 space-y-8">
+        <Card className="p-8 space-y-8" disableHover>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label
@@ -157,7 +158,7 @@ const Contact: React.FC = () => {
               <TwitterButton url={SOCIAL_LINKS.twitter} />
             </div>
           </div>
-        </div>
+        </Card>
       </motion.div>
     </div>
   );
