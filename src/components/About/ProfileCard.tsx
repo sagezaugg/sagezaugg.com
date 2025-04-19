@@ -3,6 +3,7 @@ import { SOCIAL_LINKS } from "../../utils/socialConstants";
 import GithubButton from "../Social/GithubButton";
 import LinkedInButton from "../Social/LinkedInButton";
 import TwitterButton from "../Social/TwitterButton";
+import EmailButton from "../Social/EmailButton";
 
 interface ProfileCardProps {
   imageUrl: string;
@@ -21,6 +22,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ imageUrl }) => {
         </div>
 
         <div className="flex space-x-4">
+          <EmailButton email={SOCIAL_LINKS.email} />
           <GithubButton url={SOCIAL_LINKS.github} />
           <LinkedInButton url={SOCIAL_LINKS.linkedin} />
           <TwitterButton url={SOCIAL_LINKS.twitter} />
