@@ -1,8 +1,17 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const location = useLocation();
+
+  console.log("Current location:", location.pathname);
+
+  const isActive = (path: string) => {
+    const isActive = location.pathname === path;
+    console.log(`Checking path ${path}:`, isActive);
+    return isActive;
+  };
 
   return (
     <nav className="sheikah-border-animated bg-zelda-dark/50 backdrop-blur-sm mx-4 sm:mx-8 my-4">
@@ -47,19 +56,44 @@ const Navbar: React.FC = () => {
 
         {/* Desktop menu */}
         <div className="hidden md:flex items-center space-x-6">
-          <Link to="/" className="nav-link">
+          <Link
+            to="/"
+            className={`nav-link ${
+              isActive("/") ? "!text-zelda-gold [&::after]:w-full" : ""
+            }`}
+          >
             Home
           </Link>
-          <Link to="/about" className="nav-link">
+          <Link
+            to="/about"
+            className={`nav-link ${
+              isActive("/about") ? "!text-zelda-gold [&::after]:w-full" : ""
+            }`}
+          >
             About
           </Link>
-          <Link to="/projects" className="nav-link">
+          <Link
+            to="/projects"
+            className={`nav-link ${
+              isActive("/projects") ? "!text-zelda-gold [&::after]:w-full" : ""
+            }`}
+          >
             Projects
           </Link>
-          <Link to="/blog" className="nav-link">
+          <Link
+            to="/blog"
+            className={`nav-link ${
+              isActive("/blog") ? "!text-zelda-gold [&::after]:w-full" : ""
+            }`}
+          >
             Blog
           </Link>
-          <Link to="/contact" className="nav-link">
+          <Link
+            to="/contact"
+            className={`nav-link ${
+              isActive("/contact") ? "!text-zelda-gold [&::after]:w-full" : ""
+            }`}
+          >
             Contact
           </Link>
         </div>
@@ -76,35 +110,45 @@ const Navbar: React.FC = () => {
         <div className="px-4 pt-2 pb-3 space-y-1">
           <Link
             to="/"
-            className="block nav-link"
+            className={`block nav-link ${
+              isActive("/") ? "!text-zelda-gold [&::after]:w-full" : ""
+            }`}
             onClick={() => setIsOpen(false)}
           >
             Home
           </Link>
           <Link
             to="/about"
-            className="block nav-link"
+            className={`block nav-link ${
+              isActive("/about") ? "!text-zelda-gold [&::after]:w-full" : ""
+            }`}
             onClick={() => setIsOpen(false)}
           >
             About
           </Link>
           <Link
             to="/projects"
-            className="block nav-link"
+            className={`block nav-link ${
+              isActive("/projects") ? "!text-zelda-gold [&::after]:w-full" : ""
+            }`}
             onClick={() => setIsOpen(false)}
           >
             Projects
           </Link>
           <Link
             to="/blog"
-            className="block nav-link"
+            className={`block nav-link ${
+              isActive("/blog") ? "!text-zelda-gold [&::after]:w-full" : ""
+            }`}
             onClick={() => setIsOpen(false)}
           >
             Blog
           </Link>
           <Link
             to="/contact"
-            className="block nav-link"
+            className={`block nav-link ${
+              isActive("/contact") ? "!text-zelda-gold [&::after]:w-full" : ""
+            }`}
             onClick={() => setIsOpen(false)}
           >
             Contact
