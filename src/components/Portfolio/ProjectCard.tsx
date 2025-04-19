@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Project } from "../../utils/portfolioConstants";
 import { Card } from "../common/Card";
 import GithubButton from "../Social/GithubButton";
@@ -9,6 +10,13 @@ interface ProjectCardProps {
 }
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({ project, index }) => {
+  const isInternalLink = (url: string) => {
+    return url.startsWith("/") || url.startsWith(window.location.origin);
+  };
+
+  const linkClassName =
+    "inline-block text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300";
+
   return (
     <Card index={index} className="p-4 sm:p-6">
       <div className="relative h-48 mb-4 overflow-hidden rounded-lg">
@@ -38,12 +46,20 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, index }) => {
       </div>
 
       <div className="flex gap-4">
-        <a
-          href={project.link}
-          className="inline-block text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300"
-        >
-          View Project →
-        </a>
+        {isInternalLink(project.link) ? (
+          <Link to={project.link} className={linkClassName}>
+            View Project →
+          </Link>
+        ) : (
+          <a
+            href={project.link}
+            className={linkClassName}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View Project →
+          </a>
+        )}
         {project.githubLink && (
           <div className="ml-auto">
             <GithubButton url={project.githubLink} />
