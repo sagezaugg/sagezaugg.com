@@ -101,7 +101,7 @@ const App: React.FC = () => {
   }, []);
 
   const particlesLoaded = async (container?: Container): Promise<void> => {
-    console.log(container);
+    console.log("Particles container loaded:", container);
   };
 
   const options: ISourceOptions = useMemo(
@@ -124,16 +124,17 @@ const App: React.FC = () => {
   return (
     <Router>
       <div className="min-h-screen relative overflow-hidden">
-        <div className="fixed inset-0 -z-10">
+        <div className="absolute inset-0 w-full h-full">
           <Particles
             id="tsparticles"
             particlesLoaded={particlesLoaded}
             options={options}
+            className="w-full h-full"
           />
         </div>
-        <div className="relative z-10 h-full">
+        <div className="relative z-10">
           <Navbar />
-          <main className="container mx-auto px-4 py-8 h-full">
+          <main className="container mx-auto px-4 py-8">
             <AnimatedRoutes />
           </main>
         </div>
