@@ -17,7 +17,7 @@ import BlogPost from "./pages/BlogPost";
 
 import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
-import { type Container, type ISourceOptions } from "@tsparticles/engine";
+import { type ISourceOptions } from "@tsparticles/engine";
 
 const PageTransition: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -100,10 +100,6 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const particlesLoaded = async (container?: Container): Promise<void> => {
-    console.log("Particles container loaded:", container);
-  };
-
   const options: ISourceOptions = useMemo(
     () => ({
       background: {
@@ -127,7 +123,6 @@ const App: React.FC = () => {
         <div className="absolute inset-0 w-full h-full">
           <Particles
             id="tsparticles"
-            particlesLoaded={particlesLoaded}
             options={options}
             className="w-full h-full"
           />

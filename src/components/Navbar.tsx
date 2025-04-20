@@ -5,11 +5,8 @@ const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
 
-  console.log("Current location:", location.pathname);
-
   const isActive = (path: string) => {
     const isActive = location.pathname === path;
-    console.log(`Checking path ${path}:`, isActive);
     return isActive;
   };
 
