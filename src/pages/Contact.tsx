@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import { SOCIAL_LINKS } from "../utils/socialConstants";
-import { sendContactEmail, ContactFormData } from "../services/emailService";
 import GithubButton from "../components/Social/GithubButton";
 import LinkedInButton from "../components/Social/LinkedInButton";
 import TwitterButton from "../components/Social/TwitterButton";
@@ -9,39 +8,6 @@ import EmailButton from "../components/Social/EmailButton";
 import { Card } from "../components/common/Card";
 
 const Contact: React.FC = () => {
-  const [formData, setFormData] = useState<ContactFormData>({
-    name: "",
-    email: "",
-    subject: "",
-    message: "",
-  });
-  const [status, setStatus] = useState<
-    "idle" | "sending" | "success" | "error"
-  >("idle");
-  const [errorMessage, setErrorMessage] = useState("");
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setStatus("sending");
-    setErrorMessage("");
-
-    try {
-      await sendContactEmail(formData);
-      setStatus("success");
-      setFormData({ name: "", email: "", subject: "", message: "" });
-    } catch (error) {
-      setStatus("error");
-      setErrorMessage("Failed to send message. Please try again later.");
-    }
-  };
-
   return (
     <div className="py-12">
       <h2 className="text-4xl font-serif text-zelda-gold text-center mb-12">
@@ -55,112 +21,22 @@ const Contact: React.FC = () => {
         className="max-w-2xl mx-auto"
       >
         <Card className="p-8 space-y-8" disableHover>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-zelda-light-blue mb-2"
+          <div className="text-center">
+            <p className="text-zelda-light-blue text-lg mb-6">
+              Feel free to reach out to me directly via email:
+            </p>
+            <p className="text-white text-xl mt-4">
+              <a
+                href={`mailto:${SOCIAL_LINKS.email}`}
+                className="text-zelda-gold hover:underline"
               >
-                Name
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 bg-black/25 border border-zelda-light-blue rounded focus:outline-none focus:ring-2 focus:ring-zelda-gold text-white"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-zelda-light-blue mb-2"
-              >
-                Email
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 bg-black/25 border border-zelda-light-blue rounded focus:outline-none focus:ring-2 focus:ring-zelda-gold text-white"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="subject"
-                className="block text-zelda-light-blue mb-2"
-              >
-                Subject
-              </label>
-              <input
-                type="text"
-                id="subject"
-                name="subject"
-                value={formData.subject}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 bg-black/25 border border-zelda-light-blue rounded focus:outline-none focus:ring-2 focus:ring-zelda-gold text-white"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="message"
-                className="block text-zelda-light-blue mb-2"
-              >
-                Message
-              </label>
-              <textarea
-                id="message"
-                name="message"
-                value={formData.message}
-                onChange={handleChange}
-                required
-                rows={6}
-                className="w-full px-4 py-2 bg-black/25 border border-zelda-light-blue rounded focus:outline-none focus:ring-2 focus:ring-zelda-gold text-white"
-              />
-            </div>
-
-            <div className="flex justify-center">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="inline-block"
-              >
-                <div className="sheikah-border">
-                  <button
-                    type="submit"
-                    disabled={status === "sending"}
-                    className="px-8 py-3 text-lg text-zelda-light-blue hover:text-zelda-gold transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {status === "sending" ? "Sending..." : "Send Message"}
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-
-            {status === "success" && (
-              <div className="text-center text-green-400">
-                Message sent successfully!
-              </div>
-            )}
-
-            {status === "error" && (
-              <div className="text-center text-red-400">{errorMessage}</div>
-            )}
-          </form>
-
-          <div className="text-center mt-4">
+                {SOCIAL_LINKS.email}
+              </a>
+            </p>
+          </div>
+          <div className="text-center mt-8">
             <p className="text-zelda-light-blue mb-4">Or connect with me on:</p>
             <div className="flex justify-center space-x-6">
-              <EmailButton email={SOCIAL_LINKS.email} />
               <LinkedInButton url={SOCIAL_LINKS.linkedin} />
               <GithubButton url={SOCIAL_LINKS.github} />
               <TwitterButton url={SOCIAL_LINKS.twitter} />
