@@ -1,10 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { BlogPost } from "../../utils/blogConstants";
+import { BlogPostMetadata } from "../../types/content";
 import { Card } from "../common/Card";
 
 interface BlogPostCardProps {
-  post: BlogPost;
+  post: BlogPostMetadata;
   index: number;
 }
 
@@ -24,7 +24,7 @@ const BlogPostCard: React.FC<BlogPostCardProps> = ({ post, index }) => (
         {post.category}
       </span>
       <Link
-        to={`/blog/${index}`}
+        to={`/blog/${post.slug}`}
         className="text-zelda-gold hover:text-zelda-light-blue transition-colors duration-300"
       >
         Read More →

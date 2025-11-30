@@ -1,0 +1,13 @@
+{
+  "posts": [
+    {
+      "title": "Rebuilding My Website",
+      "date": "April 19, 2025",
+      "excerpt": "I'm rebuilding my website from scratch. It's a work in progress, but I'm excited to share it with you.",
+      "readTime": "5 min read",
+      "category": "Development",
+      "slug": "rebuilding-my-website"
+    }
+  ]
+}
+

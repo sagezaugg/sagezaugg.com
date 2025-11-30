@@ -1,8 +1,8 @@
-import { BlogPost } from "../../utils/blogConstants";
+import { BlogPostMetadata } from "../../types/content";
 import BlogPostCard from "./BlogPostCard";
 
 export interface BlogListProps {
-  posts: BlogPost[];
+  posts: BlogPostMetadata[];
 }
 
 export const BlogList: React.FC<BlogListProps> = ({ posts }) => (

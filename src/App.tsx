@@ -73,7 +73,7 @@ const AnimatedRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/blog/:postId"
+          path="/blog/:slug"
           element={
             <PageTransition>
               <BlogPost />

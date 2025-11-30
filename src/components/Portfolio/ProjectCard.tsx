@@ -1,11 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Project } from "../../utils/portfolioConstants";
+import { ProjectMetadata } from "../../types/content";
 import { Card } from "../common/Card";
 import GithubButton from "../Social/GithubButton";
 
 interface ProjectCardProps {
-  project: Project;
+  project: ProjectMetadata;
   index: number;
 }
 
