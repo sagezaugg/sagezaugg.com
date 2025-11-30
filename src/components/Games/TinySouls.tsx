@@ -5,7 +5,6 @@ const TinySoulsComponent: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<TinySouls | null>(null);
-  const [isGameOver, setIsGameOver] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -22,7 +21,6 @@ const TinySoulsComponent: React.FC = () => {
       if (e.key === "r" || e.key === "R") {
         if (gameRef.current) {
           gameRef.current.restart();
-          setIsGameOver(false);
         }
       }
     };
@@ -53,7 +51,6 @@ const TinySoulsComponent: React.FC = () => {
   const handleRestart = () => {
     if (gameRef.current) {
       gameRef.current.restart();
-      setIsGameOver(false);
     }
   };
 

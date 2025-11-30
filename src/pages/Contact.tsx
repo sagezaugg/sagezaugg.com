@@ -4,7 +4,6 @@ import { SOCIAL_LINKS } from "../utils/socialConstants";
 import GithubButton from "../components/Social/GithubButton";
 import LinkedInButton from "../components/Social/LinkedInButton";
 import TwitterButton from "../components/Social/TwitterButton";
-import EmailButton from "../components/Social/EmailButton";
 import { Card } from "../components/common/Card";
 
 const Contact: React.FC = () => {

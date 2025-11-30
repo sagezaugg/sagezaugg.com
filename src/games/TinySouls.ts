@@ -797,7 +797,6 @@ export class TinySouls {
           });
 
           // Add hit particles
-          const enemyColorRgb = this.hexToRgb(config.enemyColor);
           for (let i = 0; i < 12; i++) {
             const angle = (Math.PI * 2 * i) / 12 + (Math.random() - 0.5) * 0.5;
             this.hitParticles.push({
@@ -917,7 +916,6 @@ export class TinySouls {
 
       // Deal damage at 60% of animation (when spear connects)
       if (this.playerSpearProgress >= 0.6 && this.playerSpearProgress < 0.61) {
-        const config = this.getCurrentLevelConfig();
         const damage = this.basePlayerDamage + this.attackDamageUpgrades * 20;
         this.enemyHealth = Math.max(0, this.enemyHealth - damage);
 
