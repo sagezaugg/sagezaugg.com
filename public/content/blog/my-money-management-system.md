@@ -5,6 +5,7 @@ excerpt: "A detailed look at my automated money management system that splits in
 readTime: "8 min read"
 category: "Finance"
 slug: "my-money-management-system"
+hidden: "true"
 ---
 
 ## Overview
@@ -25,6 +26,7 @@ The heart of my system is a comprehensive Google Sheet that tracks all recurring
 - **Payment Method**: Whether it must come from my Bills Checking account or from a Credit Card
 
 This spreadsheet serves multiple purposes:
+
 1. **Visibility**: I can see exactly where my money goes
 2. **Calendar Integration**: The data is exported to my Google Calendar so I can visualize when expenses are due
 3. **Planning**: It forms the basis for all my financial calculations
@@ -35,6 +37,7 @@ Once I have a clear picture of my expenses, I perform some key calculations:
 
 1. **Monthly Income - Monthly Expenses** = Available Funds
 2. **Split Available Funds** into three buckets:
+
    - **20%** → Emergency Fund
    - **40%** → Investments
    - **40%** → Credit Card Payments (subscriptions + spending)
@@ -62,6 +65,7 @@ I use a two-card system to separate different types of spending:
 For my general spending card, I have a usage alert set up so I know when I'm approaching my monthly spending limit. This prevents overspending and keeps me accountable.
 
 At the end of each month, both credit cards are paid in full. This approach:
+
 - Ensures I never carry a balance or pay interest
 - Gives me a clean slate each month
 - Maximizes credit card rewards without debt
@@ -88,4 +92,3 @@ If you're interested in setting up a similar system, start with:
 5. **Review regularly**: Check in monthly to ensure everything is working as expected
 
 Remember, the best money management system is one you'll actually use consistently. Start simple, automate what you can, and adjust as needed.
-

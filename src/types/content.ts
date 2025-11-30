@@ -6,6 +6,7 @@ export interface BlogPost {
   category: string;
   slug: string;
   body: string;
+  hidden?: boolean;
 }
 
 export interface Project {
@@ -25,6 +26,7 @@ export interface BlogPostMetadata {
   readTime: string;
   category: string;
   slug: string;
+  hidden?: boolean;
 }
 
 export interface ProjectMetadata {

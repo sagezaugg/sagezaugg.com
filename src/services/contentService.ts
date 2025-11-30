@@ -41,8 +41,14 @@ function parseFrontmatter(content: string): { data: any; content: string } {
       value = value.slice(1, -1);
     }
 
+    // Parse boolean values
+    if (value === 'true' || value === 'True') {
+      data[key] = true;
+    } else if (value === 'false' || value === 'False') {
+      data[key] = false;
+    }
     // Parse arrays (simple format: ["item1", "item2"])
-    if (value.startsWith('[') && value.endsWith(']')) {
+    else if (value.startsWith('[') && value.endsWith(']')) {
       const arrayContent = value.slice(1, -1);
       data[key] = arrayContent
         .split(',')
@@ -73,7 +79,14 @@ async function fetchMarkdownFile(path: string): Promise<string> {
       throw new Error(`Failed to fetch ${path}: ${response.statusText}`);
     }
 
+    const contentType = response.headers.get('content-type') || '';
     const content = await response.text();
+    
+    // Check if the response is HTML (error page) instead of markdown
+    if (contentType.includes('text/html') || content.trim().startsWith('<!')) {
+      throw new Error(`Invalid content type for ${path}: received HTML instead of markdown`);
+    }
+    
     contentCache.set(cacheKey, content);
     return content;
   } catch (error) {
@@ -114,7 +127,9 @@ async function fetchJsonFile(path: string): Promise<any> {
 export async function getBlogPosts(): Promise<BlogPostMetadata[]> {
   try {
     const index = await fetchJsonFile("blog/index.json");
-    return index.posts || [];
+    const posts = index.posts || [];
+    // Filter out hidden posts
+    return posts.filter((post: BlogPostMetadata) => !post.hidden);
   } catch (error) {
     console.error("Error fetching blog posts index:", error);
     return [];
@@ -129,10 +144,35 @@ export async function getBlogPost(slug: string): Promise<BlogPost | null> {
     const markdown = await fetchMarkdownFile(`blog/${slug}.md`);
     const parsed = parseFrontmatter(markdown);
     
-    return {
+    // Validate that we have required fields (slug should match)
+    if (!parsed.data.title || !parsed.data.slug) {
+      console.warn(`Blog post ${slug} is missing required metadata`);
+      return null;
+    }
+    
+    // Validate that the slug matches (prevents accessing wrong posts)
+    if (parsed.data.slug !== slug) {
+      console.warn(`Blog post slug mismatch: expected ${slug}, got ${parsed.data.slug}`);
+      return null;
+    }
+    
+    // Check if content looks like HTML (error page)
+    if (parsed.content.trim().startsWith('<!') || parsed.content.includes('<html')) {
+      console.warn(`Blog post ${slug} appears to be HTML instead of markdown`);
+      return null;
+    }
+    
+    const post = {
       ...(parsed.data as BlogPostMetadata),
       body: parsed.content,
     };
+    
+    // Return null if post is hidden
+    if (post.hidden) {
+      return null;
+    }
+    
+    return post;
   } catch (error) {
     console.error(`Error fetching blog post ${slug}:`, error);
     return null;
