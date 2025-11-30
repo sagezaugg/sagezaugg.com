@@ -110,7 +110,7 @@ const Navbar: React.FC = () => {
       <div
         className={`md:hidden transition-all duration-300 ease-in-out ${
           isOpen
-            ? "max-h-48 opacity-100 visible"
+            ? "max-h-96 opacity-100 visible"
             : "max-h-0 opacity-0 invisible"
         }`}
       >
