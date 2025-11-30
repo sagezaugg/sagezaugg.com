@@ -1,14 +1,60 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { BLOG_POSTS } from "../utils/blogConstants";
+import { getBlogPost } from "../services/contentService";
+import { BlogPost as BlogPostType } from "../types/content";
 import ReactMarkdown from "react-markdown";
 import { motion } from "framer-motion";
 
 const BlogPost: React.FC = () => {
-  const { postId } = useParams<{ postId: string }>();
-  const post = BLOG_POSTS[parseInt(postId || "0")];
+  const { slug } = useParams<{ slug: string }>();
+  const [post, setPost] = useState<BlogPostType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!post) {
+  useEffect(() => {
+    const loadPost = async () => {
+      if (!slug) {
+        setError("Invalid post slug");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const blogPost = await getBlogPost(slug);
+        if (blogPost) {
+          setPost(blogPost);
+          setError(null);
+        } else {
+          setError("Post not found");
+        }
+      } catch (err) {
+        console.error("Error loading blog post:", err);
+        setError("Failed to load blog post. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPost();
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="py-12 text-center"
+      >
+        <h2 className="text-4xl font-serif text-zelda-gold mb-4">
+          Loading...
+        </h2>
+      </motion.div>
+    );
+  }
+
+  if (error || !post) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
@@ -20,8 +66,14 @@ const BlogPost: React.FC = () => {
           Post Not Found
         </h2>
         <p className="text-zelda-light-blue">
-          The blog post you're looking for doesn't exist.
+          {error || "The blog post you're looking for doesn't exist."}
         </p>
+        <Link
+          to="/blog"
+          className="inline-block mt-4 text-zelda-light-blue hover:text-zelda-gold transition-colors duration-200"
+        >
+          Back to Blog Posts
+        </Link>
       </motion.div>
     );
   }

@@ -47,11 +47,12 @@ cd sagezaugg.com
 npm install
 ```
 
-3. Set up environment variables:
+3. Set up environment variables (optional):
 
 ```bash
-cp .env.example .env
-# Edit .env with your configuration
+# For local development, content is served from /content by default
+# For production, set REACT_APP_CONTENT_BASE_URL to your S3 bucket URL
+# Example: REACT_APP_CONTENT_BASE_URL=https://your-bucket.s3.amazonaws.com
 ```
 
 4. Start the development server:

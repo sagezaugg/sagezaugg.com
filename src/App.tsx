@@ -14,6 +14,8 @@ import Portfolio from "./pages/Portfolio";
 import Blog from "./pages/Blog";
 import Contact from "./pages/Contact";
 import BlogPost from "./pages/BlogPost";
+import Games from "./pages/Games";
+import Game from "./pages/Game";
 
 import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
@@ -73,7 +75,7 @@ const AnimatedRoutes: React.FC = () => {
           }
         />
         <Route
-          path="/blog/:postId"
+          path="/blog/:slug"
           element={
             <PageTransition>
               <BlogPost />
@@ -85,6 +87,22 @@ const AnimatedRoutes: React.FC = () => {
           element={
             <PageTransition>
               <Contact />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/games"
+          element={
+            <PageTransition>
+              <Games />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/games/:gameId"
+          element={
+            <PageTransition>
+              <Game />
             </PageTransition>
           }
         />

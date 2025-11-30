@@ -1,0 +1,21 @@
+{
+  "posts": [
+    {
+      "title": "My Money Management System",
+      "date": "November 30, 2025",
+      "excerpt": "A detailed look at my automated money management system that splits income across savings, investments, and expenses using Google Sheets and automatic bank transfers.",
+      "readTime": "8 min read",
+      "category": "Finance",
+      "slug": "my-money-management-system",
+      "hidden": true
+    },
+    {
+      "title": "Rebuilding My Website",
+      "date": "April 19, 2025",
+      "excerpt": "I'm rebuilding my website from scratch. It's a work in progress, but I'm excited to share it with you.",
+      "readTime": "5 min read",
+      "category": "Development",
+      "slug": "rebuilding-my-website"
+    }
+  ]
+}

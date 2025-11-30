@@ -6,8 +6,10 @@ const Navbar: React.FC = () => {
   const location = useLocation();
 
   const isActive = (path: string) => {
-    const isActive = location.pathname === path;
-    return isActive;
+    if (path === "/games") {
+      return location.pathname === path || location.pathname.startsWith("/games/");
+    }
+    return location.pathname === path;
   };
 
   return (
@@ -86,6 +88,14 @@ const Navbar: React.FC = () => {
             Blog
           </Link>
           <Link
+            to="/games"
+            className={`nav-link ${
+              isActive("/games") ? "!text-zelda-gold [&::after]:w-full" : ""
+            }`}
+          >
+            Games
+          </Link>
+          <Link
             to="/contact"
             className={`nav-link ${
               isActive("/contact") ? "!text-zelda-gold [&::after]:w-full" : ""
@@ -100,7 +110,7 @@ const Navbar: React.FC = () => {
       <div
         className={`md:hidden transition-all duration-300 ease-in-out ${
           isOpen
-            ? "max-h-48 opacity-100 visible"
+            ? "max-h-96 opacity-100 visible"
             : "max-h-0 opacity-0 invisible"
         }`}
       >
@@ -140,6 +150,15 @@ const Navbar: React.FC = () => {
             onClick={() => setIsOpen(false)}
           >
             Blog
+          </Link>
+          <Link
+            to="/games"
+            className={`block nav-link ${
+              isActive("/games") ? "!text-zelda-gold [&::after]:w-full" : ""
+            }`}
+            onClick={() => setIsOpen(false)}
+          >
+            Games
           </Link>
           <Link
             to="/contact"
