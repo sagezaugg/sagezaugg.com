@@ -2809,16 +2809,25 @@ export class TinySouls {
   private handleUpgradeMenuTouch(x: number, y: number): void {
     const centerX = this.displayWidth / 2;
     const startY = this.displayHeight / 2 - 200;
-    const optionStartY = startY + 180;
-    const optionSpacing = 70;
+
+    // Calculate layout values matching drawUpgradeMenu()
+    const victoryStartY = this.isMobile()
+      ? this.displayHeight / 2 - 120
+      : startY;
+    const instructionsY = this.isMobile()
+      ? victoryStartY + 80
+      : victoryStartY + 120;
+    const optionStartY = this.isMobile() ? instructionsY + 40 : startY + 180;
+    const optionSpacing = this.isMobile() ? 55 : 70;
+    const optionWidth = this.isMobile() ? this.displayWidth - 40 : 600;
+    const optionLeft = this.isMobile() ? 20 : centerX - 300;
+    const optionRight = optionLeft + optionWidth;
 
     // Check which upgrade option was touched (larger touch area for mobile)
     for (let i = 0; i < 4; i++) {
       const optionY = optionStartY + i * optionSpacing;
       const optionTop = optionY - 35; // Increased touch area
       const optionBottom = optionY + 25;
-      const optionLeft = centerX - 300;
-      const optionRight = centerX + 300;
 
       if (
         y >= optionTop &&
