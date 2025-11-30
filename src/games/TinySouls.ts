@@ -51,6 +51,10 @@ export class TinySouls {
   private animationFrameId: number | null = null;
   private isRunning: boolean = false;
 
+  // Display dimensions (CSS pixels, not scaled by DPR)
+  private displayWidth: number = 0;
+  private displayHeight: number = 0;
+
   // Game state
   private playerHealth: number = 100;
   private enemyHealth: number = 100;
@@ -81,6 +85,7 @@ export class TinySouls {
   private playerSpearDuration: number = 400; // milliseconds
   private playerSpearTimer: number = 0;
   private playerSpearBaseX: number = 0; // Base position when idle
+  private playerSpearBaseY: number = 0; // Base position Y when idle
 
   // Enemy state
   private enemyX: number = 0; // Will be set in resize()
@@ -99,6 +104,7 @@ export class TinySouls {
   private enemySpearProgress: number = 0; // 0-1, 0 = idle, 1 = complete
   private enemyAttackTotalDuration: number = 1000; // milliseconds
   private enemySpearBaseX: number = 0; // Base position when idle
+  private enemySpearBaseY: number = 0; // Base position Y when idle
 
   // Perfect block state
   private perfectBlockActive: boolean = false;
@@ -224,6 +230,12 @@ export class TinySouls {
   private resizeHandler: () => void;
   private keydownHandler: (e: KeyboardEvent) => void;
   private keyupHandler: (e: KeyboardEvent) => void;
+  private touchstartHandler: (e: TouchEvent) => void;
+  private touchendHandler: (e: TouchEvent) => void;
+  private touchcancelHandler: (e: TouchEvent) => void;
+
+  // Touch state tracking
+  private activeTouches: Map<number, { type: "attack" | "block" }> = new Map();
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -284,6 +296,20 @@ export class TinySouls {
       }
     };
 
+    // Touch event handlers
+    this.touchstartHandler = (e: TouchEvent) => {
+      e.preventDefault();
+      this.handleTouchStart(e);
+    };
+    this.touchendHandler = (e: TouchEvent) => {
+      e.preventDefault();
+      this.handleTouchEnd(e);
+    };
+    this.touchcancelHandler = (e: TouchEvent) => {
+      e.preventDefault();
+      this.handleTouchEnd(e);
+    };
+
     // Set canvas size
     this.resize();
     window.addEventListener("resize", this.resizeHandler);
@@ -291,6 +317,17 @@ export class TinySouls {
     // Keyboard event listeners
     window.addEventListener("keydown", this.keydownHandler);
     window.addEventListener("keyup", this.keyupHandler);
+
+    // Touch event listeners
+    this.canvas.addEventListener("touchstart", this.touchstartHandler, {
+      passive: false,
+    });
+    this.canvas.addEventListener("touchend", this.touchendHandler, {
+      passive: false,
+    });
+    this.canvas.addEventListener("touchcancel", this.touchcancelHandler, {
+      passive: false,
+    });
 
     // Initialize level
     this.initializeLevel();
@@ -410,13 +447,27 @@ export class TinySouls {
   }
 
   private updateSpearPositions(): void {
-    // Player spear floats to the right of player
-    this.playerSpearBaseX = this.playerX + this.playerWidth / 2 + 20;
-    this.playerSpearY = this.playerY;
-
-    // Enemy spear floats to the left of enemy
-    this.enemySpearBaseX = this.enemyX - this.enemyWidth / 2 - 20;
-    this.enemySpearY = this.enemyY;
+    if (this.isMobile()) {
+      // Portrait mode: spears positioned to the sides
+      // Player spear floats to the right of player
+      this.playerSpearBaseX = this.playerX + this.playerWidth / 2 + 20;
+      this.playerSpearBaseY = this.playerY;
+      this.playerSpearY = this.playerSpearBaseY;
+      // Enemy spear floats to the left of enemy
+      this.enemySpearBaseX = this.enemyX - this.enemyWidth / 2 - 20;
+      this.enemySpearBaseY = this.enemyY;
+      this.enemySpearY = this.enemySpearBaseY;
+    } else {
+      // Landscape mode: original positioning
+      // Player spear floats to the right of player
+      this.playerSpearBaseX = this.playerX + this.playerWidth / 2 + 20;
+      this.playerSpearBaseY = this.playerY;
+      this.playerSpearY = this.playerSpearBaseY;
+      // Enemy spear floats to the left of enemy
+      this.enemySpearBaseX = this.enemyX - this.enemyWidth / 2 - 20;
+      this.enemySpearBaseY = this.enemyY;
+      this.enemySpearY = this.enemySpearBaseY;
+    }
 
     // Update current positions based on attack progress
     if (this.playerSpearProgress === 0) {
@@ -427,34 +478,100 @@ export class TinySouls {
     }
   }
 
+  private isMobile(): boolean {
+    // Check viewport width, not canvas width (which changes based on mode)
+    return window.innerWidth < 768;
+  }
+
+  private getFontSize(baseSize: number): string {
+    const scale = this.isMobile() ? Math.max(0.7, this.displayWidth / 768) : 1;
+    return `${Math.round(baseSize * scale)}px`;
+  }
+
   private resize(): void {
     const container = this.canvas.parentElement;
     if (container) {
       const rect = container.getBoundingClientRect();
-      // Use widescreen aspect ratio (16:9)
-      // Height increased by 25%: 600 * 1.25 = 750
-      const targetHeight = 750;
-      const targetWidth = targetHeight * (16 / 9); // 16:9 aspect ratio
+      const isMobile = rect.width < 768;
+      const dpr = window.devicePixelRatio || 1;
 
-      // Use container width if available, otherwise use calculated width
-      const containerWidth = rect.width;
-      const calculatedWidth = Math.min(containerWidth, targetWidth);
+      let displayWidth: number;
+      let displayHeight: number;
 
-      // Maintain aspect ratio
-      this.canvas.width = calculatedWidth;
-      this.canvas.height = calculatedWidth / (16 / 9);
+      if (isMobile) {
+        // Portrait mode for mobile (9:16 aspect ratio)
+        // Account for padding (p-4 = 16px on each side = 32px total)
+        const containerWidth = rect.width - 32;
+        // Use more of the viewport height for mobile (80% instead of 70%)
+        const maxHeight = window.innerHeight * 0.8;
 
-      // Update positions relative to canvas width
-      this.playerX = Math.min(150, this.canvas.width * 0.2);
-      this.enemyX = Math.max(this.canvas.width - 150, this.canvas.width * 0.8);
-      // Update Y position to center vertically in new canvas height
-      this.playerY = this.canvas.height * 0.5;
-      this.enemyY = this.canvas.height * 0.5;
+        // Calculate portrait dimensions - taller than wide
+        // Try to use full container width, but constrain by max height
+        const heightFromWidth = containerWidth * (16 / 9);
+        if (heightFromWidth <= maxHeight) {
+          // Container width fits within max height
+          displayWidth = containerWidth;
+          displayHeight = heightFromWidth;
+        } else {
+          // Constrain by height
+          displayHeight = maxHeight;
+          displayWidth = displayHeight * (9 / 16);
+        }
+      } else {
+        // Landscape mode for desktop (16:9 aspect ratio)
+        // Account for padding (p-4 = 16px on each side = 32px total)
+        const containerWidth = rect.width - 32;
+
+        // Use full container width for maximum size
+        displayWidth = containerWidth;
+        displayHeight = displayWidth / (16 / 9);
+
+        // Ensure minimum reasonable size
+        const minWidth = 600;
+        if (displayWidth < minWidth) {
+          displayWidth = minWidth;
+          displayHeight = displayWidth / (16 / 9);
+        }
+      }
+
+      // Store display dimensions for UI positioning
+      this.displayWidth = displayWidth;
+      this.displayHeight = displayHeight;
+
+      // Set the actual size in memory (scaled by device pixel ratio)
+      this.canvas.width = displayWidth * dpr;
+      this.canvas.height = displayHeight * dpr;
+
+      // Set the display size (CSS pixels)
+      this.canvas.style.width = `${displayWidth}px`;
+      this.canvas.style.height = `${displayHeight}px`;
+
+      // Reset the transform matrix and scale the context to account for device pixel ratio
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      this.ctx.scale(dpr, dpr);
+
+      // Update positions relative to display size (not scaled size)
+      if (isMobile) {
+        // Portrait mode: characters positioned vertically
+        this.playerX = displayWidth * 0.5;
+        this.enemyX = displayWidth * 0.5;
+        // Position characters vertically - player higher, enemy lower
+        // Leave room for health bars at top (around 150px) and controls at bottom
+        this.playerY = displayHeight * 0.4;
+        this.enemyY = displayHeight * 0.7;
+      } else {
+        // Landscape mode: characters positioned horizontally
+        this.playerX = Math.min(150, displayWidth * 0.2);
+        this.enemyX = Math.max(displayWidth - 150, displayWidth * 0.8);
+        // Update Y position to center vertically in new canvas height
+        this.playerY = displayHeight * 0.5;
+        this.enemyY = displayHeight * 0.5;
+      }
       this.updateSpearPositions();
     }
   }
 
-  private handlePlayerAttack(): void {
+  public handlePlayerAttack(): void {
     if (
       this.gameStatus !== "playing" ||
       this.playerAttackCooldown > 0 ||
@@ -474,6 +591,10 @@ export class TinySouls {
       this.playerStamina - this.attackStaminaCost
     );
 
+    // Reset perfect block attempt flag when player attacks
+    // This ensures perfect blocks work correctly after attacking
+    this.perfectBlockAttempted = false;
+
     // Set attack animation
     this.playerAnimationState = "attack";
     this.playerAnimationTimer = 400; // Match spear duration
@@ -487,7 +608,7 @@ export class TinySouls {
     // This will be handled in update()
   }
 
-  private handlePlayerBlock(): void {
+  public handlePlayerBlock(): void {
     if (this.gameStatus !== "playing" || this.playerBlockCooldown > 0) {
       return;
     }
@@ -510,7 +631,7 @@ export class TinySouls {
     this.isPlayerBlocking = true;
   }
 
-  private checkPerfectBlockOnPress(): void {
+  public checkPerfectBlockOnPress(): void {
     // Perfect block triggers when Ctrl is pressed (not held) during the strike window
     if (
       !this.isEnemyAttacking ||
@@ -600,9 +721,18 @@ export class TinySouls {
       this.enemySpearProgress =
         this.enemyAttackDuration / this.enemyAttackTotalDuration;
       // Spear moves forward during attack (toward player)
-      const spearTravelDistance = 200; // pixels
-      this.enemySpearX =
-        this.enemySpearBaseX - spearTravelDistance * this.enemySpearProgress;
+      const spearTravelDistance = this.isMobile() ? 150 : 200; // pixels
+      if (this.isMobile()) {
+        // Portrait mode: spear moves upward toward player
+        this.enemySpearX = this.enemySpearBaseX;
+        this.enemySpearY =
+          this.enemySpearBaseY - spearTravelDistance * this.enemySpearProgress;
+      } else {
+        // Landscape mode: spear moves horizontally
+        this.enemySpearX =
+          this.enemySpearBaseX - spearTravelDistance * this.enemySpearProgress;
+        this.enemySpearY = this.enemySpearBaseY;
+      }
 
       if (this.enemyAttackDuration >= this.enemyAttackTotalDuration) {
         // Attack animation complete, deal damage
@@ -742,9 +872,20 @@ export class TinySouls {
       );
 
       // Spear moves forward during attack (toward enemy)
-      const spearTravelDistance = 200; // pixels
-      this.playerSpearX =
-        this.playerSpearBaseX + spearTravelDistance * this.playerSpearProgress;
+      const spearTravelDistance = this.isMobile() ? 150 : 200; // pixels
+      if (this.isMobile()) {
+        // Portrait mode: spear moves downward toward enemy
+        this.playerSpearX = this.playerSpearBaseX;
+        this.playerSpearY =
+          this.playerSpearBaseY +
+          spearTravelDistance * this.playerSpearProgress;
+      } else {
+        // Landscape mode: spear moves horizontally
+        this.playerSpearX =
+          this.playerSpearBaseX +
+          spearTravelDistance * this.playerSpearProgress;
+        this.playerSpearY = this.playerSpearBaseY;
+      }
 
       // Deal damage at 60% of animation (when spear connects)
       if (this.playerSpearProgress >= 0.6 && this.playerSpearProgress < 0.61) {
@@ -1045,9 +1186,10 @@ export class TinySouls {
     color: string,
     isEnemy: boolean
   ): void {
-    const spearLength = 60;
-    const spearWidth = 3;
-    const tipLength = 15;
+    const spearLength = this.isMobile() ? 50 : 60;
+    const spearWidth = this.isMobile() ? 2.5 : 3;
+    const tipLength = this.isMobile() ? 12 : 15;
+    const isPortrait = this.isMobile();
 
     // Calculate spear color based on progress (for enemy)
     let spearColor = color;
@@ -1069,36 +1211,67 @@ export class TinySouls {
 
     this.ctx.save();
 
-    // Draw spear shaft (horizontal)
-    this.ctx.fillStyle = spearColor;
-    this.ctx.fillRect(x, y - spearWidth / 2, spearLength, spearWidth);
+    if (isPortrait) {
+      // Portrait mode: draw spear vertically
+      // Draw spear shaft (vertical)
+      this.ctx.fillStyle = spearColor;
+      this.ctx.fillRect(x - spearWidth / 2, y, spearWidth, spearLength);
 
-    // Draw spear tip
-    if (isEnemy) {
-      // Enemy spear points left (toward player)
-      // Tip point is furthest left, base is at the left end of the shaft
-      this.ctx.beginPath();
-      this.ctx.moveTo(x - tipLength, y); // Tip point (furthest left)
-      this.ctx.lineTo(x, y - spearWidth * 2); // Top base vertex (at shaft)
-      this.ctx.lineTo(x, y + spearWidth * 2); // Bottom base vertex (at shaft)
-      this.ctx.closePath();
-      this.ctx.fill();
+      // Draw spear tip
+      if (isEnemy) {
+        // Enemy spear points up (toward player)
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, y - tipLength); // Tip point (furthest up)
+        this.ctx.lineTo(x - spearWidth * 2, y); // Left base vertex (at shaft)
+        this.ctx.lineTo(x + spearWidth * 2, y); // Right base vertex (at shaft)
+        this.ctx.closePath();
+        this.ctx.fill();
+      } else {
+        // Player spear points down (toward enemy)
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, y + spearLength + tipLength); // Tip point (furthest down)
+        this.ctx.lineTo(x - spearWidth * 2, y + spearLength); // Left base vertex (at shaft)
+        this.ctx.lineTo(x + spearWidth * 2, y + spearLength); // Right base vertex (at shaft)
+        this.ctx.closePath();
+        this.ctx.fill();
+      }
     } else {
-      // Player spear points right (toward enemy)
-      // Tip point is furthest right, base is at the right end of the shaft
-      this.ctx.beginPath();
-      this.ctx.moveTo(x + spearLength + tipLength, y); // Tip point (furthest right)
-      this.ctx.lineTo(x + spearLength, y - spearWidth * 2); // Top base vertex (at shaft)
-      this.ctx.lineTo(x + spearLength, y + spearWidth * 2); // Bottom base vertex (at shaft)
-      this.ctx.closePath();
-      this.ctx.fill();
+      // Landscape mode: draw spear horizontally
+      // Draw spear shaft (horizontal)
+      this.ctx.fillStyle = spearColor;
+      this.ctx.fillRect(x, y - spearWidth / 2, spearLength, spearWidth);
+
+      // Draw spear tip
+      if (isEnemy) {
+        // Enemy spear points left (toward player)
+        // Tip point is furthest left, base is at the left end of the shaft
+        this.ctx.beginPath();
+        this.ctx.moveTo(x - tipLength, y); // Tip point (furthest left)
+        this.ctx.lineTo(x, y - spearWidth * 2); // Top base vertex (at shaft)
+        this.ctx.lineTo(x, y + spearWidth * 2); // Bottom base vertex (at shaft)
+        this.ctx.closePath();
+        this.ctx.fill();
+      } else {
+        // Player spear points right (toward enemy)
+        // Tip point is furthest right, base is at the right end of the shaft
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + spearLength + tipLength, y); // Tip point (furthest right)
+        this.ctx.lineTo(x + spearLength, y - spearWidth * 2); // Top base vertex (at shaft)
+        this.ctx.lineTo(x + spearLength, y + spearWidth * 2); // Bottom base vertex (at shaft)
+        this.ctx.closePath();
+        this.ctx.fill();
+      }
     }
 
     // Add glow effect if attacking
     if (progress > 0 && progress < 1) {
       this.ctx.shadowBlur = 15;
       this.ctx.shadowColor = spearColor;
-      this.ctx.fillRect(x, y - spearWidth / 2, spearLength, spearWidth);
+      if (isPortrait) {
+        this.ctx.fillRect(x - spearWidth / 2, y, spearWidth, spearLength);
+      } else {
+        this.ctx.fillRect(x, y - spearWidth / 2, spearLength, spearWidth);
+      }
       this.ctx.shadowBlur = 0;
     }
 
@@ -1205,20 +1378,15 @@ export class TinySouls {
     this.ctx.save();
     this.ctx.globalAlpha = alpha;
     this.ctx.fillStyle = "#00FFFF";
-    this.ctx.font = "bold 32px serif";
+    this.ctx.font = `bold ${this.getFontSize(32)} serif`;
     this.ctx.textAlign = "center";
     this.ctx.strokeStyle = "#000000";
-    this.ctx.lineWidth = 4;
-    this.ctx.strokeText(
-      "PERFECT BLOCK!",
-      this.canvas.width / 2,
-      this.canvas.height / 2 - 50
-    );
-    this.ctx.fillText(
-      "PERFECT BLOCK!",
-      this.canvas.width / 2,
-      this.canvas.height / 2 - 50
-    );
+    this.ctx.lineWidth = this.isMobile() ? 2 : 4;
+    const perfectBlockY = this.isMobile()
+      ? this.displayHeight / 2 - 30
+      : this.displayHeight / 2 - 50;
+    this.ctx.strokeText("PERFECT BLOCK!", this.displayWidth / 2, perfectBlockY);
+    this.ctx.fillText("PERFECT BLOCK!", this.displayWidth / 2, perfectBlockY);
     this.ctx.restore();
   }
 
@@ -1233,10 +1401,14 @@ export class TinySouls {
     const perfectBlockWindowEnd = 0.95;
 
     // Draw indicator showing enemy spear position
-    const indicatorY = this.playerY - 80;
-    const indicatorWidth = 300;
-    const indicatorHeight = 12;
-    const x = this.canvas.width / 2 - indicatorWidth / 2;
+    const indicatorY = this.isMobile()
+      ? (this.playerY + this.enemyY) / 2 - 10
+      : this.playerY - 80;
+    const indicatorWidth = this.isMobile()
+      ? Math.min(280, this.displayWidth - 40)
+      : 300;
+    const indicatorHeight = this.isMobile() ? 10 : 12;
+    const x = this.displayWidth / 2 - indicatorWidth / 2;
 
     // Background
     this.ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
@@ -1269,13 +1441,10 @@ export class TinySouls {
     // Label
     if (inWindow) {
       this.ctx.fillStyle = "#00FF00";
-      this.ctx.font = "bold 14px sans-serif";
+      this.ctx.font = `bold ${this.getFontSize(14)} sans-serif`;
       this.ctx.textAlign = "center";
-      this.ctx.fillText(
-        "Press Ctrl NOW!",
-        this.canvas.width / 2,
-        indicatorY - 15
-      );
+      const labelText = this.isMobile() ? "BLOCK NOW!" : "Press Ctrl NOW!";
+      this.ctx.fillText(labelText, this.displayWidth / 2, indicatorY - 15);
     }
   }
 
@@ -1289,64 +1458,118 @@ export class TinySouls {
     this.ctx.fillRect(
       -this.cameraOffsetX,
       -this.cameraOffsetY,
-      this.canvas.width,
-      this.canvas.height
+      this.displayWidth,
+      this.displayHeight
     );
 
     // Draw level display
     this.ctx.fillStyle = "#8BB8E8";
-    this.ctx.font = "24px serif";
+    this.ctx.font = `${this.getFontSize(24)} serif`;
     this.ctx.textAlign = "center";
     let levelText = `Level ${this.currentLevel}`;
     if (this.newGamePlusLevel > 0) {
       levelText += ` | NG+ ${this.newGamePlusLevel}`;
     }
-    this.ctx.fillText(levelText, this.canvas.width / 2, 35);
+    const levelY = this.isMobile() ? 25 : 35;
+    this.ctx.fillText(levelText, this.displayWidth / 2, levelY);
 
     // Draw score display (only during gameplay)
     if (this.gameStatus === "playing") {
       this.ctx.fillStyle = "#FFD700";
-      this.ctx.font = "bold 20px sans-serif";
+      this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
       this.ctx.textAlign = "right";
+      const scoreX = this.isMobile()
+        ? this.displayWidth - 10
+        : this.displayWidth - 20;
+      const scoreY = this.isMobile() ? 25 : 35;
       this.ctx.fillText(
         `Score: ${this.score.toLocaleString()}`,
-        this.canvas.width - 20,
-        35
+        scoreX,
+        scoreY
       );
 
       // Draw score multiplier if above 1.0
       if (this.scoreMultiplier > 1.0) {
         this.ctx.fillStyle = "#FF6B6B";
-        this.ctx.font = "bold 16px sans-serif";
+        this.ctx.font = `bold ${this.getFontSize(16)} sans-serif`;
         this.ctx.fillText(
           `x${this.scoreMultiplier.toFixed(1)}`,
-          this.canvas.width - 20,
-          55
+          scoreX,
+          scoreY + (this.isMobile() ? 18 : 20)
         );
       }
     }
 
     // Draw health bars
-    this.drawHealthBar(
-      50,
-      60,
-      this.playerHealth,
-      this.maxHealth,
-      "The Chosen One"
-    );
     const config = this.getCurrentLevelConfig();
-    this.drawHealthBar(
-      this.canvas.width - 250,
-      60,
-      this.enemyHealth,
-      config.enemyHealth,
-      config.enemyName,
-      config.enemyColor
-    );
 
-    // Draw stamina bar (only during gameplay)
-    if (this.gameStatus === "playing") {
-      this.drawStaminaBar(50, 110);
+    if (this.isMobile()) {
+      // Portrait mode: stack health bars vertically, centered
+      const healthBarWidth = Math.min(180, this.displayWidth - 40);
+      const centerX = this.displayWidth / 2;
+
+      // Player health bar at top
+      const playerHealthBarX = centerX - healthBarWidth / 2;
+      const playerHealthBarY = 50;
+      this.drawHealthBar(
+        playerHealthBarX,
+        playerHealthBarY,
+        this.playerHealth,
+        this.maxHealth,
+        "The Chosen One",
+        undefined,
+        healthBarWidth
+      );
+
+      // Stamina bar under player health bar (only during gameplay)
+      if (this.gameStatus === "playing") {
+        // Position stamina bar right under the player health bar
+        const healthBarHeight = 32;
+        const staminaBarY = playerHealthBarY + healthBarHeight + 10;
+        this.drawStaminaBar(playerHealthBarX, staminaBarY, healthBarWidth);
+      }
+
+      // Enemy health bar below enemy character
+      const enemyHealthBarY = this.enemyY + this.enemyHeight / 2 + 30;
+      this.drawHealthBar(
+        playerHealthBarX,
+        enemyHealthBarY,
+        this.enemyHealth,
+        config.enemyHealth,
+        config.enemyName,
+        config.enemyColor,
+        healthBarWidth
+      );
+    } else {
+      // Landscape mode: side by side
+      const healthBarX = 50;
+      const healthBarY = 60;
+      const healthBarWidth = 200;
+      this.drawHealthBar(
+        healthBarX,
+        healthBarY,
+        this.playerHealth,
+        this.maxHealth,
+        "The Chosen One",
+        undefined,
+        healthBarWidth
+      );
+      const enemyHealthBarX = this.displayWidth - 250;
+      this.drawHealthBar(
+        enemyHealthBarX,
+        healthBarY,
+        this.enemyHealth,
+        config.enemyHealth,
+        config.enemyName,
+        config.enemyColor,
+        healthBarWidth
+      );
+
+      // Draw stamina bar (only during gameplay)
+      if (this.gameStatus === "playing") {
+        const staminaBarY = 110;
+        this.drawStaminaBar(healthBarX, staminaBarY, healthBarWidth);
+      }
     }
 
     // Draw player
@@ -1441,39 +1664,45 @@ export class TinySouls {
 
   private drawLevelComplete(): void {
     this.ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
     const config = this.getCurrentLevelConfig();
 
     // Level complete title
     this.ctx.fillStyle = "#8BB8E8";
-    this.ctx.font = "bold 48px serif";
+    this.ctx.font = `bold ${this.getFontSize(48)} serif`;
     this.ctx.textAlign = "center";
     this.ctx.strokeStyle = "#000000";
-    this.ctx.lineWidth = 4;
+    this.ctx.lineWidth = this.isMobile() ? 2 : 4;
+    const titleY = this.isMobile()
+      ? this.displayHeight / 2 - 60
+      : this.displayHeight / 2 - 100;
     this.ctx.strokeText(
       `Level ${this.currentLevel} Complete!`,
-      this.canvas.width / 2,
-      this.canvas.height / 2 - 100
+      this.displayWidth / 2,
+      titleY
     );
     this.ctx.fillText(
       `Level ${this.currentLevel} Complete!`,
-      this.canvas.width / 2,
-      this.canvas.height / 2 - 100
+      this.displayWidth / 2,
+      titleY
     );
 
     // Enemy defeated
     this.ctx.fillStyle = config.enemyColor;
-    this.ctx.font = "bold 32px serif";
+    this.ctx.font = `bold ${this.getFontSize(32)} serif`;
+    const defeatedY = this.isMobile()
+      ? this.displayHeight / 2 - 20
+      : this.displayHeight / 2 - 40;
     this.ctx.strokeText(
       `${config.enemyName} Defeated!`,
-      this.canvas.width / 2,
-      this.canvas.height / 2 - 40
+      this.displayWidth / 2,
+      defeatedY
     );
     this.ctx.fillText(
       `${config.enemyName} Defeated!`,
-      this.canvas.width / 2,
-      this.canvas.height / 2 - 40
+      this.displayWidth / 2,
+      defeatedY
     );
 
     // Health regeneration message
@@ -1481,67 +1710,77 @@ export class TinySouls {
     if (missingHealth > 0) {
       const healAmount = missingHealth * 0.5;
       this.ctx.fillStyle = "#4CAF50";
-      this.ctx.font = "20px sans-serif";
+      this.ctx.font = `${this.getFontSize(20)} sans-serif`;
       this.ctx.fillText(
         `Health Restored: +${Math.ceil(healAmount)}`,
-        this.canvas.width / 2,
-        this.canvas.height / 2 + 20
+        this.displayWidth / 2,
+        this.displayHeight / 2 + (this.isMobile() ? 10 : 20)
       );
     }
 
     if (this.currentLevel < 5) {
       this.ctx.fillStyle = "#ffffff";
-      this.ctx.font = "24px sans-serif";
+      this.ctx.font = `${this.getFontSize(24)} sans-serif`;
       this.ctx.fillText(
         "Preparing next level...",
-        this.canvas.width / 2,
-        this.canvas.height / 2 + 80
+        this.displayWidth / 2,
+        this.displayHeight / 2 + (this.isMobile() ? 50 : 80)
       );
     } else {
       this.ctx.fillStyle = "#FFD700";
-      this.ctx.font = "bold 28px sans-serif";
+      this.ctx.font = `bold ${this.getFontSize(28)} sans-serif`;
       this.ctx.fillText(
         "All Levels Complete!",
-        this.canvas.width / 2,
-        this.canvas.height / 2 + 80
+        this.displayWidth / 2,
+        this.displayHeight / 2 + (this.isMobile() ? 50 : 80)
       );
     }
   }
 
   private drawUpgradeMenu(): void {
     this.ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
-    const centerX = this.canvas.width / 2;
-    const startY = this.canvas.height / 2 - 200;
+    const centerX = this.displayWidth / 2;
+    const startY = this.displayHeight / 2 - 200;
 
     // Title
     this.ctx.fillStyle = "#FFD700";
-    this.ctx.font = "bold 48px serif";
+    this.ctx.font = `bold ${this.getFontSize(48)} serif`;
     this.ctx.textAlign = "center";
     this.ctx.strokeStyle = "#000000";
-    this.ctx.lineWidth = 4;
-    this.ctx.strokeText("Victory!", centerX, startY);
-    this.ctx.fillText("Victory!", centerX, startY);
+    this.ctx.lineWidth = this.isMobile() ? 2 : 4;
+    const victoryStartY = this.isMobile()
+      ? this.displayHeight / 2 - 120
+      : startY;
+    this.ctx.strokeText("Victory!", centerX, victoryStartY);
+    this.ctx.fillText("Victory!", centerX, victoryStartY);
 
     // NG+ level display
     this.ctx.fillStyle = "#8BB8E8";
-    this.ctx.font = "bold 32px serif";
+    this.ctx.font = `bold ${this.getFontSize(32)} serif`;
+    const ngPlusY = this.isMobile() ? victoryStartY + 40 : victoryStartY + 60;
     this.ctx.strokeText(
       `New Game+ ${this.newGamePlusLevel + 1}`,
       centerX,
-      startY + 60
+      ngPlusY
     );
     this.ctx.fillText(
       `New Game+ ${this.newGamePlusLevel + 1}`,
       centerX,
-      startY + 60
+      ngPlusY
     );
 
     // Instructions
     this.ctx.fillStyle = "#ffffff";
-    this.ctx.font = "24px sans-serif";
-    this.ctx.fillText("Choose an upgrade:", centerX, startY + 120);
+    this.ctx.font = `${this.getFontSize(24)} sans-serif`;
+    const instructionsY = this.isMobile()
+      ? victoryStartY + 80
+      : victoryStartY + 120;
+    const instructionText = this.isMobile()
+      ? "Tap an upgrade:"
+      : "Choose an upgrade:";
+    this.ctx.fillText(instructionText, centerX, instructionsY);
 
     // Upgrade options
     const currentAttackDamage =
@@ -1573,52 +1812,69 @@ export class TinySouls {
       },
     ];
 
-    const optionStartY = startY + 180;
-    const optionSpacing = 70; // Reduced spacing to fit 4 options
+    const optionStartY = this.isMobile() ? instructionsY + 40 : startY + 180;
+    const optionSpacing = this.isMobile() ? 55 : 70;
+    const optionWidth = this.isMobile() ? this.displayWidth - 40 : 600;
+    const optionLeft = this.isMobile() ? 20 : centerX - 300;
 
     options.forEach((option, index) => {
       const y = optionStartY + index * optionSpacing;
       const isSelected = this.selectedUpgrade === option.type;
 
-      // Highlight selected option
-      if (isSelected) {
-        this.ctx.fillStyle = "rgba(139, 184, 232, 0.3)";
-        this.ctx.fillRect(centerX - 300, y - 30, 600, 50);
+      // Check if this option is being touched (for visual feedback)
+      const isTouched =
+        this.upgradeMenuTouchY !== null &&
+        this.upgradeMenuTouchY >= y - 35 &&
+        this.upgradeMenuTouchY <= y + 25;
+
+      // Highlight selected or touched option
+      if (isSelected || isTouched) {
+        this.ctx.fillStyle = isTouched
+          ? "rgba(139, 184, 232, 0.5)"
+          : "rgba(139, 184, 232, 0.3)";
+        this.ctx.fillRect(optionLeft, y - 30, optionWidth, 50);
       }
 
-      // Key indicator
-      this.ctx.fillStyle = "#FFD700";
-      this.ctx.font = "bold 28px sans-serif";
-      this.ctx.fillText(`[${option.key}]`, centerX - 280, y);
+      // Key indicator (hide on mobile or make smaller)
+      if (!this.isMobile()) {
+        this.ctx.fillStyle = "#FFD700";
+        this.ctx.font = `bold ${this.getFontSize(28)} sans-serif`;
+        this.ctx.fillText(`[${option.key}]`, optionLeft + 20, y);
+      }
 
       // Option name
       this.ctx.fillStyle = isSelected ? "#8BB8E8" : "#ffffff";
-      this.ctx.font = "bold 24px sans-serif";
-      this.ctx.fillText(option.name, centerX - 200, y);
+      this.ctx.font = `bold ${this.getFontSize(24)} sans-serif`;
+      const nameX = this.isMobile() ? optionLeft + 10 : optionLeft + 120;
+      this.ctx.fillText(option.name, nameX, y);
 
       // Description
       this.ctx.fillStyle = "#cccccc";
-      this.ctx.font = "18px sans-serif";
-      this.ctx.fillText(option.desc, centerX + 50, y);
+      this.ctx.font = `${this.getFontSize(18)} sans-serif`;
+      const descX = this.isMobile() ? optionLeft + 10 : centerX + 50;
+      const descY = this.isMobile() ? y + 20 : y;
+      this.ctx.fillText(option.desc, descX, descY);
     });
 
     // Current upgrade counts
     this.ctx.fillStyle = "#888888";
-    this.ctx.font = "16px sans-serif";
-    this.ctx.fillText(
-      `Upgrades: Health (${this.healthUpgrades}) | Stamina (${this.staminaUpgrades}) | Perfect Block (${this.perfectBlockUpgrades}) | Attack Damage (${this.attackDamageUpgrades})`,
-      centerX,
-      startY + 450
-    );
+    this.ctx.font = `${this.getFontSize(16)} sans-serif`;
+    const upgradeCountsY = this.isMobile()
+      ? optionStartY + 4 * optionSpacing + 30
+      : startY + 450;
+    const upgradeText = this.isMobile()
+      ? `Upgrades: H(${this.healthUpgrades}) S(${this.staminaUpgrades}) PB(${this.perfectBlockUpgrades}) AD(${this.attackDamageUpgrades})`
+      : `Upgrades: Health (${this.healthUpgrades}) | Stamina (${this.staminaUpgrades}) | Perfect Block (${this.perfectBlockUpgrades}) | Attack Damage (${this.attackDamageUpgrades})`;
+    this.ctx.fillText(upgradeText, centerX, upgradeCountsY);
 
     // Enemy difficulty multiplier
     const nextMultiplier = this.getEnemyMultiplier(this.newGamePlusLevel + 1);
     this.ctx.fillStyle = "#FF6B6B";
-    this.ctx.font = "bold 20px sans-serif";
+    this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
     this.ctx.fillText(
       `Enemy Difficulty: x${nextMultiplier.toFixed(1)}`,
       centerX,
-      startY + 490
+      upgradeCountsY + (this.isMobile() ? 25 : 40)
     );
   }
 
@@ -1628,9 +1884,9 @@ export class TinySouls {
     current: number,
     max: number,
     label: string,
-    color?: string
+    color?: string,
+    width: number = 200
   ): void {
-    const width = 200;
     const height = 32;
     const percentage = current / max;
     const barColor = color || "#8BB8E8";
@@ -1687,13 +1943,13 @@ export class TinySouls {
 
     // Label
     this.ctx.fillStyle = barColor;
-    this.ctx.font = "bold 16px serif";
+    this.ctx.font = `bold ${this.getFontSize(16)} serif`;
     this.ctx.textAlign = "left";
     this.ctx.fillText(label, x, y - 5);
 
     // Health text
     this.ctx.fillStyle = "#ffffff";
-    this.ctx.font = "bold 14px sans-serif";
+    this.ctx.font = `bold ${this.getFontSize(14)} sans-serif`;
     this.ctx.textAlign = "center";
     this.ctx.fillText(
       `${Math.ceil(current)}/${max}`,
@@ -1702,8 +1958,7 @@ export class TinySouls {
     );
   }
 
-  private drawStaminaBar(x: number, y: number): void {
-    const width = 200;
+  private drawStaminaBar(x: number, y: number, width: number = 200): void {
     const height = 22;
     const percentage = this.playerStamina / this.maxStamina;
     const barColor = "#FFD700"; // Gold color for stamina
@@ -1750,13 +2005,13 @@ export class TinySouls {
 
     // Label
     this.ctx.fillStyle = barColor;
-    this.ctx.font = "bold 14px serif";
+    this.ctx.font = `bold ${this.getFontSize(14)} serif`;
     this.ctx.textAlign = "left";
     this.ctx.fillText("Stamina", x, y - 5);
 
     // Stamina text
     this.ctx.fillStyle = "#ffffff";
-    this.ctx.font = "bold 12px sans-serif";
+    this.ctx.font = `bold ${this.getFontSize(12)} sans-serif`;
     this.ctx.textAlign = "center";
     this.ctx.fillText(
       `${Math.ceil(this.playerStamina)}/${this.maxStamina}`,
@@ -1922,10 +2177,10 @@ export class TinySouls {
       }
 
       // Draw text with outline
-      this.ctx.font = "bold 24px sans-serif";
+      this.ctx.font = `bold ${this.getFontSize(24)} sans-serif`;
       this.ctx.textAlign = "center";
       this.ctx.textBaseline = "middle";
-      this.ctx.lineWidth = 3;
+      this.ctx.lineWidth = this.isMobile() ? 2 : 3;
       this.ctx.strokeText(`-${Math.ceil(num.value)}`, 0, 0);
       this.ctx.fillText(`-${Math.ceil(num.value)}`, 0, 0);
 
@@ -1946,36 +2201,35 @@ export class TinySouls {
 
   private drawGameOver(text: string, color: string): void {
     this.ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
     // Title
     this.ctx.fillStyle = color;
-    this.ctx.font = "bold 48px serif";
+    this.ctx.font = `bold ${this.getFontSize(48)} serif`;
     this.ctx.textAlign = "center";
-    this.ctx.fillText(
-      text,
-      this.canvas.width / 2,
-      this.canvas.height / 2 - 200
-    );
+    const titleY = this.isMobile()
+      ? this.displayHeight / 2 - 120
+      : this.displayHeight / 2 - 200;
+    this.ctx.fillText(text, this.displayWidth / 2, titleY);
 
     // NG+ level display
     if (this.newGamePlusLevel > 0) {
       this.ctx.fillStyle = "#8BB8E8";
-      this.ctx.font = "bold 28px serif";
+      this.ctx.font = `bold ${this.getFontSize(28)} serif`;
       this.ctx.fillText(
         `New Game+ ${this.newGamePlusLevel}`,
-        this.canvas.width / 2,
-        this.canvas.height / 2 - 150
+        this.displayWidth / 2,
+        titleY + (this.isMobile() ? 35 : 50)
       );
     }
 
     // Score
     this.ctx.fillStyle = "#FFD700";
-    this.ctx.font = "bold 32px sans-serif";
+    this.ctx.font = `bold ${this.getFontSize(32)} sans-serif`;
     this.ctx.fillText(
       `Final Score: ${this.score.toLocaleString()}`,
-      this.canvas.width / 2,
-      this.canvas.height / 2 - 100
+      this.displayWidth / 2,
+      titleY + (this.isMobile() ? 70 : 100)
     );
 
     // Upgrade summary
@@ -1986,14 +2240,13 @@ export class TinySouls {
       this.attackDamageUpgrades > 0
     ) {
       this.ctx.fillStyle = "#4CAF50";
-      this.ctx.font = "bold 20px sans-serif";
-      this.ctx.fillText(
-        "Upgrades:",
-        this.canvas.width / 2,
-        this.canvas.height / 2 - 50
-      );
+      this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
+      const upgradeLabelY = this.isMobile()
+        ? titleY + 100
+        : this.canvas.height / 2 - 50;
+      this.ctx.fillText("Upgrades:", this.displayWidth / 2, upgradeLabelY);
       this.ctx.fillStyle = "#ffffff";
-      this.ctx.font = "18px sans-serif";
+      this.ctx.font = `${this.getFontSize(18)} sans-serif`;
       const upgradeText = [
         this.healthUpgrades > 0 ? `Health: +${this.healthUpgrades * 20}` : null,
         this.staminaUpgrades > 0
@@ -2007,11 +2260,11 @@ export class TinySouls {
           : null,
       ]
         .filter(Boolean)
-        .join(" | ");
+        .join(this.isMobile() ? " | " : " | ");
       this.ctx.fillText(
         upgradeText,
-        this.canvas.width / 2,
-        this.canvas.height / 2 - 20
+        this.displayWidth / 2,
+        upgradeLabelY + (this.isMobile() ? 25 : 30)
       );
     }
 
@@ -2021,14 +2274,16 @@ export class TinySouls {
       this.staminaUpgrades > 0 ||
       this.perfectBlockUpgrades > 0 ||
       this.attackDamageUpgrades > 0
-        ? 30
+        ? this.isMobile()
+          ? 20
+          : 30
         : 0;
-    const statsY = this.canvas.height / 2 + upgradeOffset;
+    const statsY = titleY + (this.isMobile() ? 150 : 200) + upgradeOffset;
     this.ctx.fillStyle = "#ffffff";
-    this.ctx.font = "bold 24px sans-serif";
-    this.ctx.fillText("Statistics", this.canvas.width / 2, statsY);
+    this.ctx.font = `bold ${this.getFontSize(24)} sans-serif`;
+    this.ctx.fillText("Statistics", this.displayWidth / 2, statsY);
 
-    this.ctx.font = "18px sans-serif";
+    this.ctx.font = `${this.getFontSize(18)} sans-serif`;
     const stats = [
       `Damage Dealt: ${this.stats.totalDamageDealt}`,
       `Perfect Blocks: ${this.stats.perfectBlocks}`,
@@ -2037,25 +2292,36 @@ export class TinySouls {
       `Total Attacks: ${this.stats.totalAttacks}`,
     ];
 
+    const statSpacing = this.isMobile() ? 20 : 25;
     stats.forEach((stat, index) => {
-      this.ctx.fillText(stat, this.canvas.width / 2, statsY + 35 + index * 25);
+      this.ctx.fillText(
+        stat,
+        this.displayWidth / 2,
+        statsY + 30 + index * statSpacing
+      );
     });
 
     // Restart hint
     this.ctx.fillStyle = "#cccccc";
-    this.ctx.font = "20px sans-serif";
-    this.ctx.fillText(
-      "Press R to restart",
-      this.canvas.width / 2,
-      this.canvas.height / 2 + 200
-    );
+    this.ctx.font = `${this.getFontSize(20)} sans-serif`;
+    const restartHintY = this.isMobile()
+      ? statsY + stats.length * statSpacing + 20
+      : this.displayHeight / 2 + 200;
+    const restartText = this.isMobile()
+      ? "Tap Restart button"
+      : "Press R to restart";
+    this.ctx.fillText(restartText, this.displayWidth / 2, restartHintY);
   }
 
   private drawControlsHint(): void {
+    // Hide controls hint on mobile (we have on-screen buttons)
+    if (this.isMobile()) {
+      return;
+    }
     const hintWidth = 280;
     const hintHeight = 90;
     const hintX = 15;
-    const hintY = this.canvas.height - hintHeight - 15;
+    const hintY = this.displayHeight - hintHeight - 15;
 
     // Background with border
     this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
@@ -2178,10 +2444,103 @@ export class TinySouls {
     this.start();
   }
 
+  public handleTouchStart(e: TouchEvent): void {
+    const rect = this.canvas.getBoundingClientRect();
+
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+
+      // Check if touch is in upgrade menu area
+      if (this.gameStatus === "upgradeMenu") {
+        this.setUpgradeMenuTouchY(y);
+        this.handleUpgradeMenuTouch(x, y);
+        continue;
+      }
+
+      // Determine touch type based on position
+      // Left side = block, right side = attack
+      const touchType = x < this.displayWidth / 2 ? "block" : "attack";
+
+      this.activeTouches.set(touch.identifier, { type: touchType });
+
+      if (touchType === "attack") {
+        this.handlePlayerAttack();
+      } else if (touchType === "block") {
+        const isNewPress = !this.wasCtrlHeld;
+        this.wasCtrlHeld = true;
+        this.handlePlayerBlock();
+        if (isNewPress) {
+          this.checkPerfectBlockOnPress();
+        }
+      }
+    }
+  }
+
+  public handleTouchEnd(e: TouchEvent): void {
+    // Clear upgrade menu touch feedback
+    if (this.gameStatus === "upgradeMenu") {
+      this.setUpgradeMenuTouchY(null);
+    }
+
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i];
+      const touchData = this.activeTouches.get(touch.identifier);
+
+      if (touchData?.type === "block") {
+        this.isPlayerBlocking = false;
+        this.wasCtrlHeld = false;
+      }
+
+      this.activeTouches.delete(touch.identifier);
+    }
+  }
+
+  private handleUpgradeMenuTouch(x: number, y: number): void {
+    const centerX = this.displayWidth / 2;
+    const startY = this.displayHeight / 2 - 200;
+    const optionStartY = startY + 180;
+    const optionSpacing = 70;
+
+    // Check which upgrade option was touched (larger touch area for mobile)
+    for (let i = 0; i < 4; i++) {
+      const optionY = optionStartY + i * optionSpacing;
+      const optionTop = optionY - 35; // Increased touch area
+      const optionBottom = optionY + 25;
+      const optionLeft = centerX - 300;
+      const optionRight = centerX + 300;
+
+      if (
+        y >= optionTop &&
+        y <= optionBottom &&
+        x >= optionLeft &&
+        x <= optionRight
+      ) {
+        const upgradeTypes: Array<
+          "health" | "stamina" | "perfectBlock" | "attackDamage"
+        > = ["health", "stamina", "perfectBlock", "attackDamage"];
+        this.selectedUpgrade = upgradeTypes[i];
+        this.applyUpgrade(upgradeTypes[i]);
+        return;
+      }
+    }
+  }
+
+  // Track touch position for visual feedback in upgrade menu
+  private upgradeMenuTouchY: number | null = null;
+
+  public setUpgradeMenuTouchY(y: number | null): void {
+    this.upgradeMenuTouchY = y;
+  }
+
   public cleanup(): void {
     this.stop();
     window.removeEventListener("resize", this.resizeHandler);
     window.removeEventListener("keydown", this.keydownHandler);
     window.removeEventListener("keyup", this.keyupHandler);
+    this.canvas.removeEventListener("touchstart", this.touchstartHandler);
+    this.canvas.removeEventListener("touchend", this.touchendHandler);
+    this.canvas.removeEventListener("touchcancel", this.touchcancelHandler);
   }
 }
