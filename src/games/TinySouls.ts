@@ -190,11 +190,12 @@ export class TinySouls {
 
   // Game status
   private gameStatus:
+    | "intro"
     | "playing"
     | "levelComplete"
     | "playerWon"
     | "enemyWon"
-    | "upgradeMenu" = "playing";
+    | "upgradeMenu" = "intro";
 
   // New Game+ system
   private newGamePlusLevel: number = 0;
@@ -233,9 +234,14 @@ export class TinySouls {
   private touchstartHandler: (e: TouchEvent) => void;
   private touchendHandler: (e: TouchEvent) => void;
   private touchcancelHandler: (e: TouchEvent) => void;
+  private clickHandler: (e: MouseEvent) => void;
 
   // Touch state tracking
   private activeTouches: Map<number, { type: "attack" | "block" }> = new Map();
+
+  // Mobile control button states
+  private isAttackButtonPressed: boolean = false;
+  private isBlockButtonPressed: boolean = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -249,6 +255,15 @@ export class TinySouls {
     this.resizeHandler = () => this.resize();
     this.keydownHandler = (e: KeyboardEvent) => {
       this.keys.add(e.code);
+
+      // Handle intro screen - start game on Enter or Space
+      if (this.gameStatus === "intro") {
+        if (e.code === "Enter" || e.code === "Space") {
+          e.preventDefault();
+          this.gameStatus = "playing";
+        }
+        return;
+      }
 
       // Handle upgrade menu navigation
       if (this.gameStatus === "upgradeMenu") {
@@ -309,6 +324,13 @@ export class TinySouls {
       e.preventDefault();
       this.handleTouchEnd(e);
     };
+    this.clickHandler = (e: MouseEvent) => {
+      // Handle intro screen - any click starts the game
+      if (this.gameStatus === "intro") {
+        e.preventDefault();
+        this.gameStatus = "playing";
+      }
+    };
 
     // Set canvas size
     this.resize();
@@ -328,6 +350,9 @@ export class TinySouls {
     this.canvas.addEventListener("touchcancel", this.touchcancelHandler, {
       passive: false,
     });
+
+    // Click event listener for intro screen
+    this.canvas.addEventListener("click", this.clickHandler);
 
     // Initialize level
     this.initializeLevel();
@@ -423,7 +448,10 @@ export class TinySouls {
     this.perfectBlockTimer = 0;
     this.perfectBlockAttempted = false;
     this.wasCtrlHeld = false;
-    this.gameStatus = "playing";
+    // Preserve intro status if already set, otherwise set to playing
+    if (this.gameStatus !== "intro") {
+      this.gameStatus = "playing";
+    }
     this.levelCompleteTimer = 0;
     this.keys.clear();
     this.initializeLevel();
@@ -1462,187 +1490,192 @@ export class TinySouls {
       this.displayHeight
     );
 
-    // Draw level display
-    this.ctx.fillStyle = "#8BB8E8";
-    this.ctx.font = `${this.getFontSize(24)} serif`;
-    this.ctx.textAlign = "center";
-    let levelText = `Level ${this.currentLevel}`;
-    if (this.newGamePlusLevel > 0) {
-      levelText += ` | NG+ ${this.newGamePlusLevel}`;
-    }
-    const levelY = this.isMobile() ? 25 : 35;
-    this.ctx.fillText(levelText, this.displayWidth / 2, levelY);
+    // Skip game rendering during intro
+    if (this.gameStatus !== "intro") {
+      // Draw level display
+      this.ctx.fillStyle = "#8BB8E8";
+      this.ctx.font = `${this.getFontSize(24)} serif`;
+      this.ctx.textAlign = "center";
+      let levelText = `Level ${this.currentLevel}`;
+      if (this.newGamePlusLevel > 0) {
+        levelText += ` | NG+ ${this.newGamePlusLevel}`;
+      }
+      const levelY = this.isMobile() ? 25 : 35;
+      this.ctx.fillText(levelText, this.displayWidth / 2, levelY);
 
-    // Draw score display (only during gameplay)
-    if (this.gameStatus === "playing") {
-      this.ctx.fillStyle = "#FFD700";
-      this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
-      this.ctx.textAlign = "right";
-      const scoreX = this.isMobile()
-        ? this.displayWidth - 10
-        : this.displayWidth - 20;
-      const scoreY = this.isMobile() ? 25 : 35;
-      this.ctx.fillText(
-        `Score: ${this.score.toLocaleString()}`,
-        scoreX,
-        scoreY
+      // Draw score display (only during gameplay)
+      if (this.gameStatus === "playing") {
+        this.ctx.fillStyle = "#FFD700";
+        this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
+        this.ctx.textAlign = "right";
+        const scoreX = this.isMobile()
+          ? this.displayWidth - 10
+          : this.displayWidth - 20;
+        const scoreY = this.isMobile() ? 25 : 35;
+        this.ctx.fillText(
+          `Score: ${this.score.toLocaleString()}`,
+          scoreX,
+          scoreY
+        );
+
+        // Draw score multiplier if above 1.0
+        if (this.scoreMultiplier > 1.0) {
+          this.ctx.fillStyle = "#FF6B6B";
+          this.ctx.font = `bold ${this.getFontSize(16)} sans-serif`;
+          this.ctx.fillText(
+            `x${this.scoreMultiplier.toFixed(1)}`,
+            scoreX,
+            scoreY + (this.isMobile() ? 18 : 20)
+          );
+        }
+      }
+
+      // Draw health bars
+      const config = this.getCurrentLevelConfig();
+
+      if (this.isMobile()) {
+        // Portrait mode: stack health bars vertically, centered
+        const healthBarWidth = Math.min(180, this.displayWidth - 40);
+        const centerX = this.displayWidth / 2;
+
+        // Player health bar at top
+        const playerHealthBarX = centerX - healthBarWidth / 2;
+        const playerHealthBarY = 50;
+        this.drawHealthBar(
+          playerHealthBarX,
+          playerHealthBarY,
+          this.playerHealth,
+          this.maxHealth,
+          "The Chosen One",
+          undefined,
+          healthBarWidth
+        );
+
+        // Stamina bar under player health bar (only during gameplay)
+        if (this.gameStatus === "playing") {
+          // Position stamina bar right under the player health bar
+          const healthBarHeight = 32;
+          const staminaBarY = playerHealthBarY + healthBarHeight + 10;
+          this.drawStaminaBar(playerHealthBarX, staminaBarY, healthBarWidth);
+        }
+
+        // Enemy health bar below enemy character
+        const enemyHealthBarY = this.enemyY + this.enemyHeight / 2 + 30;
+        this.drawHealthBar(
+          playerHealthBarX,
+          enemyHealthBarY,
+          this.enemyHealth,
+          config.enemyHealth,
+          config.enemyName,
+          config.enemyColor,
+          healthBarWidth
+        );
+      } else {
+        // Landscape mode: side by side
+        const healthBarX = 50;
+        const healthBarY = 60;
+        const healthBarWidth = 200;
+        this.drawHealthBar(
+          healthBarX,
+          healthBarY,
+          this.playerHealth,
+          this.maxHealth,
+          "The Chosen One",
+          undefined,
+          healthBarWidth
+        );
+        const enemyHealthBarX = this.displayWidth - 250;
+        this.drawHealthBar(
+          enemyHealthBarX,
+          healthBarY,
+          this.enemyHealth,
+          config.enemyHealth,
+          config.enemyName,
+          config.enemyColor,
+          healthBarWidth
+        );
+
+        // Draw stamina bar (only during gameplay)
+        if (this.gameStatus === "playing") {
+          const staminaBarY = 110;
+          this.drawStaminaBar(healthBarX, staminaBarY, healthBarWidth);
+        }
+      }
+
+      // Draw player
+      this.drawCharacter(
+        this.playerX,
+        this.playerY,
+        this.playerWidth,
+        this.playerHeight,
+        "#8BB8E8",
+        this.playerAnimationState,
+        false
       );
 
-      // Draw score multiplier if above 1.0
-      if (this.scoreMultiplier > 1.0) {
-        this.ctx.fillStyle = "#FF6B6B";
-        this.ctx.font = `bold ${this.getFontSize(16)} sans-serif`;
-        this.ctx.fillText(
-          `x${this.scoreMultiplier.toFixed(1)}`,
-          scoreX,
-          scoreY + (this.isMobile() ? 18 : 20)
+      // Draw player spear (always visible, floating)
+      this.drawSpear(
+        this.playerSpearX,
+        this.playerSpearY,
+        this.playerSpearProgress,
+        "#8BB8E8",
+        false
+      );
+
+      // Draw enemy
+      const isStunned = this.enemyStunTimer > 0;
+      const flashAlpha = isStunned ? Math.sin(Date.now() / 100) * 0.5 + 0.5 : 1;
+      const enemyColor = config.enemyColor;
+      const enemyColorRgb = this.hexToRgb(enemyColor);
+
+      // Use animation state, but override with stunned if needed
+      let enemyAnimState = this.enemyAnimationState;
+      if (isStunned) {
+        enemyAnimState = "hit";
+      }
+
+      this.drawCharacter(
+        this.enemyX,
+        this.enemyY,
+        this.enemyWidth,
+        this.enemyHeight,
+        isStunned
+          ? `rgba(${enemyColorRgb.r}, ${enemyColorRgb.g}, ${enemyColorRgb.b}, ${flashAlpha})`
+          : enemyColor,
+        enemyAnimState,
+        true // isEnemy = true
+      );
+
+      // Draw enemy spear (always visible, floating)
+      if (!isStunned) {
+        this.drawSpear(
+          this.enemySpearX,
+          this.enemySpearY,
+          this.enemySpearProgress,
+          enemyColor,
+          true
         );
       }
+
+      // Draw perfect block effect
+      this.drawPerfectBlockEffect();
+
+      // Draw perfect block indicator
+      this.drawPerfectBlockIndicator();
+
+      // Draw attack effects
+      this.attackEffects.forEach((effect) => {
+        this.drawAttackEffect(effect.x, effect.y, effect.type);
+      });
+
+      // Draw damage numbers
+      this.drawDamageNumbers();
     }
-
-    // Draw health bars
-    const config = this.getCurrentLevelConfig();
-
-    if (this.isMobile()) {
-      // Portrait mode: stack health bars vertically, centered
-      const healthBarWidth = Math.min(180, this.displayWidth - 40);
-      const centerX = this.displayWidth / 2;
-
-      // Player health bar at top
-      const playerHealthBarX = centerX - healthBarWidth / 2;
-      const playerHealthBarY = 50;
-      this.drawHealthBar(
-        playerHealthBarX,
-        playerHealthBarY,
-        this.playerHealth,
-        this.maxHealth,
-        "The Chosen One",
-        undefined,
-        healthBarWidth
-      );
-
-      // Stamina bar under player health bar (only during gameplay)
-      if (this.gameStatus === "playing") {
-        // Position stamina bar right under the player health bar
-        const healthBarHeight = 32;
-        const staminaBarY = playerHealthBarY + healthBarHeight + 10;
-        this.drawStaminaBar(playerHealthBarX, staminaBarY, healthBarWidth);
-      }
-
-      // Enemy health bar below enemy character
-      const enemyHealthBarY = this.enemyY + this.enemyHeight / 2 + 30;
-      this.drawHealthBar(
-        playerHealthBarX,
-        enemyHealthBarY,
-        this.enemyHealth,
-        config.enemyHealth,
-        config.enemyName,
-        config.enemyColor,
-        healthBarWidth
-      );
-    } else {
-      // Landscape mode: side by side
-      const healthBarX = 50;
-      const healthBarY = 60;
-      const healthBarWidth = 200;
-      this.drawHealthBar(
-        healthBarX,
-        healthBarY,
-        this.playerHealth,
-        this.maxHealth,
-        "The Chosen One",
-        undefined,
-        healthBarWidth
-      );
-      const enemyHealthBarX = this.displayWidth - 250;
-      this.drawHealthBar(
-        enemyHealthBarX,
-        healthBarY,
-        this.enemyHealth,
-        config.enemyHealth,
-        config.enemyName,
-        config.enemyColor,
-        healthBarWidth
-      );
-
-      // Draw stamina bar (only during gameplay)
-      if (this.gameStatus === "playing") {
-        const staminaBarY = 110;
-        this.drawStaminaBar(healthBarX, staminaBarY, healthBarWidth);
-      }
-    }
-
-    // Draw player
-    this.drawCharacter(
-      this.playerX,
-      this.playerY,
-      this.playerWidth,
-      this.playerHeight,
-      "#8BB8E8",
-      this.playerAnimationState,
-      false
-    );
-
-    // Draw player spear (always visible, floating)
-    this.drawSpear(
-      this.playerSpearX,
-      this.playerSpearY,
-      this.playerSpearProgress,
-      "#8BB8E8",
-      false
-    );
-
-    // Draw enemy
-    const isStunned = this.enemyStunTimer > 0;
-    const flashAlpha = isStunned ? Math.sin(Date.now() / 100) * 0.5 + 0.5 : 1;
-    const enemyColor = config.enemyColor;
-    const enemyColorRgb = this.hexToRgb(enemyColor);
-
-    // Use animation state, but override with stunned if needed
-    let enemyAnimState = this.enemyAnimationState;
-    if (isStunned) {
-      enemyAnimState = "hit";
-    }
-
-    this.drawCharacter(
-      this.enemyX,
-      this.enemyY,
-      this.enemyWidth,
-      this.enemyHeight,
-      isStunned
-        ? `rgba(${enemyColorRgb.r}, ${enemyColorRgb.g}, ${enemyColorRgb.b}, ${flashAlpha})`
-        : enemyColor,
-      enemyAnimState,
-      true // isEnemy = true
-    );
-
-    // Draw enemy spear (always visible, floating)
-    if (!isStunned) {
-      this.drawSpear(
-        this.enemySpearX,
-        this.enemySpearY,
-        this.enemySpearProgress,
-        enemyColor,
-        true
-      );
-    }
-
-    // Draw perfect block effect
-    this.drawPerfectBlockEffect();
-
-    // Draw perfect block indicator
-    this.drawPerfectBlockIndicator();
-
-    // Draw attack effects
-    this.attackEffects.forEach((effect) => {
-      this.drawAttackEffect(effect.x, effect.y, effect.type);
-    });
-
-    // Draw damage numbers
-    this.drawDamageNumbers();
 
     // Draw game status overlays
-    if (this.gameStatus === "levelComplete") {
+    if (this.gameStatus === "intro") {
+      this.drawIntro();
+    } else if (this.gameStatus === "levelComplete") {
       this.drawLevelComplete();
     } else if (this.gameStatus === "upgradeMenu") {
       this.drawUpgradeMenu();
@@ -1658,8 +1691,140 @@ export class TinySouls {
       this.drawControlsHint();
     }
 
+    // Draw mobile controls (on top of everything)
+    this.drawMobileControls();
+
     // Restore camera transform
     this.ctx.restore();
+  }
+
+  private drawIntro(): void {
+    // Dark background overlay
+    this.ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+
+    const centerX = this.displayWidth / 2;
+
+    // Calculate total content height to center vertically
+    // Title: ~60px (mobile) / ~80px (desktop)
+    // Description: ~30px (mobile) / ~50px (desktop)
+    // Controls header: ~25px (mobile) / ~50px (desktop)
+    // Controls: 3-4 items * ~20-30px
+    // Tips: 4 items * ~18-28px
+    // Start prompt: ~20px (mobile) / ~40px (desktop)
+
+    // Start from a calculated top position to center content
+    let currentY = this.isMobile() ? 60 : this.displayHeight * 0.15;
+
+    // Title
+    this.ctx.fillStyle = "#D4AF37"; // Gold
+    this.ctx.font = `bold ${this.getFontSize(this.isMobile() ? 40 : 48)} serif`;
+    this.ctx.textAlign = "center";
+    this.ctx.strokeStyle = "#000000";
+    this.ctx.lineWidth = this.isMobile() ? 2 : 4;
+    this.ctx.strokeText("Tiny Souls", centerX, currentY);
+    this.ctx.fillText("Tiny Souls", centerX, currentY);
+    currentY += this.isMobile() ? 35 : 60;
+
+    // Description
+    this.ctx.fillStyle = "#8BB8E8"; // Light blue
+    this.ctx.font = `${this.getFontSize(this.isMobile() ? 14 : 18)} sans-serif`;
+    const description = this.isMobile()
+      ? "A challenging combat game where timing and strategy matter."
+      : "A challenging combat game where timing and strategy matter.";
+
+    // Split description into lines if needed for mobile
+    if (this.isMobile()) {
+      const words = description.split(" ");
+      let line = "";
+      const maxWidth = this.displayWidth - 40;
+      words.forEach((word) => {
+        const testLine = line + (line ? " " : "") + word;
+        const metrics = this.ctx.measureText(testLine);
+        if (metrics.width > maxWidth && line) {
+          this.ctx.fillText(line, centerX, currentY);
+          currentY += 20;
+          line = word;
+        } else {
+          line = testLine;
+        }
+      });
+      if (line) {
+        this.ctx.fillText(line, centerX, currentY);
+        currentY += 30;
+      }
+    } else {
+      this.ctx.fillText(description, centerX, currentY);
+      currentY += 50;
+    }
+
+    // Controls section
+    this.ctx.fillStyle = "#D4AF37"; // Gold
+    this.ctx.font = `bold ${this.getFontSize(this.isMobile() ? 20 : 24)} serif`;
+    this.ctx.fillText("Controls:", centerX, currentY);
+    currentY += this.isMobile() ? 25 : 40;
+
+    this.ctx.fillStyle = "#8BB8E8"; // Light blue
+    this.ctx.font = `${this.getFontSize(this.isMobile() ? 14 : 16)} sans-serif`;
+    this.ctx.textAlign = "center";
+
+    // Show mobile controls for mobile, PC controls for desktop
+    const controls = this.isMobile()
+      ? [
+          "Tap ATTACK button - Attack",
+          "Tap BLOCK button - Block",
+          "Tap both - Perfect Block",
+        ]
+      : [
+          "Space - Attack",
+          "Ctrl - Block",
+          "Ctrl + Space - Perfect Block (timed)",
+          "R - Restart",
+        ];
+
+    controls.forEach((control) => {
+      this.ctx.fillText(control, centerX, currentY);
+      currentY += this.isMobile() ? 20 : 25;
+    });
+
+    currentY += this.isMobile() ? 15 : 25;
+
+    // Tips section
+    this.ctx.fillStyle = "#2D5A7A"; // Teal
+    this.ctx.font = `${this.getFontSize(this.isMobile() ? 12 : 14)} sans-serif`;
+    const tips = this.isMobile()
+      ? [
+          "• Manage stamina - attacks/blocks consume it",
+          "• Perfect blocks stun & restore stamina",
+          "• Defeat enemies to progress",
+          "• Choose upgrades between levels",
+        ]
+      : [
+          "• Manage your stamina - attacks and blocks consume it",
+          "• Perfect blocks stun enemies and restore stamina",
+          "• Defeat enemies to progress through levels",
+          "• Choose upgrades between levels",
+        ];
+
+    tips.forEach((tip) => {
+      this.ctx.fillText(tip, centerX, currentY);
+      currentY += this.isMobile() ? 18 : 22;
+    });
+
+    // Start prompt - ensure it's visible
+    currentY += this.isMobile() ? 20 : 30;
+    // Make sure prompt doesn't go below screen
+    const maxY = this.displayHeight - (this.isMobile() ? 30 : 50);
+    if (currentY > maxY) {
+      currentY = maxY;
+    }
+
+    this.ctx.fillStyle = "#D4AF37"; // Gold
+    this.ctx.font = `bold ${this.getFontSize(this.isMobile() ? 18 : 20)} serif`;
+    const startText = this.isMobile()
+      ? "Tap anywhere to start"
+      : "Press Enter, Space, or Click to Start";
+    this.ctx.fillText(startText, centerX, currentY);
   }
 
   private drawLevelComplete(): void {
@@ -2350,6 +2515,103 @@ export class TinySouls {
     }
   }
 
+  private drawMobileControls(): void {
+    // Only draw on mobile during gameplay
+    if (!this.isMobile() || this.gameStatus !== "playing") {
+      return;
+    }
+
+    const buttonSize = 80;
+    const padding = 20;
+    const buttonY = this.displayHeight - buttonSize - padding;
+
+    // Block Button - Left
+    const blockButtonX = padding;
+    this.drawMobileButton(
+      blockButtonX,
+      buttonY,
+      buttonSize,
+      "BLOCK",
+      this.isBlockButtonPressed
+    );
+
+    // Attack Button - Right
+    const attackButtonX = this.displayWidth - buttonSize - padding;
+    this.drawMobileButton(
+      attackButtonX,
+      buttonY,
+      buttonSize,
+      "ATTACK",
+      this.isAttackButtonPressed
+    );
+  }
+
+  private drawMobileButton(
+    x: number,
+    y: number,
+    size: number,
+    label: string,
+    isPressed: boolean
+  ): void {
+    this.ctx.save();
+
+    // Button background with 30% transparency (70% opacity)
+    const bgColor = isPressed
+      ? label === "ATTACK"
+        ? "rgba(212, 175, 55, 0.7)" // Gold when pressed, 30% transparent
+        : "rgba(139, 184, 232, 0.7)" // Light blue when pressed, 30% transparent
+      : "rgba(45, 90, 122, 0.7)"; // Teal when not pressed, 30% transparent
+
+    const borderColor = isPressed
+      ? label === "ATTACK"
+        ? "rgba(139, 184, 232, 0.85)" // Light blue border, slightly more opaque
+        : "rgba(212, 175, 55, 0.85)" // Gold border, slightly more opaque
+      : "rgba(139, 184, 232, 0.85)"; // Light blue border, slightly more opaque
+
+    // Shadow effect
+    this.ctx.shadowBlur = isPressed ? 20 : 10;
+    this.ctx.shadowColor = borderColor;
+    this.ctx.shadowOffsetX = 0;
+    this.ctx.shadowOffsetY = 0;
+
+    // Draw circle
+    this.ctx.beginPath();
+    this.ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+    this.ctx.fillStyle = bgColor;
+    this.ctx.fill();
+    this.ctx.strokeStyle = borderColor;
+    this.ctx.lineWidth = 2;
+    this.ctx.stroke();
+
+    // Reset shadow
+    this.ctx.shadowBlur = 0;
+
+    // Button label
+    this.ctx.fillStyle = "#ffffff";
+    this.ctx.font = `bold ${this.getFontSize(14)} sans-serif`;
+    this.ctx.textAlign = "center";
+    this.ctx.textBaseline = "middle";
+    this.ctx.fillText(label, x + size / 2, y + size / 2);
+
+    this.ctx.restore();
+  }
+
+  // Helper method to check if a point is within a button
+  private isPointInButton(
+    x: number,
+    y: number,
+    buttonX: number,
+    buttonY: number,
+    buttonSize: number
+  ): boolean {
+    const centerX = buttonX + buttonSize / 2;
+    const centerY = buttonY + buttonSize / 2;
+    const distance = Math.sqrt(
+      Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
+    );
+    return distance <= buttonSize / 2;
+  }
+
   private gameLoop = (timestamp: number): void => {
     if (!this.isRunning) {
       return;
@@ -2439,6 +2701,8 @@ export class TinySouls {
     this.levelCompleteTimer = 0;
     this.selectedUpgrade = null;
     this.keys.clear();
+    this.isAttackButtonPressed = false;
+    this.isBlockButtonPressed = false;
     this.initializeLevel();
     this.updateSpearPositions();
     this.start();
@@ -2452,6 +2716,13 @@ export class TinySouls {
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
 
+      // Handle intro screen - any touch starts the game
+      if (this.gameStatus === "intro") {
+        e.preventDefault();
+        this.gameStatus = "playing";
+        return;
+      }
+
       // Check if touch is in upgrade menu area
       if (this.gameStatus === "upgradeMenu") {
         this.setUpgradeMenuTouchY(y);
@@ -2459,7 +2730,42 @@ export class TinySouls {
         continue;
       }
 
-      // Determine touch type based on position
+      // On mobile, check if touch is on a button
+      if (this.isMobile() && this.gameStatus === "playing") {
+        const buttonSize = 80;
+        const padding = 20;
+        const buttonY = this.displayHeight - buttonSize - padding;
+        const blockButtonX = padding;
+        const attackButtonX = this.displayWidth - buttonSize - padding;
+
+        // Check if touch is on block button
+        if (this.isPointInButton(x, y, blockButtonX, buttonY, buttonSize)) {
+          e.preventDefault();
+          this.isBlockButtonPressed = true;
+          this.activeTouches.set(touch.identifier, { type: "block" });
+          const isNewPress = !this.wasCtrlHeld;
+          this.wasCtrlHeld = true;
+          this.handlePlayerBlock();
+          if (isNewPress) {
+            this.checkPerfectBlockOnPress();
+          }
+          continue;
+        }
+
+        // Check if touch is on attack button
+        if (this.isPointInButton(x, y, attackButtonX, buttonY, buttonSize)) {
+          e.preventDefault();
+          this.isAttackButtonPressed = true;
+          this.activeTouches.set(touch.identifier, { type: "attack" });
+          this.handlePlayerAttack();
+          continue;
+        }
+
+        // If touch is not on a button, ignore it (don't use left/right split)
+        continue;
+      }
+
+      // Desktop/fallback: Determine touch type based on position
       // Left side = block, right side = attack
       const touchType = x < this.displayWidth / 2 ? "block" : "attack";
 
@@ -2491,6 +2797,9 @@ export class TinySouls {
       if (touchData?.type === "block") {
         this.isPlayerBlocking = false;
         this.wasCtrlHeld = false;
+        this.isBlockButtonPressed = false;
+      } else if (touchData?.type === "attack") {
+        this.isAttackButtonPressed = false;
       }
 
       this.activeTouches.delete(touch.identifier);
@@ -2542,5 +2851,6 @@ export class TinySouls {
     this.canvas.removeEventListener("touchstart", this.touchstartHandler);
     this.canvas.removeEventListener("touchend", this.touchendHandler);
     this.canvas.removeEventListener("touchcancel", this.touchcancelHandler);
+    this.canvas.removeEventListener("click", this.clickHandler);
   }
 }

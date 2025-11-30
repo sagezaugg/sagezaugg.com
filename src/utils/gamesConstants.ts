@@ -4,7 +4,8 @@ export const games: GameMetadata[] = [
   {
     id: "tiny-souls",
     title: "Tiny Souls",
-    description: "A simple real-time combat game. Use Space to attack and Ctrl to block enemy attacks.",
+    description:
+      "A simple real-time combat game. Use Space to attack and Ctrl to block enemy attacks.",
+    thumbnail: "/assets/games/tiny-souls-logo.png",
   },
 ];
-

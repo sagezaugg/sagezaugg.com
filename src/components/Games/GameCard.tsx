@@ -15,13 +15,12 @@ export const GameCard: React.FC<GameCardProps> = ({ game, index }) => {
   return (
     <Card index={index} className="p-4 sm:p-6">
       {game.thumbnail && (
-        <div className="relative h-48 mb-4 overflow-hidden rounded-lg">
+        <div className="relative h-48 mb-4 overflow-hidden rounded-lg bg-zelda-dark/30 flex items-center justify-center p-4">
           <img
             src={game.thumbnail}
             alt={game.title}
-            className="w-full h-full object-cover"
+            className="max-w-full max-h-full object-contain"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-zelda-dark/50 to-transparent" />
         </div>
       )}
 

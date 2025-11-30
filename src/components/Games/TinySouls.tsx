@@ -1,31 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { TinySouls } from "../../games/TinySouls";
-import MobileControls from "./MobileControls";
-
-// Mobile detection hook
-const useIsMobile = (): boolean => {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-      const isSmallScreen = window.innerWidth < 768;
-      setIsMobile(hasTouch && isSmallScreen);
-    };
-
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  return isMobile;
-};
 
 const TinySoulsComponent: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<TinySouls | null>(null);
   const [isGameOver, setIsGameOver] = useState(false);
-  const isMobile = useIsMobile();
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     if (!canvasRef.current) {
@@ -60,6 +41,15 @@ const TinySoulsComponent: React.FC = () => {
     };
   }, []);
 
+  // Trigger resize when fullscreen state changes
+  useEffect(() => {
+    // Small delay to ensure DOM has updated
+    const timeoutId = setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 100);
+    return () => clearTimeout(timeoutId);
+  }, [isFullscreen]);
+
   const handleRestart = () => {
     if (gameRef.current) {
       gameRef.current.restart();
@@ -67,40 +57,19 @@ const TinySoulsComponent: React.FC = () => {
     }
   };
 
-  const handleAttack = () => {
-    if (gameRef.current) {
-      gameRef.current.handlePlayerAttack();
-    }
-  };
-
-  const handleBlockStart = () => {
-    if (gameRef.current) {
-      const game = gameRef.current as any;
-      // Always check for perfect block on new block press
-      // The wasCtrlHeld check is handled inside checkPerfectBlockOnPress
-      const wasBlocking = game.isPlayerBlocking;
-      game.handlePlayerBlock();
-      // Only check perfect block if this is a new block press (not already blocking)
-      if (!wasBlocking) {
-        game.wasCtrlHeld = false; // Reset to ensure perfect block check works
-        game.checkPerfectBlockOnPress();
-        game.wasCtrlHeld = true; // Set after checking
-      }
-    }
-  };
-
-  const handleBlockEnd = () => {
-    if (gameRef.current) {
-      const game = gameRef.current as any;
-      game.isPlayerBlocking = false;
-      game.wasCtrlHeld = false;
-    }
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
   };
 
   return (
-    <div className="flex flex-col items-center">
+    <div className={`flex flex-col items-center ${isFullscreen ? "fixed inset-0 z-50 bg-[#0b2e36] p-4" : ""}`}>
       <div 
-        className="sheikah-border p-4 w-full max-w-4xl relative"
+        ref={containerRef}
+        className={`sheikah-border p-4 relative ${
+          isFullscreen 
+            ? "w-full h-full flex items-center justify-center" 
+            : "w-full max-w-4xl"
+        }`}
         style={{
           WebkitTouchCallout: "none",
           WebkitUserSelect: "none",
@@ -113,26 +82,27 @@ const TinySoulsComponent: React.FC = () => {
           style={{ 
             display: "block",
             maxWidth: "100%",
+            maxHeight: isFullscreen ? "100%" : "none",
             WebkitTouchCallout: "none",
             WebkitUserSelect: "none",
             userSelect: "none",
             touchAction: "none",
           }}
         />
-        {isMobile && (
-          <MobileControls
-            onAttack={handleAttack}
-            onBlockStart={handleBlockStart}
-            onBlockEnd={handleBlockEnd}
-          />
-        )}
       </div>
-      <div className="mt-4">
+      <div className={`flex gap-4 ${isFullscreen ? "mt-4" : "mt-4"}`}>
         <button
           onClick={handleRestart}
           className="px-6 py-2 sheikah-border text-zelda-light-blue hover:text-zelda-gold transition-colors duration-300"
         >
           Restart Game
+        </button>
+        <button
+          onClick={toggleFullscreen}
+          className="px-6 py-2 sheikah-border text-zelda-light-blue hover:text-zelda-gold transition-colors duration-300"
+          aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+        >
+          {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
         </button>
       </div>
     </div>
