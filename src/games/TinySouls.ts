@@ -1,4 +1,9 @@
-// Level configuration
+// ============================================================================
+// CONSTANTS AND CONFIGURATION
+// ============================================================================
+
+import { AudioManager } from "./audioService";
+
 interface LevelConfig {
   enemyHealth: number;
   enemyDamage: number;
@@ -14,218 +19,526 @@ const LEVEL_CONFIGS: LevelConfig[] = [
     enemyAttackCooldown: 2500,
     enemyName: "Shadow Warrior",
     enemyColor: "#8B4513",
-  }, // Level 1 - Brown
+  },
   {
     enemyHealth: 120,
     enemyDamage: 12,
     enemyAttackCooldown: 2200,
     enemyName: "Crimson Blade",
     enemyColor: "#DC143C",
-  }, // Level 2 - Crimson
+  },
   {
     enemyHealth: 150,
     enemyDamage: 15,
     enemyAttackCooldown: 2000,
     enemyName: "Void Knight",
     enemyColor: "#4B0082",
-  }, // Level 3 - Indigo
+  },
   {
     enemyHealth: 180,
     enemyDamage: 18,
     enemyAttackCooldown: 1800,
     enemyName: "Frost Wraith",
     enemyColor: "#00CED1",
-  }, // Level 4 - Dark Turquoise
+  },
   {
     enemyHealth: 200,
     enemyDamage: 20,
     enemyAttackCooldown: 1500,
     enemyName: "Soul Reaper",
     enemyColor: "#FF1493",
-  }, // Level 5 - Deep Pink
+  },
 ];
+
+const GAME_CONSTANTS = {
+  UPGRADE_INCREMENT: 20,
+  STAMINA: {
+    REGEN_RATE: 25,
+    ATTACK_COST: 30,
+    BLOCK_COST: 20,
+    BASE_MAX: 100,
+    BLOCK_DRAIN_RATE: 20, // Stamina drained per second while holding block
+  },
+  COOLDOWN: {
+    ATTACK: 200, // ms cooldown after attack
+    BLOCK: 100, // ms cooldown after starting block
+  },
+  HEALTH: {
+    BASE_MAX: 100,
+  },
+  ANIMATION: {
+    PLAYER_SPEAR_DURATION: 400,
+    ENEMY_ATTACK_RATIO: 0.4,
+    HIT_DURATION: 300,
+    DAMAGE_CONNECT_POINT: 0.95,
+    DAMAGE_CONNECT_THRESHOLD: 0.05,
+  },
+  PERFECT_BLOCK: {
+    WINDOW_START: 0.85,
+    WINDOW_END: 0.95,
+    BASE_DURATION: 500,
+    MIN_DURATION: 100,
+    UPGRADE_REDUCTION: 20,
+    STUN_DURATION: 2500,
+    SCORE_BASE: 100,
+    MULTIPLIER_INCREASE: 0.2,
+  },
+  DAMAGE: {
+    BASE_PLAYER: 15,
+    UPGRADE_INCREMENT: 20,
+    BLOCK_REDUCTION: 0.25,
+    SCORE_MULTIPLIER: 10,
+  },
+  SCORE: {
+    LEVEL_BONUS_MULTIPLIER: 500,
+    VICTORY_BONUS: 5000,
+    MAX_MULTIPLIER: 3.0,
+  },
+  LEVEL: {
+    COMPLETE_TIMER: 2000,
+    HEALTH_REGEN_RATIO: 0.5,
+    MAX_LEVEL: 5,
+  },
+  DEATH_SCREEN: {
+    EXPLOSION_DURATION: 2000, // Duration of explosion animation before showing "YOU DIED"
+    FADE_IN_DURATION: 1000,
+    HOLD_DURATION: 1500,
+    FADE_OUT_DURATION: 1000,
+    TOTAL_DURATION: 5500, // explosion + fade in + hold + fade out (2000 + 1000 + 1500 + 1000)
+  },
+  ENEMY_DEATH: {
+    EXPLOSION_DURATION: 2000, // Duration of explosion animation before showing victory screen
+  },
+  ENEMY_VANQUISHED_SCREEN: {
+    FADE_IN_DURATION: 1000,
+    HOLD_DURATION: 1500,
+    FADE_OUT_DURATION: 1000,
+    TOTAL_DURATION: 3500, // fade in + hold + fade out
+  },
+  LEVEL5_VICTORY_SCREEN: {
+    FADE_IN_DURATION: 1000,
+    HOLD_DURATION: 2000,
+    FADE_OUT_DURATION: 1000,
+    TOTAL_DURATION: 4000, // fade in + hold + fade out
+  },
+  SPEAR: {
+    MOBILE_TRAVEL_DISTANCE: 150,
+    DESKTOP_TRAVEL_DISTANCE: 200,
+    MOBILE_LENGTH: 50,
+    DESKTOP_LENGTH: 60,
+    MOBILE_WIDTH: 2.5,
+    DESKTOP_WIDTH: 3,
+    MOBILE_TIP_LENGTH: 12,
+    DESKTOP_TIP_LENGTH: 15,
+    OFFSET_FROM_CHARACTER: 20,
+    COLOR_TRANSITION_START: 0.6,
+    COLOR_TRANSITION_RANGE: 0.4,
+    COLOR_ORANGE_TO_RED_THRESHOLD: 0.5,
+  },
+  CHARACTER: {
+    WIDTH: 60,
+    HEIGHT: 80,
+    MOBILE_PLAYER_Y_RATIO: 0.4,
+    MOBILE_ENEMY_Y_RATIO: 0.7,
+    DESKTOP_X_RATIO: 0.2,
+    DESKTOP_ENEMY_X_RATIO: 0.8,
+  },
+  SCREEN_SHAKE: {
+    DECAY: 0.9,
+    MIN_INTENSITY: 0.1,
+    PERFECT_BLOCK_INTENSITY: 15,
+    HIT_INTENSITY: 20,
+    BLOCKED_HIT_INTENSITY: 8,
+    PLAYER_HIT_INTENSITY: 12,
+  },
+  PARTICLES: {
+    PERFECT_BLOCK_COUNT: 20,
+    PERFECT_BLOCK_SPEED: 3,
+    PERFECT_BLOCK_SPARK_COUNT: 15,
+    PERFECT_BLOCK_SPARK_LIFE: 800,
+    HIT_COUNT: 12,
+    HIT_LIFE: 600,
+    BLOCK_COUNT: 8,
+    BLOCK_LIFE: 400,
+    ATTACK_TRAIL_COUNT: 5,
+    ATTACK_TRAIL_LIFE: 300,
+    PERFECT_BLOCK_FADE_TIME: 500,
+    HIT_FRICTION: 0.98,
+    BLOCK_FRICTION: 0.95,
+    TRAIL_FRICTION: 0.9,
+    DEATH_EXPLOSION_COUNT: 40,
+    DEATH_EXPLOSION_LIFE: 2000,
+    DEATH_EXPLOSION_SPEED: 3,
+    DEATH_EXPLOSION_FRICTION: 0.98,
+  },
+  UI: {
+    MOBILE_BREAKPOINT: 768,
+    MOBILE_FONT_SCALE_MIN: 0.7,
+    CONTAINER_PADDING: 32,
+    MOBILE_HEIGHT_RATIO: 0.8,
+    DESKTOP_MIN_WIDTH: 600,
+    MOBILE_ASPECT_RATIO: 16 / 9,
+    DESKTOP_ASPECT_RATIO: 16 / 9,
+  },
+  NG_PLUS: {
+    MULTIPLIERS: [1.0, 1.2, 1.5, 2.0],
+    LINEAR_START: 3,
+    LINEAR_INCREMENT: 0.5,
+  },
+};
+
+const COLORS = {
+  PLAYER: "#8BB8E8",
+  PLAYER_STROKE: "#4A6FA5",
+  ENEMY_WARNING_ORANGE: "#FF8C00",
+  ENEMY_WARNING_RED: "#FF4500",
+  PERFECT_BLOCK: "#00FFFF",
+  PERFECT_BLOCK_GRADIENT: "#0080FF",
+  GOLD: "#D4AF37",
+  STAMINA: "#FFD700",
+  STAMINA_ORANGE: "#FFA500",
+  STAMINA_DARK_ORANGE: "#FF6B00",
+  HEALTH_MEDIUM_START: "#FFA500",
+  HEALTH_MEDIUM_END: "#FF8C00",
+  HEALTH_LOW_START: "#FF4444",
+  HEALTH_LOW_END: "#CC0000",
+  BACKGROUND: "#0b2e36",
+  TEXT_GOLD: "#D4AF37",
+  TEXT_LIGHT_BLUE: "#8BB8E8",
+  TEXT_TEAL: "#2D5A7A",
+  TEXT_WHITE: "#ffffff",
+  TEXT_GRAY: "#cccccc",
+  TEXT_DARK_GRAY: "#888888",
+  SUCCESS: "#4CAF50",
+  ERROR: "#FF6B6B",
+  BLACK: "#000000",
+  SHADOW: "#1a1a1a",
+};
+
+const UI_CONSTANTS = {
+  HEALTH_BAR: {
+    HEIGHT: 32,
+    STAMINA_HEIGHT: 22,
+    MOBILE_WIDTH: 180,
+    DESKTOP_WIDTH: 200,
+    MOBILE_X_OFFSET: 50,
+    DESKTOP_X_OFFSET: 50,
+    DESKTOP_Y_OFFSET: 60,
+    STAMINA_Y_OFFSET: 110,
+    SPACING: 10,
+  },
+  MOBILE_BUTTON: {
+    SIZE: 80,
+    PADDING: 20,
+  },
+  CONTROLS_HINT: {
+    WIDTH: 280,
+    HEIGHT: 90,
+    X: 15,
+    LOW_STAMINA_THRESHOLD: 30,
+  },
+  PERFECT_BLOCK_INDICATOR: {
+    MOBILE_WIDTH: 280,
+    DESKTOP_WIDTH: 300,
+    MOBILE_HEIGHT: 10,
+    DESKTOP_HEIGHT: 12,
+    MARKER_WIDTH: 6,
+    MARKER_HEIGHT_OFFSET: 4,
+  },
+};
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+type AnimationState = "idle" | "attack" | "block" | "hit";
+type GameStatus =
+  | "startScreen"
+  | "intro"
+  | "controls"
+  | "playing"
+  | "levelComplete"
+  | "playerWon"
+  | "enemyWon"
+  | "upgradeMenu"
+  | "deathScreen"
+  | "enemyDeath"
+  | "enemyVanquished"
+  | "level5Victory";
+type UpgradeType = "health" | "stamina" | "perfectBlock" | "attackDamage";
+
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  color: string;
+  size: number;
+}
+
+interface SimpleParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  color: string;
+}
+
+interface AttackEffect {
+  x: number;
+  y: number;
+  type: "player" | "enemy";
+  duration: number;
+}
+
+interface DamageNumber {
+  x: number;
+  y: number;
+  value: number;
+  type: "player" | "enemy";
+  life: number;
+  maxLife: number;
+  offsetY: number;
+}
+
+interface PlayerState {
+  health: number;
+  maxHealth: number;
+  stamina: number;
+  maxStamina: number;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  isBlocking: boolean;
+  attackCooldown: number;
+  blockCooldown: number;
+  animation: { state: AnimationState; timer: number };
+  spear: {
+    x: number;
+    y: number;
+    baseX: number;
+    baseY: number;
+    progress: number;
+    timer: number;
+    damageDealt: boolean; // Track if damage was dealt this attack
+    targetDistance: number; // Calculated distance to target when attack starts
+  };
+  lastHitTime: number;
+}
+
+interface EnemyState {
+  health: number;
+  maxHealth: number;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  attackTimer: number;
+  attackCooldown: number;
+  isAttacking: boolean;
+  attackDuration: number;
+  attackTotalDuration: number;
+  stunTimer: number;
+  animation: { state: AnimationState; timer: number };
+  spear: {
+    x: number;
+    y: number;
+    baseX: number;
+    baseY: number;
+    progress: number;
+    damageDealt: boolean; // Track if damage was dealt this attack
+    targetDistance: number; // Calculated distance to target when attack starts
+  };
+}
+
+interface PerfectBlockState {
+  active: boolean;
+  timer: number;
+  duration: number;
+  attempted: boolean;
+  wasCtrlHeld: boolean;
+  particles: SimpleParticle[];
+}
+
+interface ParticleSystems {
+  hit: Particle[];
+  block: Particle[];
+  perfectBlock: SimpleParticle[];
+  attackTrail: Particle[];
+  deathExplosion: Particle[];
+  enemyDeathExplosion: Particle[];
+}
+
+interface GameUI {
+  damageNumbers: DamageNumber[];
+  attackEffects: AttackEffect[];
+  screenShake: {
+    offsetX: number;
+    offsetY: number;
+    intensity: number;
+  };
+}
+
+interface UpgradeState {
+  newGamePlusLevel: number;
+  health: number;
+  stamina: number;
+  perfectBlock: number;
+  attackDamage: number;
+  selected: UpgradeType | null;
+  baseMaxHealth: number;
+  baseMaxStamina: number;
+  basePerfectBlockDuration: number;
+  basePlayerDamage: number;
+}
+
+interface GameStats {
+  totalDamageDealt: number;
+  perfectBlocks: number;
+  attacksBlocked: number;
+  hitsTaken: number;
+  totalAttacks: number;
+}
+
+// ============================================================================
+// MAIN GAME CLASS
+// ============================================================================
 
 export class TinySouls {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private animationFrameId: number | null = null;
   private isRunning: boolean = false;
+  private lastFrameTime: number = 0;
 
   // Display dimensions (CSS pixels, not scaled by DPR)
   private displayWidth: number = 0;
   private displayHeight: number = 0;
 
   // Game state
-  private playerHealth: number = 100;
-  private enemyHealth: number = 100;
-  private maxHealth: number = 100;
   private currentLevel: number = 1;
   private levelCompleteTimer: number = 0;
+  private deathScreenTimer: number = 0;
+  private enemyDeathTimer: number = 0;
+  private enemyVanquishedTimer: number = 0;
+  private level5VictoryTimer: number = 0;
+  private gameStatus: GameStatus = "startScreen";
 
-  // Stamina system
-  private playerStamina: number = 100;
-  private maxStamina: number = 100;
-  private staminaRegenRate: number = 25; // per second
-  private attackStaminaCost: number = 30;
-  private blockStaminaCost: number = 20;
+  // Grouped state objects
+  private player: PlayerState = {
+    health: GAME_CONSTANTS.HEALTH.BASE_MAX,
+    maxHealth: GAME_CONSTANTS.HEALTH.BASE_MAX,
+    stamina: GAME_CONSTANTS.STAMINA.BASE_MAX,
+    maxStamina: GAME_CONSTANTS.STAMINA.BASE_MAX,
+    position: { x: 150, y: 300 },
+    size: {
+      width: GAME_CONSTANTS.CHARACTER.WIDTH,
+      height: GAME_CONSTANTS.CHARACTER.HEIGHT,
+    },
+    isBlocking: false,
+    attackCooldown: 0,
+    blockCooldown: 0,
+    animation: { state: "idle", timer: 0 },
+    spear: {
+      x: 0,
+      y: 0,
+      baseX: 0,
+      baseY: 0,
+      progress: 0,
+      timer: 0,
+      damageDealt: false,
+      targetDistance: 0,
+    },
+    lastHitTime: 0,
+  };
 
-  // Player state
-  private playerX: number = 150;
-  private playerY: number = 300;
-  private playerWidth: number = 60;
-  private playerHeight: number = 80;
-  private isPlayerBlocking: boolean = false;
-  private playerAttackCooldown: number = 0;
-  private playerBlockCooldown: number = 0;
+  private enemy: EnemyState = {
+    health: 100,
+    maxHealth: 100,
+    position: { x: 0, y: 300 },
+    size: {
+      width: GAME_CONSTANTS.CHARACTER.WIDTH,
+      height: GAME_CONSTANTS.CHARACTER.HEIGHT,
+    },
+    attackTimer: 0,
+    attackCooldown: 2000,
+    isAttacking: false,
+    attackDuration: 0,
+    attackTotalDuration: 1000,
+    stunTimer: 0,
+    animation: { state: "idle", timer: 0 },
+    spear: {
+      x: 0,
+      y: 0,
+      baseX: 0,
+      baseY: 0,
+      progress: 0,
+      damageDealt: false,
+      targetDistance: 0,
+    },
+  };
 
-  // Player spear animation
-  private playerSpearX: number = 0; // Spear position X
-  private playerSpearY: number = 0; // Spear position Y
-  private playerSpearProgress: number = 0; // 0-1, 0 = idle, 1 = complete
-  private playerSpearDuration: number = 400; // milliseconds
-  private playerSpearTimer: number = 0;
-  private playerSpearBaseX: number = 0; // Base position when idle
-  private playerSpearBaseY: number = 0; // Base position Y when idle
+  private perfectBlock: PerfectBlockState = {
+    active: false,
+    timer: 0,
+    duration: GAME_CONSTANTS.PERFECT_BLOCK.BASE_DURATION,
+    attempted: false,
+    wasCtrlHeld: false,
+    particles: [],
+  };
 
-  // Enemy state
-  private enemyX: number = 0; // Will be set in resize()
-  private enemyY: number = 300;
-  private enemyWidth: number = 60;
-  private enemyHeight: number = 80;
-  private enemyAttackTimer: number = 0;
-  private enemyAttackCooldown: number = 2000;
-  private isEnemyAttacking: boolean = false;
-  private enemyAttackDuration: number = 0;
-  private enemyStunTimer: number = 0;
+  private particles: ParticleSystems = {
+    hit: [],
+    block: [],
+    perfectBlock: [],
+    attackTrail: [],
+    deathExplosion: [],
+    enemyDeathExplosion: [],
+  };
 
-  // Enemy spear animation
-  private enemySpearX: number = 0; // Spear position X
-  private enemySpearY: number = 0; // Spear position Y
-  private enemySpearProgress: number = 0; // 0-1, 0 = idle, 1 = complete
-  private enemyAttackTotalDuration: number = 1000; // milliseconds
-  private enemySpearBaseX: number = 0; // Base position when idle
-  private enemySpearBaseY: number = 0; // Base position Y when idle
+  private ui: GameUI = {
+    damageNumbers: [],
+    attackEffects: [],
+    screenShake: {
+      offsetX: 0,
+      offsetY: 0,
+      intensity: 0,
+    },
+  };
 
-  // Perfect block state
-  private perfectBlockActive: boolean = false;
-  private perfectBlockTimer: number = 0;
-  private perfectBlockDuration: number = 500; // milliseconds
-  private perfectBlockParticles: Array<{
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    life: number;
-    color: string;
-  }> = [];
-  private wasCtrlHeld: boolean = false; // Track if Ctrl was already held
-  private perfectBlockAttempted: boolean = false; // Track if perfect block was attempted on current attack
+  private upgrades: UpgradeState = {
+    newGamePlusLevel: 0,
+    health: 0,
+    stamina: 0,
+    perfectBlock: 0,
+    attackDamage: 0,
+    selected: null,
+    baseMaxHealth: GAME_CONSTANTS.HEALTH.BASE_MAX,
+    baseMaxStamina: GAME_CONSTANTS.STAMINA.BASE_MAX,
+    basePerfectBlockDuration: GAME_CONSTANTS.PERFECT_BLOCK.BASE_DURATION,
+    basePlayerDamage: GAME_CONSTANTS.DAMAGE.BASE_PLAYER,
+  };
 
-  // Enhanced particle effects
-  private hitParticles: Array<{
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    life: number;
-    maxLife: number;
-    color: string;
-    size: number;
-  }> = [];
-  private blockParticles: Array<{
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    life: number;
-    maxLife: number;
-    color: string;
-    size: number;
-  }> = [];
-  private attackTrailParticles: Array<{
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    life: number;
-    maxLife: number;
-    color: string;
-    size: number;
-  }> = [];
+  private score: { value: number; multiplier: number } = {
+    value: 0,
+    multiplier: 1.0,
+  };
 
-  // Visual effects
-  private attackEffects: Array<{
-    x: number;
-    y: number;
-    type: "player" | "enemy";
-    duration: number;
-  }> = [];
-
-  // Damage numbers
-  private damageNumbers: Array<{
-    x: number;
-    y: number;
-    value: number;
-    type: "player" | "enemy";
-    life: number;
-    maxLife: number;
-    offsetY: number;
-  }> = [];
-
-  // Screen shake
-  private cameraOffsetX: number = 0;
-  private cameraOffsetY: number = 0;
-  private shakeIntensity: number = 0;
-  private shakeDecay: number = 0.9; // Per frame decay
-
-  // Character animations
-  private playerAnimationState: "idle" | "attack" | "block" | "hit" = "idle";
-  private playerAnimationTimer: number = 0;
-  private enemyAnimationState: "idle" | "attack" | "block" | "hit" = "idle";
-  private enemyAnimationTimer: number = 0;
-  private lastPlayerHitTime: number = 0;
-
-  // Keyboard state
-  private keys: Set<string> = new Set();
-
-  // Game status
-  private gameStatus:
-    | "intro"
-    | "playing"
-    | "levelComplete"
-    | "playerWon"
-    | "enemyWon"
-    | "upgradeMenu" = "intro";
-
-  // New Game+ system
-  private newGamePlusLevel: number = 0;
-  private healthUpgrades: number = 0;
-  private staminaUpgrades: number = 0;
-  private perfectBlockUpgrades: number = 0;
-  private attackDamageUpgrades: number = 0;
-  private baseMaxHealth: number = 100;
-  private baseMaxStamina: number = 100;
-  private basePerfectBlockDuration: number = 500; // milliseconds
-  private basePlayerDamage: number = 15;
-  private selectedUpgrade:
-    | "health"
-    | "stamina"
-    | "perfectBlock"
-    | "attackDamage"
-    | null = null;
-
-  // Score system
-  private score: number = 0;
-  private scoreMultiplier: number = 1.0;
-
-  // Statistics tracking
-  private stats = {
+  private stats: GameStats = {
     totalDamageDealt: 0,
     perfectBlocks: 0,
     attacksBlocked: 0,
     hitsTaken: 0,
     totalAttacks: 0,
   };
+
+  // Input state
+  private keys: Set<string> = new Set();
+  private activeTouches: Map<number, { type: "attack" | "block" }> = new Map();
+  private isAttackButtonPressed: boolean = false;
+  private isBlockButtonPressed: boolean = false;
+  private upgradeMenuTouchY: number | null = null;
+  private wasSpaceHeld: boolean = false;
 
   // Event handlers for cleanup
   private resizeHandler: () => void;
@@ -235,13 +548,39 @@ export class TinySouls {
   private touchendHandler: (e: TouchEvent) => void;
   private touchcancelHandler: (e: TouchEvent) => void;
   private clickHandler: (e: MouseEvent) => void;
+  private mousemoveHandler: (e: MouseEvent) => void;
 
-  // Touch state tracking
-  private activeTouches: Map<number, { type: "attack" | "block" }> = new Map();
+  // Cached values for performance
+  private rgbCache: Map<string, { r: number; g: number; b: number }> =
+    new Map();
+  private cachedCurrentTime: number = 0;
+  private cachedLevelConfig: LevelConfig | null = null;
+  private cachedIsMobile: boolean = false;
 
-  // Mobile control button states
-  private isAttackButtonPressed: boolean = false;
-  private isBlockButtonPressed: boolean = false;
+  // Audio manager
+  private audioManager: AudioManager;
+
+  // Logo and intro screen state
+  private logoImage: HTMLImageElement | null = null;
+  private logoFadeProgress: number = 0;
+  private logoFadeDuration: number = 1500;
+  private logoFadeStartTime: number = 0;
+  private buttonFadeProgress: number = 0;
+  private buttonFadeDuration: number = 500;
+  private buttonFadeStartTime: number = 0;
+  private fadeOutProgress: number = 0;
+  private fadeOutDuration: number = 500;
+  private fadeOutStartTime: number = 0;
+  private pendingTransition: GameStatus | null = null;
+  private buttonPressState: {
+    start: boolean;
+    controls: boolean;
+    back: boolean;
+  } = {
+    start: false,
+    controls: false,
+    back: false,
+  };
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -251,53 +590,51 @@ export class TinySouls {
     }
     this.ctx = context;
 
+    // Initialize audio manager
+    this.audioManager = new AudioManager();
+
     // Set up event handlers
     this.resizeHandler = () => this.resize();
     this.keydownHandler = (e: KeyboardEvent) => {
       this.keys.add(e.code);
 
-      // Handle intro screen - start game on Enter or Space
-      if (this.gameStatus === "intro") {
-        if (e.code === "Enter" || e.code === "Space") {
+      // Start, intro and controls screens use buttons, not keyboard shortcuts
+      if (
+        this.gameStatus === "startScreen" ||
+        this.gameStatus === "intro" ||
+        this.gameStatus === "controls"
+      ) {
+        return;
+      }
+
+      // Upgrade menu now uses click/touch instead of keyboard
+
+      if (this.gameStatus === "levelComplete") {
+        if (e.code === "Space") {
           e.preventDefault();
-          this.gameStatus = "playing";
+          this.continueFromLevelComplete();
         }
         return;
       }
 
-      // Handle upgrade menu navigation
-      if (this.gameStatus === "upgradeMenu") {
-        if (e.code === "Digit1" || e.code === "Numpad1") {
-          e.preventDefault();
-          this.selectedUpgrade = "health";
-          this.applyUpgrade("health");
-        } else if (e.code === "Digit2" || e.code === "Numpad2") {
-          e.preventDefault();
-          this.selectedUpgrade = "stamina";
-          this.applyUpgrade("stamina");
-        } else if (e.code === "Digit3" || e.code === "Numpad3") {
-          e.preventDefault();
-          this.selectedUpgrade = "perfectBlock";
-          this.applyUpgrade("perfectBlock");
-        } else if (e.code === "Digit4" || e.code === "Numpad4") {
-          e.preventDefault();
-          this.selectedUpgrade = "attackDamage";
-          this.applyUpgrade("attackDamage");
-        }
+      if (e.code === "KeyR") {
+        e.preventDefault();
+        this.restart();
         return;
       }
-
       if (e.code === "Space") {
         e.preventDefault();
-        this.handlePlayerAttack();
+        // Only attack on initial press, not on key repeat
+        if (!this.wasSpaceHeld) {
+          this.wasSpaceHeld = true;
+          this.handlePlayerAttack();
+        }
       }
       if (e.code === "ControlLeft" || e.code === "ControlRight") {
         e.preventDefault();
-        // Check if this is a new press (not already held)
-        const isNewPress = !this.wasCtrlHeld;
-        this.wasCtrlHeld = true;
+        const isNewPress = !this.perfectBlock.wasCtrlHeld;
+        this.perfectBlock.wasCtrlHeld = true;
         this.handlePlayerBlock();
-        // Only check for perfect block on initial press, not while holding
         if (isNewPress) {
           this.checkPerfectBlockOnPress();
         }
@@ -306,8 +643,11 @@ export class TinySouls {
     this.keyupHandler = (e: KeyboardEvent) => {
       this.keys.delete(e.code);
       if (e.code === "ControlLeft" || e.code === "ControlRight") {
-        this.isPlayerBlocking = false;
-        this.wasCtrlHeld = false;
+        this.player.isBlocking = false;
+        this.perfectBlock.wasCtrlHeld = false;
+      }
+      if (e.code === "Space") {
+        this.wasSpaceHeld = false;
       }
     };
 
@@ -325,16 +665,54 @@ export class TinySouls {
       this.handleTouchEnd(e);
     };
     this.clickHandler = (e: MouseEvent) => {
-      // Handle intro screen - any click starts the game
+      const rect = this.canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // Handle start screen - any click goes to intro
+      if (this.gameStatus === "startScreen") {
+        e.preventDefault();
+        const oldStatus = this.gameStatus;
+        this.gameStatus = "intro";
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
+        return;
+      }
+
+      // Handle intro screen buttons
       if (this.gameStatus === "intro") {
         e.preventDefault();
-        this.gameStatus = "playing";
+        if (this.handleIntroButtonClick(x, y)) {
+          return;
+        }
+      }
+
+      // Handle controls screen back button
+      if (this.gameStatus === "controls") {
+        e.preventDefault();
+        if (this.handleControlsButtonClick(x, y)) {
+          return;
+        }
+      }
+
+      // Handle level complete screen - any click continues
+      if (this.gameStatus === "levelComplete") {
+        e.preventDefault();
+        this.continueFromLevelComplete();
+        return;
+      }
+      // Handle upgrade menu - click to select upgrade
+      if (this.gameStatus === "upgradeMenu") {
+        this.handleUpgradeMenuClick(x, y);
+        return;
       }
     };
 
     // Set canvas size
     this.resize();
     window.addEventListener("resize", this.resizeHandler);
+
+    // Load logo image
+    this.loadLogo();
 
     // Keyboard event listeners
     window.addEventListener("keydown", this.keydownHandler);
@@ -351,20 +729,262 @@ export class TinySouls {
       passive: false,
     });
 
-    // Click event listener for intro screen
+    // Click event listener
     this.canvas.addEventListener("click", this.clickHandler);
+
+    // Mouse move handler for hover feedback on upgrade menu
+    this.mousemoveHandler = (e: MouseEvent) => {
+      if (this.gameStatus === "upgradeMenu") {
+        const rect = this.canvas.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        this.setUpgradeMenuTouchY(y);
+      } else {
+        this.setUpgradeMenuTouchY(null);
+      }
+    };
+    this.canvas.addEventListener("mousemove", this.mousemoveHandler);
+    this.canvas.addEventListener("mouseleave", () => {
+      this.setUpgradeMenuTouchY(null);
+    });
 
     // Initialize level
     this.initializeLevel();
   }
 
+  // ============================================================================
+  // HELPER METHODS
+  // ============================================================================
+
+  /**
+   * Handle game status changes and trigger appropriate audio
+   */
+  private handleGameStatusChange(
+    oldStatus: GameStatus,
+    newStatus: GameStatus
+  ): void {
+    // Play intro music when transitioning from startScreen to intro
+    // (This happens after user interaction, so autoplay should work)
+    if (newStatus === "intro" && oldStatus === "startScreen") {
+      this.audioManager.playMusic("game-intro.mp3").catch(() => {
+        // Silently handle if file doesn't exist or fails to play
+      });
+      // Initialize logo fade animation when transitioning to intro
+      if (this.logoImage && this.logoFadeStartTime === 0) {
+        this.logoFadeStartTime = performance.now();
+        this.logoFadeProgress = 0;
+        this.buttonFadeProgress = 0;
+        this.buttonFadeStartTime = 0;
+      }
+    }
+
+    // Start combat music when entering playing state at 50% volume
+    if (newStatus === "playing" && oldStatus !== "playing") {
+      this.audioManager.playMusic("combat-music.mp3", 0.3);
+    }
+
+    // Stop combat music when leaving playing state
+    if (oldStatus === "playing" && newStatus !== "playing") {
+      this.audioManager.stopMusic();
+    }
+
+    // Play death screen sound
+    if (newStatus === "deathScreen" && oldStatus !== "deathScreen") {
+      this.audioManager.playSound("player-death.mp3");
+    }
+
+    // Play enemy death sound
+    if (newStatus === "enemyDeath" && oldStatus !== "enemyDeath") {
+      this.audioManager.playSound("player-death.mp3"); // Using same sound for enemy death
+    }
+
+    // Play "You Died" sound
+    if (newStatus === "enemyWon" && oldStatus !== "enemyWon") {
+      this.audioManager.playSound("you-died.mp3");
+    }
+
+    // Play "Enemy Vanquished" sound
+    if (newStatus === "enemyVanquished" && oldStatus !== "enemyVanquished") {
+      this.audioManager.playSound("enemy-vanquished.mp3");
+    }
+
+    // Play "You Win" sound
+    if (newStatus === "level5Victory" && oldStatus !== "level5Victory") {
+      this.audioManager.playSound("you-win.mp3");
+    }
+  }
+
+  private getMobileValue<T>(mobile: T, desktop: T): T {
+    return this.isMobile() ? mobile : desktop;
+  }
+
+  private hexToRgb(hex: string): { r: number; g: number; b: number } {
+    if (this.rgbCache.has(hex)) {
+      return this.rgbCache.get(hex)!;
+    }
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    const rgb = result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : { r: 212, g: 175, b: 55 }; // Default to gold if parsing fails
+    this.rgbCache.set(hex, rgb);
+    return rgb;
+  }
+
+  private drawTextWithStroke(
+    text: string,
+    x: number,
+    y: number,
+    fillColor: string,
+    fontSize: number,
+    strokeColor: string = COLORS.BLACK,
+    strokeWidth: number = this.isMobile() ? 2 : 4
+  ): void {
+    this.ctx.save();
+    this.ctx.fillStyle = fillColor;
+    this.ctx.strokeStyle = strokeColor;
+    this.ctx.font = `bold ${this.getFontSize(fontSize)} serif`;
+    this.ctx.textAlign = "center";
+    this.ctx.lineWidth = strokeWidth;
+    this.ctx.strokeText(text, x, y);
+    this.ctx.fillText(text, x, y);
+    this.ctx.restore();
+  }
+
+  private createParticles(
+    x: number,
+    y: number,
+    count: number,
+    color: string,
+    speed: number,
+    life: number,
+    sizeVariation: number = 3
+  ): Particle[] {
+    const particles: Particle[] = [];
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+      particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life,
+        maxLife: life,
+        color,
+        size: 2 + Math.random() * sizeVariation,
+      });
+    }
+    return particles;
+  }
+
+  private updateParticles(
+    particles: Particle[],
+    deltaTime: number,
+    friction: number = 1.0
+  ): Particle[] {
+    return particles
+      .map((p) => ({
+        ...p,
+        x: p.x + p.vx,
+        y: p.y + p.vy,
+        life: p.life - deltaTime,
+        vx: p.vx * friction,
+        vy: p.vy * friction,
+      }))
+      .filter((p) => p.life > 0);
+  }
+
+  private updateSimpleParticles(
+    particles: SimpleParticle[],
+    deltaTime: number,
+    fadeTime: number
+  ): SimpleParticle[] {
+    return particles
+      .map((p) => ({
+        ...p,
+        x: p.x + p.vx,
+        y: p.y + p.vy,
+        life: p.life - deltaTime / fadeTime,
+      }))
+      .filter((p) => p.life > 0);
+  }
+
+  private drawParticles(particles: Particle[]): void {
+    particles.forEach((particle) => {
+      const alpha = particle.life / particle.maxLife;
+      this.ctx.save();
+      this.ctx.globalAlpha = alpha;
+      this.ctx.fillStyle = particle.color;
+      this.ctx.beginPath();
+      this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.restore();
+    });
+  }
+
+  private drawSimpleParticles(particles: SimpleParticle[]): void {
+    particles.forEach((particle) => {
+      this.ctx.save();
+      this.ctx.globalAlpha = particle.life;
+      this.ctx.fillStyle = particle.color || COLORS.PERFECT_BLOCK;
+      this.ctx.beginPath();
+      this.ctx.arc(particle.x, particle.y, 3, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.restore();
+    });
+  }
+
+  // ============================================================================
+  // GAME LOGIC METHODS
+  // ============================================================================
+
   private getEnemyMultiplier(ngPlusLevel: number): number {
-    if (ngPlusLevel === 0) return 1.0;
-    if (ngPlusLevel === 1) return 1.2;
-    if (ngPlusLevel === 2) return 1.5;
-    if (ngPlusLevel === 3) return 2.0;
-    // Linear progression: x2.5, x3.0, x3.5, x4.0...
-    return 2.0 + (ngPlusLevel - 3) * 0.5;
+    const multipliers = GAME_CONSTANTS.NG_PLUS.MULTIPLIERS;
+    if (ngPlusLevel < multipliers.length) {
+      return multipliers[ngPlusLevel];
+    }
+    const baseMultiplier = multipliers[multipliers.length - 1];
+    const linearStart = GAME_CONSTANTS.NG_PLUS.LINEAR_START;
+    return (
+      baseMultiplier +
+      (ngPlusLevel - linearStart) * GAME_CONSTANTS.NG_PLUS.LINEAR_INCREMENT
+    );
+  }
+
+  private getPlayerDamage(): number {
+    return (
+      this.upgrades.basePlayerDamage +
+      this.upgrades.attackDamage * GAME_CONSTANTS.DAMAGE.UPGRADE_INCREMENT
+    );
+  }
+
+  private formatUpgradeText(): string {
+    const upgradeText = [
+      this.upgrades.health > 0
+        ? `Health: +${this.upgrades.health * GAME_CONSTANTS.UPGRADE_INCREMENT}`
+        : null,
+      this.upgrades.stamina > 0
+        ? `Stamina: +${
+            this.upgrades.stamina * GAME_CONSTANTS.UPGRADE_INCREMENT
+          }`
+        : null,
+      this.upgrades.perfectBlock > 0
+        ? `Perfect Block: -${
+            this.upgrades.perfectBlock *
+            GAME_CONSTANTS.PERFECT_BLOCK.UPGRADE_REDUCTION
+          }ms`
+        : null,
+      this.upgrades.attackDamage > 0
+        ? `Attack Damage: +${
+            this.upgrades.attackDamage * GAME_CONSTANTS.DAMAGE.UPGRADE_INCREMENT
+          }`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(this.isMobile() ? " | " : " | ");
+    return upgradeText;
   }
 
   private getCurrentLevelConfig(): LevelConfig {
@@ -373,49 +993,90 @@ export class TinySouls {
       LEVEL_CONFIGS.length - 1
     );
     const baseConfig = LEVEL_CONFIGS[levelIndex];
-    const multiplier = this.getEnemyMultiplier(this.newGamePlusLevel);
+    const multiplier = this.getEnemyMultiplier(this.upgrades.newGamePlusLevel);
 
     return {
       ...baseConfig,
       enemyHealth: baseConfig.enemyHealth * multiplier,
       enemyDamage: baseConfig.enemyDamage * multiplier,
-      enemyAttackCooldown: baseConfig.enemyAttackCooldown / multiplier, // Divide to make attacks faster
+      enemyAttackCooldown: baseConfig.enemyAttackCooldown / multiplier,
     };
   }
 
-  private applyUpgrade(
-    upgradeType: "health" | "stamina" | "perfectBlock" | "attackDamage"
-  ): void {
-    // Apply flat +20 upgrades
-    if (upgradeType === "health") {
-      this.healthUpgrades++;
-      this.maxHealth = this.baseMaxHealth + this.healthUpgrades * 20;
-      this.playerHealth = this.maxHealth; // Full heal on upgrade
-    } else if (upgradeType === "stamina") {
-      this.staminaUpgrades++;
-      this.maxStamina = this.baseMaxStamina + this.staminaUpgrades * 20;
-      this.playerStamina = this.maxStamina; // Full stamina on upgrade
-    } else if (upgradeType === "perfectBlock") {
-      this.perfectBlockUpgrades++;
-      // Reduce duration by 20ms per upgrade (minimum 100ms)
-      this.perfectBlockDuration = Math.max(
-        100,
-        this.basePerfectBlockDuration - this.perfectBlockUpgrades * 20
-      );
-    } else if (upgradeType === "attackDamage") {
-      this.attackDamageUpgrades++;
-      // Attack damage is applied directly in damage calculation
-    }
-
-    // Increment NG+ level
-    this.newGamePlusLevel++;
-
-    // Reset game state for new playthrough
+  private resetGameState(preserveUpgrades: boolean = false): void {
     this.currentLevel = 1;
-    this.playerHealth = this.maxHealth;
-    this.playerStamina = this.maxStamina;
-    this.score = 0;
-    this.scoreMultiplier = 1.0;
+    this.levelCompleteTimer = 0;
+    this.deathScreenTimer = 0;
+    this.enemyVanquishedTimer = 0;
+    this.level5VictoryTimer = 0;
+
+    // Reset player state
+    if (!preserveUpgrades) {
+      this.player.maxHealth =
+        this.upgrades.baseMaxHealth +
+        this.upgrades.health * GAME_CONSTANTS.UPGRADE_INCREMENT;
+      this.player.maxStamina =
+        this.upgrades.baseMaxStamina +
+        this.upgrades.stamina * GAME_CONSTANTS.UPGRADE_INCREMENT;
+    }
+    this.player.health = this.player.maxHealth;
+    this.player.stamina = this.player.maxStamina;
+    this.player.isBlocking = false;
+    this.player.attackCooldown = 0;
+    this.player.blockCooldown = 0;
+    this.player.animation = { state: "idle", timer: 0 };
+    this.player.spear = {
+      x: 0,
+      y: 0,
+      baseX: 0,
+      baseY: 0,
+      progress: 0,
+      timer: 0,
+      damageDealt: false,
+      targetDistance: 0,
+    };
+    this.player.lastHitTime = 0;
+
+    // Reset enemy state
+    this.enemy.attackTimer = 0;
+    this.enemy.isAttacking = false;
+    this.enemy.attackDuration = 0;
+    this.enemy.stunTimer = 0;
+    this.enemy.animation = { state: "idle", timer: 0 };
+    this.enemy.spear = {
+      x: 0,
+      y: 0,
+      baseX: 0,
+      baseY: 0,
+      progress: 0,
+      damageDealt: false,
+      targetDistance: 0,
+    };
+
+    // Reset perfect block
+    this.perfectBlock.active = false;
+    this.perfectBlock.timer = 0;
+    this.perfectBlock.attempted = false;
+    this.perfectBlock.wasCtrlHeld = false;
+    this.perfectBlock.particles = [];
+
+    // Reset particles
+    this.particles.hit = [];
+    this.particles.block = [];
+    this.particles.attackTrail = [];
+    this.particles.deathExplosion = [];
+    this.particles.enemyDeathExplosion = [];
+
+    // Reset UI
+    this.ui.damageNumbers = [];
+    this.ui.attackEffects = [];
+    this.ui.screenShake = { offsetX: 0, offsetY: 0, intensity: 0 };
+
+    // Reset score
+    this.score.value = 0;
+    this.score.multiplier = 1.0;
+
+    // Reset stats
     this.stats = {
       totalDamageDealt: 0,
       perfectBlocks: 0,
@@ -423,96 +1084,150 @@ export class TinySouls {
       hitsTaken: 0,
       totalAttacks: 0,
     };
-    this.playerAnimationState = "idle";
-    this.playerAnimationTimer = 0;
-    this.enemyAnimationState = "idle";
-    this.enemyAnimationTimer = 0;
-    this.lastPlayerHitTime = 0;
-    this.isPlayerBlocking = false;
-    this.playerAttackCooldown = 0;
-    this.playerBlockCooldown = 0;
-    this.playerSpearProgress = 0;
-    this.playerSpearTimer = 0;
-    this.enemyAttackTimer = 0;
-    this.isEnemyAttacking = false;
-    this.enemyAttackDuration = 0;
-    this.enemyStunTimer = 0;
-    this.enemySpearProgress = 0;
-    this.attackEffects = [];
-    this.damageNumbers = [];
-    this.perfectBlockActive = false;
-    this.perfectBlockParticles = [];
-    this.hitParticles = [];
-    this.blockParticles = [];
-    this.attackTrailParticles = [];
-    this.perfectBlockTimer = 0;
-    this.perfectBlockAttempted = false;
-    this.wasCtrlHeld = false;
-    // Preserve intro status if already set, otherwise set to playing
-    if (this.gameStatus !== "intro") {
-      this.gameStatus = "playing";
-    }
-    this.levelCompleteTimer = 0;
+
+    // Reset input
     this.keys.clear();
+    this.activeTouches.clear();
+    this.isAttackButtonPressed = false;
+    this.isBlockButtonPressed = false;
+    this.wasSpaceHeld = false;
+  }
+
+  private applyUpgrade(upgradeType: UpgradeType): void {
+    const increment = GAME_CONSTANTS.UPGRADE_INCREMENT;
+
+    if (upgradeType === "health") {
+      this.upgrades.health++;
+      this.player.maxHealth =
+        this.upgrades.baseMaxHealth + this.upgrades.health * increment;
+      this.player.health = this.player.maxHealth;
+    } else if (upgradeType === "stamina") {
+      this.upgrades.stamina++;
+      this.player.maxStamina =
+        this.upgrades.baseMaxStamina + this.upgrades.stamina * increment;
+      this.player.stamina = this.player.maxStamina;
+    } else if (upgradeType === "perfectBlock") {
+      this.upgrades.perfectBlock++;
+      this.perfectBlock.duration = Math.max(
+        GAME_CONSTANTS.PERFECT_BLOCK.MIN_DURATION,
+        this.upgrades.basePerfectBlockDuration -
+          this.upgrades.perfectBlock *
+            GAME_CONSTANTS.PERFECT_BLOCK.UPGRADE_REDUCTION
+      );
+    } else if (upgradeType === "attackDamage") {
+      this.upgrades.attackDamage++;
+    }
+
+    this.upgrades.newGamePlusLevel++;
+    this.resetGameState(true);
+    if (this.gameStatus !== "intro") {
+      const oldStatus = this.gameStatus;
+      this.gameStatus = "playing";
+      this.handleGameStatusChange(oldStatus, this.gameStatus);
+    }
     this.initializeLevel();
     this.updateSpearPositions();
   }
 
+  private continueFromLevelComplete(): void {
+    this.currentLevel++;
+    const missingHealth = this.player.maxHealth - this.player.health;
+    const healAmount = missingHealth * GAME_CONSTANTS.LEVEL.HEALTH_REGEN_RATIO;
+    this.player.health = Math.min(
+      this.player.maxHealth,
+      this.player.health + healAmount
+    );
+    // Reset stamina to max when level changes
+    this.player.stamina = this.player.maxStamina;
+    this.initializeLevel();
+    const oldStatus = this.gameStatus;
+    this.gameStatus = "playing";
+    this.handleGameStatusChange(oldStatus, this.gameStatus);
+    this.levelCompleteTimer = 0;
+  }
+
+  private loadLogo(): void {
+    const img = new Image();
+    img.onload = () => {
+      this.logoImage = img;
+      // Initialize fade start time if game is running and on intro screen
+      if (
+        this.isRunning &&
+        this.gameStatus === "intro" &&
+        this.logoFadeStartTime === 0
+      ) {
+        this.logoFadeStartTime = performance.now();
+        // Intro sound is played when transitioning from startScreen to intro
+        // (after user interaction, so autoplay works)
+      }
+    };
+    img.onerror = () => {
+      console.warn("Failed to load logo image");
+      this.logoImage = null;
+    };
+    img.src = "/assets/games/tiny-souls-logo.png";
+  }
+
   private initializeLevel(): void {
     const config = this.getCurrentLevelConfig();
-    this.enemyHealth = config.enemyHealth;
-    // Don't modify maxHealth here - it's set based on upgrades
-    this.enemyAttackCooldown = config.enemyAttackCooldown;
-    this.enemyAttackTotalDuration = config.enemyAttackCooldown * 0.4; // 40% of cooldown is attack duration
-    this.enemyAttackTimer = 0;
-    this.isEnemyAttacking = false;
-    this.enemyAttackDuration = 0;
-    this.enemyStunTimer = 0;
-    this.enemySpearProgress = 0;
-    this.perfectBlockAttempted = false;
-    this.wasCtrlHeld = false;
+    this.enemy.health = config.enemyHealth;
+    this.enemy.maxHealth = config.enemyHealth;
+    this.enemy.attackCooldown = config.enemyAttackCooldown;
+    this.enemy.attackTotalDuration =
+      config.enemyAttackCooldown * GAME_CONSTANTS.ANIMATION.ENEMY_ATTACK_RATIO;
+    this.enemy.attackTimer = 0;
+    this.enemy.isAttacking = false;
+    this.enemy.attackDuration = 0;
+    this.enemy.stunTimer = 0;
+    this.enemy.spear.progress = 0;
+    this.enemy.spear.damageDealt = false;
+    this.enemy.spear.targetDistance = 0;
+    this.perfectBlock.attempted = false;
+    this.perfectBlock.wasCtrlHeld = false;
     this.updateSpearPositions();
   }
 
   private updateSpearPositions(): void {
-    if (this.isMobile()) {
-      // Portrait mode: spears positioned to the sides
-      // Player spear floats to the right of player
-      this.playerSpearBaseX = this.playerX + this.playerWidth / 2 + 20;
-      this.playerSpearBaseY = this.playerY;
-      this.playerSpearY = this.playerSpearBaseY;
-      // Enemy spear floats to the left of enemy
-      this.enemySpearBaseX = this.enemyX - this.enemyWidth / 2 - 20;
-      this.enemySpearBaseY = this.enemyY;
-      this.enemySpearY = this.enemySpearBaseY;
-    } else {
-      // Landscape mode: original positioning
-      // Player spear floats to the right of player
-      this.playerSpearBaseX = this.playerX + this.playerWidth / 2 + 20;
-      this.playerSpearBaseY = this.playerY;
-      this.playerSpearY = this.playerSpearBaseY;
-      // Enemy spear floats to the left of enemy
-      this.enemySpearBaseX = this.enemyX - this.enemyWidth / 2 - 20;
-      this.enemySpearBaseY = this.enemyY;
-      this.enemySpearY = this.enemySpearBaseY;
-    }
+    const offset = GAME_CONSTANTS.SPEAR.OFFSET_FROM_CHARACTER;
+    // Player spear starts from right edge (player faces right)
+    const playerBaseX =
+      this.player.position.x + this.player.size.width / 2 + offset;
+    const playerBaseY = this.player.position.y;
+    // Enemy spear: x is the base connection point (where spear connects to character)
+    // The rectangle now extends LEFT from x (toward player)
+    // Enemy attacks toward player (left), so their front edge is their LEFT side in world coords
+    // Front edge is at: position.x - width/2
+    // Set base at front edge, subtract offset to move it slightly left (forward toward player)
+    const enemyFrontEdge = this.enemy.position.x - this.enemy.size.width / 2;
+    const enemyBaseX = enemyFrontEdge - offset;
+    const enemyBaseY = this.enemy.position.y;
 
-    // Update current positions based on attack progress
-    if (this.playerSpearProgress === 0) {
-      this.playerSpearX = this.playerSpearBaseX;
+    this.player.spear.baseX = playerBaseX;
+    this.player.spear.baseY = playerBaseY;
+    this.enemy.spear.baseX = enemyBaseX;
+    this.enemy.spear.baseY = enemyBaseY;
+
+    if (this.player.spear.progress === 0) {
+      this.player.spear.x = playerBaseX;
+      this.player.spear.y = playerBaseY;
     }
-    if (this.enemySpearProgress === 0) {
-      this.enemySpearX = this.enemySpearBaseX;
+    if (this.enemy.spear.progress === 0) {
+      this.enemy.spear.x = enemyBaseX;
+      this.enemy.spear.y = enemyBaseY;
     }
   }
 
   private isMobile(): boolean {
-    // Check viewport width, not canvas width (which changes based on mode)
-    return window.innerWidth < 768;
+    return window.innerWidth < GAME_CONSTANTS.UI.MOBILE_BREAKPOINT;
   }
 
   private getFontSize(baseSize: number): string {
-    const scale = this.isMobile() ? Math.max(0.7, this.displayWidth / 768) : 1;
+    const scale = this.isMobile()
+      ? Math.max(
+          GAME_CONSTANTS.UI.MOBILE_FONT_SCALE_MIN,
+          this.displayWidth / GAME_CONSTANTS.UI.MOBILE_BREAKPOINT
+        )
+      : 1;
     return `${Math.round(baseSize * scale)}px`;
   }
 
@@ -527,38 +1242,25 @@ export class TinySouls {
       let displayHeight: number;
 
       if (isMobile) {
-        // Portrait mode for mobile (9:16 aspect ratio)
-        // Account for padding (p-4 = 16px on each side = 32px total)
-        const containerWidth = rect.width - 32;
-        // Use more of the viewport height for mobile (80% instead of 70%)
-        const maxHeight = window.innerHeight * 0.8;
-
-        // Calculate portrait dimensions - taller than wide
-        // Try to use full container width, but constrain by max height
-        const heightFromWidth = containerWidth * (16 / 9);
+        const containerWidth = rect.width - GAME_CONSTANTS.UI.CONTAINER_PADDING;
+        const maxHeight =
+          window.innerHeight * GAME_CONSTANTS.UI.MOBILE_HEIGHT_RATIO;
+        const heightFromWidth =
+          containerWidth * GAME_CONSTANTS.UI.MOBILE_ASPECT_RATIO;
         if (heightFromWidth <= maxHeight) {
-          // Container width fits within max height
           displayWidth = containerWidth;
           displayHeight = heightFromWidth;
         } else {
-          // Constrain by height
           displayHeight = maxHeight;
-          displayWidth = displayHeight * (9 / 16);
+          displayWidth = displayHeight / GAME_CONSTANTS.UI.MOBILE_ASPECT_RATIO;
         }
       } else {
-        // Landscape mode for desktop (16:9 aspect ratio)
-        // Account for padding (p-4 = 16px on each side = 32px total)
-        const containerWidth = rect.width - 32;
-
-        // Use full container width for maximum size
+        const containerWidth = rect.width - GAME_CONSTANTS.UI.CONTAINER_PADDING;
         displayWidth = containerWidth;
-        displayHeight = displayWidth / (16 / 9);
-
-        // Ensure minimum reasonable size
-        const minWidth = 600;
-        if (displayWidth < minWidth) {
-          displayWidth = minWidth;
-          displayHeight = displayWidth / (16 / 9);
+        displayHeight = displayWidth / GAME_CONSTANTS.UI.DESKTOP_ASPECT_RATIO;
+        if (displayWidth < GAME_CONSTANTS.UI.DESKTOP_MIN_WIDTH) {
+          displayWidth = GAME_CONSTANTS.UI.DESKTOP_MIN_WIDTH;
+          displayHeight = displayWidth / GAME_CONSTANTS.UI.DESKTOP_ASPECT_RATIO;
         }
       }
 
@@ -580,20 +1282,23 @@ export class TinySouls {
 
       // Update positions relative to display size (not scaled size)
       if (isMobile) {
-        // Portrait mode: characters positioned vertically
-        this.playerX = displayWidth * 0.5;
-        this.enemyX = displayWidth * 0.5;
-        // Position characters vertically - player higher, enemy lower
-        // Leave room for health bars at top (around 150px) and controls at bottom
-        this.playerY = displayHeight * 0.4;
-        this.enemyY = displayHeight * 0.7;
+        this.player.position.x = displayWidth * 0.5;
+        this.enemy.position.x = displayWidth * 0.5;
+        this.player.position.y =
+          displayHeight * GAME_CONSTANTS.CHARACTER.MOBILE_PLAYER_Y_RATIO;
+        this.enemy.position.y =
+          displayHeight * GAME_CONSTANTS.CHARACTER.MOBILE_ENEMY_Y_RATIO;
       } else {
-        // Landscape mode: characters positioned horizontally
-        this.playerX = Math.min(150, displayWidth * 0.2);
-        this.enemyX = Math.max(displayWidth - 150, displayWidth * 0.8);
-        // Update Y position to center vertically in new canvas height
-        this.playerY = displayHeight * 0.5;
-        this.enemyY = displayHeight * 0.5;
+        this.player.position.x = Math.min(
+          150,
+          displayWidth * GAME_CONSTANTS.CHARACTER.DESKTOP_X_RATIO
+        );
+        this.enemy.position.x = Math.max(
+          displayWidth - 150,
+          displayWidth * GAME_CONSTANTS.CHARACTER.DESKTOP_ENEMY_X_RATIO
+        );
+        this.player.position.y = displayHeight * 0.5;
+        this.enemy.position.y = displayHeight * 0.5;
       }
       this.updateSpearPositions();
     }
@@ -602,131 +1307,391 @@ export class TinySouls {
   public handlePlayerAttack(): void {
     if (
       this.gameStatus !== "playing" ||
-      this.playerAttackCooldown > 0 ||
-      this.playerSpearProgress > 0
+      this.player.attackCooldown > 0 ||
+      this.player.spear.progress > 0
     ) {
       return;
     }
 
-    // Check stamina
-    if (this.playerStamina < this.attackStaminaCost) {
+    if (this.player.stamina < GAME_CONSTANTS.STAMINA.ATTACK_COST) {
       return;
     }
 
-    // Consume stamina
-    this.playerStamina = Math.max(
+    this.player.stamina = Math.max(
       0,
-      this.playerStamina - this.attackStaminaCost
+      this.player.stamina - GAME_CONSTANTS.STAMINA.ATTACK_COST
     );
-
-    // Reset perfect block attempt flag when player attacks
-    // This ensures perfect blocks work correctly after attacking
-    this.perfectBlockAttempted = false;
-
-    // Set attack animation
-    this.playerAnimationState = "attack";
-    this.playerAnimationTimer = 400; // Match spear duration
-
-    // Start player spear animation
-    this.playerSpearProgress = 0.01; // Start animation
-    this.playerSpearTimer = 0;
+    this.perfectBlock.attempted = false;
     this.updateSpearPositions();
 
-    // Deal damage when spear connects (at 60% of animation)
-    // This will be handled in update()
+    // Calculate distance from player spear base to enemy's left edge (where spear should hit)
+    const enemyTargetX = this.enemy.position.x - this.enemy.size.width / 2;
+    const enemyTargetY = this.enemy.position.y;
+    const dx = enemyTargetX - this.player.spear.baseX;
+    const dy = enemyTargetY - this.player.spear.baseY;
+    this.player.spear.targetDistance = Math.sqrt(dx * dx + dy * dy);
+
+    this.player.animation.state = "attack";
+    this.player.animation.timer =
+      GAME_CONSTANTS.ANIMATION.PLAYER_SPEAR_DURATION;
+    this.player.spear.progress = 0.01;
+    this.player.spear.timer = 0;
+    this.player.spear.damageDealt = false;
+    this.player.attackCooldown = GAME_CONSTANTS.COOLDOWN.ATTACK;
+
+    // Play attack sound
+    this.audioManager.playSound("attack.mp3");
   }
 
   public handlePlayerBlock(): void {
-    if (this.gameStatus !== "playing" || this.playerBlockCooldown > 0) {
+    if (this.gameStatus !== "playing" || this.player.blockCooldown > 0) {
       return;
     }
 
-    // Check stamina (only consume on initial block, not while holding)
-    if (!this.isPlayerBlocking && this.playerStamina < this.blockStaminaCost) {
+    if (
+      !this.player.isBlocking &&
+      this.player.stamina < GAME_CONSTANTS.STAMINA.BLOCK_COST
+    ) {
       return;
     }
 
-    // Consume stamina only on initial block press
-    if (!this.isPlayerBlocking) {
-      this.playerStamina = Math.max(
+    if (!this.player.isBlocking) {
+      this.player.stamina = Math.max(
         0,
-        this.playerStamina - this.blockStaminaCost
+        this.player.stamina - GAME_CONSTANTS.STAMINA.BLOCK_COST
       );
-      // Set block animation
-      this.playerAnimationState = "block";
+      this.player.animation.state = "block";
+      this.player.blockCooldown = GAME_CONSTANTS.COOLDOWN.BLOCK;
+      // Play block sound when starting to block
+      this.audioManager.playSound("block.mp3");
     }
 
-    this.isPlayerBlocking = true;
+    this.player.isBlocking = true;
   }
 
   public checkPerfectBlockOnPress(): void {
-    // Perfect block triggers when Ctrl is pressed (not held) during the strike window
     if (
-      !this.isEnemyAttacking ||
-      this.enemyStunTimer > 0 ||
-      this.perfectBlockAttempted
+      !this.enemy.isAttacking ||
+      this.enemy.stunTimer > 0 ||
+      this.perfectBlock.attempted
     ) {
       return;
     }
 
     const attackProgress =
-      this.enemyAttackDuration / this.enemyAttackTotalDuration;
-    // Perfect block window: 85-95% of enemy attack progress (when spear is about to hit)
-    if (attackProgress >= 0.85 && attackProgress <= 0.95) {
-      // Perfect block!
-      this.perfectBlockAttempted = true; // Prevent multiple triggers
-      this.perfectBlockActive = true;
-      this.perfectBlockTimer = this.perfectBlockDuration;
-      this.enemyStunTimer = 2500; // 2.5 seconds stun
+      this.enemy.attackDuration / this.enemy.attackTotalDuration;
+    const windowStart = GAME_CONSTANTS.PERFECT_BLOCK.WINDOW_START;
+    const windowEnd = GAME_CONSTANTS.PERFECT_BLOCK.WINDOW_END;
 
-      // Update statistics
+    if (attackProgress >= windowStart && attackProgress <= windowEnd) {
+      this.perfectBlock.attempted = true;
+      this.perfectBlock.active = true;
+      this.perfectBlock.timer = this.perfectBlock.duration;
+      this.enemy.stunTimer = GAME_CONSTANTS.PERFECT_BLOCK.STUN_DURATION;
+
+      // Play perfect block sound
+      this.audioManager.playSound("perfect-block.mp3");
+
+      // Restore stamina as promised in intro screen
+      const staminaRestore = Math.min(
+        GAME_CONSTANTS.STAMINA.ATTACK_COST + GAME_CONSTANTS.STAMINA.BLOCK_COST,
+        this.player.maxStamina - this.player.stamina
+      );
+      this.player.stamina += staminaRestore;
+
       this.stats.perfectBlocks++;
+      const perfectBlockScore = Math.floor(
+        GAME_CONSTANTS.PERFECT_BLOCK.SCORE_BASE * this.score.multiplier
+      );
+      this.score.value += perfectBlockScore;
+      this.score.multiplier = Math.min(
+        GAME_CONSTANTS.SCORE.MAX_MULTIPLIER,
+        this.score.multiplier + GAME_CONSTANTS.PERFECT_BLOCK.MULTIPLIER_INCREASE
+      );
 
-      // Add score for perfect block
-      const perfectBlockScore = Math.floor(100 * this.scoreMultiplier);
-      this.score += perfectBlockScore;
+      this.ui.screenShake.intensity =
+        GAME_CONSTANTS.SCREEN_SHAKE.PERFECT_BLOCK_INTENSITY;
 
-      // Increase score multiplier for perfect blocks
-      this.scoreMultiplier = Math.min(3.0, this.scoreMultiplier + 0.2);
-
-      // Screen shake for perfect block
-      this.shakeIntensity = 15;
-
-      // Create particles for visual effect
-      for (let i = 0; i < 20; i++) {
-        const angle = (Math.PI * 2 * i) / 20;
-        this.perfectBlockParticles.push({
-          x: this.playerX,
-          y: this.playerY,
-          vx: Math.cos(angle) * 3,
-          vy: Math.sin(angle) * 3,
+      // Create perfect block particles
+      const particleCount = GAME_CONSTANTS.PARTICLES.PERFECT_BLOCK_COUNT;
+      const speed = GAME_CONSTANTS.PARTICLES.PERFECT_BLOCK_SPEED;
+      for (let i = 0; i < particleCount; i++) {
+        const angle = (Math.PI * 2 * i) / particleCount;
+        this.perfectBlock.particles.push({
+          x: this.player.position.x,
+          y: this.player.position.y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
           life: 1.0,
-          color: "#00FFFF",
+          color: COLORS.PERFECT_BLOCK,
         });
       }
 
       // Add spark particles
-      for (let i = 0; i < 15; i++) {
-        const angle = (Math.PI * 2 * i) / 15 + Math.random() * 0.5;
-        this.hitParticles.push({
-          x: this.playerX,
-          y: this.playerY,
+      const sparkCount = GAME_CONSTANTS.PARTICLES.PERFECT_BLOCK_SPARK_COUNT;
+      const sparkLife = GAME_CONSTANTS.PARTICLES.PERFECT_BLOCK_SPARK_LIFE;
+      for (let i = 0; i < sparkCount; i++) {
+        const angle = (Math.PI * 2 * i) / sparkCount + Math.random() * 0.5;
+        this.particles.hit.push({
+          x: this.player.position.x,
+          y: this.player.position.y,
           vx: Math.cos(angle) * (2 + Math.random() * 3),
           vy: Math.sin(angle) * (2 + Math.random() * 3),
-          life: 800,
-          maxLife: 800,
-          color: "#00FFFF",
+          life: sparkLife,
+          maxLife: sparkLife,
+          color: COLORS.PERFECT_BLOCK,
           size: 2 + Math.random() * 3,
         });
       }
 
-      // Cancel enemy attack
-      this.isEnemyAttacking = false;
-      this.enemyAttackDuration = 0;
-      this.enemyAttackTimer = 0;
-      this.enemySpearProgress = 0;
+      this.enemy.isAttacking = false;
+      this.enemy.attackDuration = 0;
+      this.enemy.attackTimer = 0;
+      this.enemy.spear.progress = 0;
+      this.enemy.spear.damageDealt = false;
+      this.enemy.spear.targetDistance = 0;
       this.updateSpearPositions();
     }
+  }
+
+  private createHitParticles(
+    x: number,
+    y: number,
+    color: string,
+    count: number = GAME_CONSTANTS.PARTICLES.HIT_COUNT
+  ): void {
+    const particles = this.createParticles(
+      x,
+      y,
+      count,
+      color,
+      1.5, // Average speed
+      GAME_CONSTANTS.PARTICLES.HIT_LIFE,
+      3
+    );
+    // Add random variation to velocities
+    particles.forEach((p) => {
+      p.vx += (Math.random() - 0.5) * 1;
+      p.vy += (Math.random() - 0.5) * 1;
+    });
+    this.particles.hit.push(...particles);
+  }
+
+  private createDeathExplosion(): void {
+    const centerX = this.player.position.x + this.player.size.width / 2;
+    const centerY = this.player.position.y + this.player.size.height / 2;
+    const count = GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_COUNT;
+    const life = GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_LIFE;
+    const speed = GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_SPEED;
+
+    // Clear any existing death explosion particles
+    this.particles.deathExplosion = [];
+
+    // Create explosion particles with varied colors (blue/cyan to represent the player)
+    const colors = [
+      "#8BB8E8",
+      "#00FFFF",
+      "#0080FF",
+      "#4A90E2",
+      "#87CEEB",
+      "#B0E0E6",
+    ];
+
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.8;
+      const particleSpeed = speed * (0.7 + Math.random() * 0.6); // Vary speed
+      const color = colors[Math.floor(Math.random() * colors.length)];
+
+      this.particles.deathExplosion.push({
+        x: centerX + (Math.random() - 0.5) * 10,
+        y: centerY + (Math.random() - 0.5) * 10,
+        vx: Math.cos(angle) * particleSpeed,
+        vy: Math.sin(angle) * particleSpeed,
+        life,
+        maxLife: life,
+        color,
+        size: 4 + Math.random() * 6, // Varied particle sizes (larger for visibility)
+      });
+    }
+  }
+
+  private createEnemyDeathExplosion(): void {
+    const config = this.cachedLevelConfig!;
+    const centerX = this.enemy.position.x + this.enemy.size.width / 2;
+    const centerY = this.enemy.position.y + this.enemy.size.height / 2;
+    const count = GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_COUNT;
+    const life = GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_LIFE;
+    const speed = GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_SPEED;
+
+    // Clear any existing enemy death explosion particles
+    this.particles.enemyDeathExplosion = [];
+
+    // Create explosion particles with enemy's color theme
+    // Use the enemy color and create variations
+    const enemyColorRgb = this.hexToRgb(config.enemyColor);
+    const colors = [
+      config.enemyColor,
+      `rgb(${Math.min(255, enemyColorRgb.r + 30)}, ${Math.min(
+        255,
+        enemyColorRgb.g + 30
+      )}, ${Math.min(255, enemyColorRgb.b + 30)})`,
+      `rgb(${Math.max(0, enemyColorRgb.r - 30)}, ${Math.max(
+        0,
+        enemyColorRgb.g - 30
+      )}, ${Math.max(0, enemyColorRgb.b - 30)})`,
+      `rgba(${enemyColorRgb.r}, ${enemyColorRgb.g}, ${enemyColorRgb.b}, 0.8)`,
+    ];
+
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.8;
+      const particleSpeed = speed * (0.7 + Math.random() * 0.6); // Vary speed
+      const color = colors[Math.floor(Math.random() * colors.length)];
+
+      this.particles.enemyDeathExplosion.push({
+        x: centerX + (Math.random() - 0.5) * 10,
+        y: centerY + (Math.random() - 0.5) * 10,
+        vx: Math.cos(angle) * particleSpeed,
+        vy: Math.sin(angle) * particleSpeed,
+        life,
+        maxLife: life,
+        color,
+        size: 4 + Math.random() * 6, // Varied particle sizes (larger for visibility)
+      });
+    }
+  }
+
+  private createBlockParticles(x: number, y: number): void {
+    const count = GAME_CONSTANTS.PARTICLES.BLOCK_COUNT;
+    const life = GAME_CONSTANTS.PARTICLES.BLOCK_LIFE;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.3;
+      this.particles.block.push({
+        x: x - 30,
+        y: y + (Math.random() - 0.5) * 40,
+        vx: Math.cos(angle) * (0.5 + Math.random() * 1),
+        vy: Math.sin(angle) * (0.5 + Math.random() * 1),
+        life,
+        maxLife: life,
+        color: COLORS.PLAYER,
+        size: 2 + Math.random() * 2,
+      });
+    }
+  }
+
+  private dealDamageToPlayer(
+    damage: number,
+    isBlocked: boolean,
+    enemyColor: string
+  ): void {
+    this.player.health = Math.max(0, this.player.health - damage);
+    this.stats.hitsTaken++;
+    // Only reset multiplier on unblocked hits
+    if (!isBlocked) {
+      this.score.multiplier = 1.0;
+    }
+
+    if (isBlocked) {
+      this.stats.attacksBlocked++;
+      this.ui.screenShake.intensity =
+        GAME_CONSTANTS.SCREEN_SHAKE.BLOCKED_HIT_INTENSITY;
+    } else {
+      // Play attack-hit sound when player gets hit (not blocked)
+      this.audioManager.playSound("attack-hit.mp3");
+      this.player.animation.state = "hit";
+      this.player.animation.timer = GAME_CONSTANTS.ANIMATION.HIT_DURATION;
+      this.player.lastHitTime = Date.now();
+      this.ui.screenShake.intensity = GAME_CONSTANTS.SCREEN_SHAKE.HIT_INTENSITY;
+    }
+
+    this.ui.damageNumbers.push({
+      x: this.player.position.x,
+      y: this.player.position.y,
+      value: damage,
+      type: "enemy",
+      life: 1000,
+      maxLife: 1000,
+      offsetY: 0,
+    });
+
+    if (isBlocked) {
+      this.createBlockParticles(this.player.position.x, this.player.position.y);
+    } else {
+      this.createHitParticles(
+        this.player.position.x,
+        this.player.position.y,
+        enemyColor
+      );
+      this.ui.attackEffects.push({
+        x: this.player.position.x,
+        y: this.player.position.y,
+        type: "enemy",
+        duration: 200,
+      });
+    }
+
+    if (this.player.health <= 0 && this.gameStatus === "playing") {
+      const oldStatus = this.gameStatus;
+      this.gameStatus = "deathScreen";
+      this.deathScreenTimer = 0;
+      this.handleGameStatusChange(oldStatus, this.gameStatus);
+      // Create death explosion particles
+      this.createDeathExplosion();
+    }
+  }
+
+  private updateEnemySpearPosition(): void {
+    this.enemy.spear.progress =
+      this.enemy.attackDuration / this.enemy.attackTotalDuration;
+
+    // Use calculated target distance, or fallback to fixed distance if not set
+    const travelDistance =
+      this.enemy.spear.targetDistance > 0
+        ? this.enemy.spear.targetDistance
+        : this.getMobileValue(
+            GAME_CONSTANTS.SPEAR.MOBILE_TRAVEL_DISTANCE,
+            GAME_CONSTANTS.SPEAR.DESKTOP_TRAVEL_DISTANCE
+          );
+
+    // Calculate direction vector from spear base to player
+    const dx = this.player.position.x - this.enemy.spear.baseX;
+    const dy = this.player.position.y - this.enemy.spear.baseY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > 0) {
+      // Normalize direction and multiply by progress
+      const normalizedDx = dx / distance;
+      const normalizedDy = dy / distance;
+      this.enemy.spear.x =
+        this.enemy.spear.baseX +
+        normalizedDx * travelDistance * this.enemy.spear.progress;
+      this.enemy.spear.y =
+        this.enemy.spear.baseY +
+        normalizedDy * travelDistance * this.enemy.spear.progress;
+    } else {
+      // Fallback to old behavior if distance is 0
+      if (this.isMobile()) {
+        this.enemy.spear.x = this.enemy.spear.baseX;
+        this.enemy.spear.y =
+          this.enemy.spear.baseY - travelDistance * this.enemy.spear.progress;
+      } else {
+        this.enemy.spear.x =
+          this.enemy.spear.baseX - travelDistance * this.enemy.spear.progress;
+        this.enemy.spear.y = this.enemy.spear.baseY;
+      }
+    }
+  }
+
+  private processEnemyAttackHit(): void {
+    const config = this.getCurrentLevelConfig();
+    this.dealDamageToPlayer(config.enemyDamage, false, config.enemyColor);
+  }
+
+  private processEnemyAttackBlock(): void {
+    const config = this.getCurrentLevelConfig();
+    const damage = config.enemyDamage * GAME_CONSTANTS.DAMAGE.BLOCK_REDUCTION;
+    // Play attack block sound
+    this.audioManager.playSound("attack-block.mp3");
+    this.dealDamageToPlayer(damage, true, config.enemyColor);
   }
 
   private updateEnemyAttack(deltaTime: number): void {
@@ -734,283 +1699,221 @@ export class TinySouls {
       return;
     }
 
-    // Update stun timer
-    if (this.enemyStunTimer > 0) {
-      this.enemyStunTimer = Math.max(0, this.enemyStunTimer - deltaTime);
-      return; // Can't attack while stunned
+    if (this.enemy.stunTimer > 0) {
+      this.enemy.stunTimer = Math.max(0, this.enemy.stunTimer - deltaTime);
+      return;
     }
 
-    this.enemyAttackTimer += deltaTime;
+    this.enemy.attackTimer += deltaTime;
 
-    if (this.isEnemyAttacking) {
-      this.enemyAttackDuration += deltaTime;
+    if (this.enemy.isAttacking) {
+      this.enemy.attackDuration += deltaTime;
 
-      // Update enemy spear position based on progress
-      this.enemySpearProgress =
-        this.enemyAttackDuration / this.enemyAttackTotalDuration;
-      // Spear moves forward during attack (toward player)
-      const spearTravelDistance = this.isMobile() ? 150 : 200; // pixels
-      if (this.isMobile()) {
-        // Portrait mode: spear moves upward toward player
-        this.enemySpearX = this.enemySpearBaseX;
-        this.enemySpearY =
-          this.enemySpearBaseY - spearTravelDistance * this.enemySpearProgress;
-      } else {
-        // Landscape mode: spear moves horizontally
-        this.enemySpearX =
-          this.enemySpearBaseX - spearTravelDistance * this.enemySpearProgress;
-        this.enemySpearY = this.enemySpearBaseY;
+      // Synchronize animation timer with attack duration
+      if (this.enemy.animation.state === "attack") {
+        this.enemy.animation.timer = Math.max(
+          0,
+          this.enemy.attackTotalDuration - this.enemy.attackDuration
+        );
       }
 
-      if (this.enemyAttackDuration >= this.enemyAttackTotalDuration) {
-        // Attack animation complete, deal damage
-        // Perfect block is checked on keydown, so if we get here it wasn't perfect blocked
-        if (!this.isPlayerBlocking) {
-          // Unblocked attack
-          const config = this.getCurrentLevelConfig();
-          const damage = config.enemyDamage;
-          this.playerHealth = Math.max(0, this.playerHealth - damage);
+      this.updateEnemySpearPosition();
 
-          // Update statistics
-          this.stats.hitsTaken++;
+      // Apply damage when spear reaches target (progress >= 1.0 or very close)
+      const attackProgress =
+        this.enemy.attackDuration / this.enemy.attackTotalDuration;
 
-          // Reset score multiplier on hit
-          this.scoreMultiplier = 1.0;
-
-          // Set hit animation
-          this.playerAnimationState = "hit";
-          this.playerAnimationTimer = 300;
-          this.lastPlayerHitTime = Date.now();
-
-          // Screen shake for hit
-          this.shakeIntensity = 20;
-
-          // Add damage number
-          this.damageNumbers.push({
-            x: this.playerX,
-            y: this.playerY,
-            value: damage,
-            type: "enemy",
-            life: 1000,
-            maxLife: 1000,
-            offsetY: 0,
-          });
-
-          // Add hit particles
-          for (let i = 0; i < 12; i++) {
-            const angle = (Math.PI * 2 * i) / 12 + (Math.random() - 0.5) * 0.5;
-            this.hitParticles.push({
-              x: this.playerX,
-              y: this.playerY,
-              vx: Math.cos(angle) * (1 + Math.random() * 2),
-              vy: Math.sin(angle) * (1 + Math.random() * 2),
-              life: 600,
-              maxLife: 600,
-              color: config.enemyColor,
-              size: 2 + Math.random() * 3,
-            });
-          }
-
-          // Add attack effect
-          this.attackEffects.push({
-            x: this.playerX,
-            y: this.playerY,
-            type: "enemy",
-            duration: 200,
-          });
-
-          // Check lose condition
-          if (this.playerHealth <= 0) {
-            this.gameStatus = "enemyWon";
-            // Don't stop immediately - let it render
-          }
+      if (!this.enemy.spear.damageDealt && attackProgress >= 0.99) {
+        if (!this.player.isBlocking) {
+          this.processEnemyAttackHit();
         } else {
-          // Regular block - reduced damage
-          const config = this.getCurrentLevelConfig();
-          const damage = config.enemyDamage * 0.25; // 25% damage through block
-          this.playerHealth = Math.max(0, this.playerHealth - damage);
-
-          // Update statistics
-          this.stats.attacksBlocked++;
-          this.stats.hitsTaken++; // Still counts as a hit, just reduced
-
-          // Reset score multiplier on hit (even if blocked)
-          this.scoreMultiplier = 1.0;
-
-          // Screen shake for blocked hit (less intense)
-          this.shakeIntensity = 8;
-
-          // Add damage number (smaller, different color for blocked)
-          this.damageNumbers.push({
-            x: this.playerX,
-            y: this.playerY,
-            value: damage,
-            type: "enemy",
-            life: 1000,
-            maxLife: 1000,
-            offsetY: 0,
-          });
-
-          // Add block particles
-          for (let i = 0; i < 8; i++) {
-            const angle = (Math.PI * 2 * i) / 8 + (Math.random() - 0.5) * 0.3;
-            this.blockParticles.push({
-              x: this.playerX - 30, // In front of player
-              y: this.playerY + (Math.random() - 0.5) * 40,
-              vx: Math.cos(angle) * (0.5 + Math.random() * 1),
-              vy: Math.sin(angle) * (0.5 + Math.random() * 1),
-              life: 400,
-              maxLife: 400,
-              color: "#8BB8E8",
-              size: 2 + Math.random() * 2,
-            });
-          }
+          this.processEnemyAttackBlock();
         }
+        this.enemy.spear.damageDealt = true;
+      }
 
-        this.isEnemyAttacking = false;
-        this.enemyAttackDuration = 0;
-        this.enemyAttackTimer = 0;
-        this.enemySpearProgress = 0;
-        // Return to idle after attack
-        if (this.enemyAnimationState === "attack") {
-          this.enemyAnimationState = "idle";
+      if (this.enemy.attackDuration >= this.enemy.attackTotalDuration) {
+        this.enemy.isAttacking = false;
+        this.enemy.attackDuration = 0;
+        this.enemy.attackTimer = 0;
+        this.enemy.spear.progress = 0;
+        this.enemy.spear.damageDealt = false;
+        this.enemy.spear.targetDistance = 0;
+        if (this.enemy.animation.state === "attack") {
+          this.enemy.animation.state = "idle";
+          this.enemy.animation.timer = 0;
         }
         this.updateSpearPositions();
       }
-    } else if (this.enemyAttackTimer >= this.enemyAttackCooldown) {
-      // Start enemy attack
-      this.isEnemyAttacking = true;
-      this.enemyAttackTimer = 0;
-      this.enemyAttackDuration = 0;
-      this.enemySpearProgress = 0;
-      this.enemyAnimationState = "attack";
-      this.enemyAnimationTimer = this.enemyAttackTotalDuration;
-      this.perfectBlockAttempted = false; // Reset perfect block attempt flag for new attack
+    } else if (this.enemy.attackTimer >= this.enemy.attackCooldown) {
       this.updateSpearPositions();
+
+      // Calculate distance from enemy spear base to player's right edge (where spear should hit)
+      const playerTargetX = this.player.position.x + this.player.size.width / 2;
+      const playerTargetY = this.player.position.y;
+      const dx = playerTargetX - this.enemy.spear.baseX;
+      const dy = playerTargetY - this.enemy.spear.baseY;
+      this.enemy.spear.targetDistance = Math.sqrt(dx * dx + dy * dy);
+
+      // Play attack sound when enemy starts attacking
+      this.audioManager.playSound("attack.mp3");
+      this.enemy.isAttacking = true;
+      this.enemy.attackTimer = 0;
+      this.enemy.attackDuration = 0;
+      this.enemy.spear.progress = 0;
+      this.enemy.spear.damageDealt = false;
+      this.enemy.animation.state = "attack";
+      this.enemy.animation.timer = this.enemy.attackTotalDuration;
+      this.perfectBlock.attempted = false;
+    }
+  }
+
+  private dealDamageToEnemy(damage: number): void {
+    this.enemy.health = Math.max(0, this.enemy.health - damage);
+    this.stats.totalDamageDealt += damage;
+    this.stats.totalAttacks++;
+
+    // Play attack hit sound
+    this.audioManager.playSound("attack-hit.mp3");
+
+    const damageScore = Math.floor(
+      damage * GAME_CONSTANTS.DAMAGE.SCORE_MULTIPLIER * this.score.multiplier
+    );
+    this.score.value += damageScore;
+
+    this.enemy.animation.state = "hit";
+    this.enemy.animation.timer = GAME_CONSTANTS.ANIMATION.HIT_DURATION;
+    this.ui.screenShake.intensity =
+      GAME_CONSTANTS.SCREEN_SHAKE.PLAYER_HIT_INTENSITY;
+
+    this.ui.damageNumbers.push({
+      x: this.enemy.position.x,
+      y: this.enemy.position.y,
+      value: damage,
+      type: "player",
+      life: 1000,
+      maxLife: 1000,
+      offsetY: 0,
+    });
+
+    this.createHitParticles(
+      this.enemy.position.x,
+      this.enemy.position.y,
+      COLORS.PLAYER,
+      10
+    );
+
+    const trailLife = GAME_CONSTANTS.PARTICLES.ATTACK_TRAIL_LIFE;
+    const trailCount = GAME_CONSTANTS.PARTICLES.ATTACK_TRAIL_COUNT;
+    for (let i = 0; i < trailCount; i++) {
+      this.particles.attackTrail.push({
+        x: this.player.spear.x + (Math.random() - 0.5) * 20,
+        y: this.player.spear.y + (Math.random() - 0.5) * 20,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+        life: trailLife,
+        maxLife: trailLife,
+        color: COLORS.PLAYER,
+        size: 1 + Math.random() * 2,
+      });
+    }
+
+    this.ui.attackEffects.push({
+      x: this.enemy.position.x,
+      y: this.enemy.position.y,
+      type: "player",
+      duration: 200,
+    });
+
+    if (this.enemy.health <= 0 && this.gameStatus === "playing") {
+      // Create enemy death explosion and delay victory screen
+      const oldStatus = this.gameStatus;
+      this.gameStatus = "enemyDeath";
+      this.enemyDeathTimer = 0;
+      this.handleGameStatusChange(oldStatus, this.gameStatus);
+      this.createEnemyDeathExplosion();
+
+      // Calculate score bonuses (will be applied after explosion)
+      const levelBonus =
+        this.currentLevel * GAME_CONSTANTS.SCORE.LEVEL_BONUS_MULTIPLIER;
+      this.score.value += Math.floor(levelBonus * this.score.multiplier);
+    }
+  }
+
+  private updatePlayerSpearPosition(): void {
+    // Use calculated target distance, or fallback to fixed distance if not set
+    const travelDistance =
+      this.player.spear.targetDistance > 0
+        ? this.player.spear.targetDistance
+        : this.getMobileValue(
+            GAME_CONSTANTS.SPEAR.MOBILE_TRAVEL_DISTANCE,
+            GAME_CONSTANTS.SPEAR.DESKTOP_TRAVEL_DISTANCE
+          );
+
+    // Calculate direction vector from spear base to enemy's left edge
+    const enemyTargetX = this.enemy.position.x - this.enemy.size.width / 2;
+    const enemyTargetY = this.enemy.position.y;
+    const dx = enemyTargetX - this.player.spear.baseX;
+    const dy = enemyTargetY - this.player.spear.baseY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > 0) {
+      // Normalize direction and multiply by progress
+      const normalizedDx = dx / distance;
+      const normalizedDy = dy / distance;
+      this.player.spear.x =
+        this.player.spear.baseX +
+        normalizedDx * travelDistance * this.player.spear.progress;
+      this.player.spear.y =
+        this.player.spear.baseY +
+        normalizedDy * travelDistance * this.player.spear.progress;
+    } else {
+      // Fallback to old behavior if distance is 0
+      if (this.isMobile()) {
+        this.player.spear.x = this.player.spear.baseX;
+        this.player.spear.y =
+          this.player.spear.baseY + travelDistance * this.player.spear.progress;
+      } else {
+        this.player.spear.x =
+          this.player.spear.baseX + travelDistance * this.player.spear.progress;
+        this.player.spear.y = this.player.spear.baseY;
+      }
     }
   }
 
   private updatePlayerSpear(deltaTime: number): void {
-    if (this.playerSpearProgress > 0) {
-      this.playerSpearTimer += deltaTime;
-      this.playerSpearProgress = Math.min(
+    if (this.player.spear.progress > 0) {
+      this.player.spear.timer += deltaTime;
+      this.player.spear.progress = Math.min(
         1,
-        this.playerSpearTimer / this.playerSpearDuration
+        this.player.spear.timer / GAME_CONSTANTS.ANIMATION.PLAYER_SPEAR_DURATION
       );
 
-      // Spear moves forward during attack (toward enemy)
-      const spearTravelDistance = this.isMobile() ? 150 : 200; // pixels
-      if (this.isMobile()) {
-        // Portrait mode: spear moves downward toward enemy
-        this.playerSpearX = this.playerSpearBaseX;
-        this.playerSpearY =
-          this.playerSpearBaseY +
-          spearTravelDistance * this.playerSpearProgress;
-      } else {
-        // Landscape mode: spear moves horizontally
-        this.playerSpearX =
-          this.playerSpearBaseX +
-          spearTravelDistance * this.playerSpearProgress;
-        this.playerSpearY = this.playerSpearBaseY;
+      // Synchronize animation timer with spear progress
+      if (this.player.animation.state === "attack") {
+        this.player.animation.timer =
+          GAME_CONSTANTS.ANIMATION.PLAYER_SPEAR_DURATION *
+          (1 - this.player.spear.progress);
       }
 
-      // Deal damage at 60% of animation (when spear connects)
-      if (this.playerSpearProgress >= 0.6 && this.playerSpearProgress < 0.61) {
-        const damage = this.basePlayerDamage + this.attackDamageUpgrades * 20;
-        this.enemyHealth = Math.max(0, this.enemyHealth - damage);
+      this.updatePlayerSpearPosition();
 
-        // Update statistics
-        this.stats.totalDamageDealt += damage;
-        this.stats.totalAttacks++;
-
-        // Add score for damage dealt
-        const damageScore = Math.floor(damage * 10 * this.scoreMultiplier);
-        this.score += damageScore;
-
-        // Set enemy hit animation
-        this.enemyAnimationState = "hit";
-        this.enemyAnimationTimer = 300;
-
-        // Screen shake for player hit
-        this.shakeIntensity = 12;
-
-        // Add damage number
-        this.damageNumbers.push({
-          x: this.enemyX,
-          y: this.enemyY,
-          value: damage,
-          type: "player",
-          life: 1000,
-          maxLife: 1000,
-          offsetY: 0,
-        });
-
-        // Add hit particles
-        for (let i = 0; i < 10; i++) {
-          const angle = (Math.PI * 2 * i) / 10 + (Math.random() - 0.5) * 0.5;
-          this.hitParticles.push({
-            x: this.enemyX,
-            y: this.enemyY,
-            vx: Math.cos(angle) * (1 + Math.random() * 2),
-            vy: Math.sin(angle) * (1 + Math.random() * 2),
-            life: 600,
-            maxLife: 600,
-            color: "#8BB8E8",
-            size: 2 + Math.random() * 3,
-          });
-        }
-
-        // Add attack trail particles
-        const trailStartX = this.playerSpearX;
-        const trailStartY = this.playerSpearY;
-        for (let i = 0; i < 5; i++) {
-          this.attackTrailParticles.push({
-            x: trailStartX + (Math.random() - 0.5) * 20,
-            y: trailStartY + (Math.random() - 0.5) * 20,
-            vx: (Math.random() - 0.5) * 0.5,
-            vy: (Math.random() - 0.5) * 0.5,
-            life: 300,
-            maxLife: 300,
-            color: "#8BB8E8",
-            size: 1 + Math.random() * 2,
-          });
-        }
-
-        // Add attack effect
-        this.attackEffects.push({
-          x: this.enemyX,
-          y: this.enemyY,
-          type: "player",
-          duration: 200,
-        });
-
-        // Check level complete condition
-        if (this.enemyHealth <= 0) {
-          // Add level completion bonus
-          const levelBonus = this.currentLevel * 500;
-          this.score += Math.floor(levelBonus * this.scoreMultiplier);
-
-          if (this.currentLevel >= 5) {
-            // Victory! Show upgrade menu
-            this.gameStatus = "upgradeMenu";
-            // Add victory bonus
-            this.score += Math.floor(5000 * this.scoreMultiplier);
-            this.selectedUpgrade = null; // Reset selection
-          } else {
-            // Level complete
-            this.gameStatus = "levelComplete";
-            this.levelCompleteTimer = 2000; // 2 seconds
-          }
-        }
+      // Apply damage when spear reaches target (progress >= 1.0 or very close)
+      if (
+        !this.player.spear.damageDealt &&
+        this.player.spear.progress >= 0.99
+      ) {
+        this.dealDamageToEnemy(this.getPlayerDamage());
+        this.player.spear.damageDealt = true;
       }
 
-      // Reset spear animation when complete
-      if (this.playerSpearProgress >= 1) {
-        this.playerSpearProgress = 0;
-        this.playerSpearTimer = 0;
-        // Return to idle after attack
-        if (this.playerAnimationState === "attack") {
-          this.playerAnimationState = "idle";
+      if (this.player.spear.progress >= 1) {
+        this.player.spear.progress = 0;
+        this.player.spear.timer = 0;
+        this.player.spear.targetDistance = 0;
+        if (this.player.animation.state === "attack") {
+          this.player.animation.state = "idle";
+          this.player.animation.timer = 0;
         }
         this.updateSpearPositions();
       }
@@ -1018,190 +1921,275 @@ export class TinySouls {
   }
 
   private updatePerfectBlock(deltaTime: number): void {
-    if (this.perfectBlockActive) {
-      this.perfectBlockTimer -= deltaTime;
-      if (this.perfectBlockTimer <= 0) {
-        this.perfectBlockActive = false;
+    if (this.perfectBlock.active) {
+      this.perfectBlock.timer -= deltaTime;
+      if (this.perfectBlock.timer <= 0) {
+        this.perfectBlock.active = false;
       }
     }
 
-    // Update particles
-    this.perfectBlockParticles = this.perfectBlockParticles
-      .map((particle) => ({
-        ...particle,
-        x: particle.x + particle.vx,
-        y: particle.y + particle.vy,
-        life: particle.life - deltaTime / 500, // Fade over 500ms
-      }))
-      .filter((particle) => particle.life > 0);
+    this.perfectBlock.particles = this.updateSimpleParticles(
+      this.perfectBlock.particles,
+      deltaTime,
+      GAME_CONSTANTS.PARTICLES.PERFECT_BLOCK_FADE_TIME
+    );
 
-    // Update hit particles
-    this.hitParticles = this.hitParticles
-      .map((particle) => ({
-        ...particle,
-        x: particle.x + particle.vx,
-        y: particle.y + particle.vy,
-        life: particle.life - deltaTime,
-        vx: particle.vx * 0.98, // Friction
-        vy: particle.vy * 0.98,
-      }))
-      .filter((particle) => particle.life > 0);
+    this.particles.hit = this.updateParticles(
+      this.particles.hit,
+      deltaTime,
+      GAME_CONSTANTS.PARTICLES.HIT_FRICTION
+    );
 
-    // Update block particles
-    this.blockParticles = this.blockParticles
-      .map((particle) => ({
-        ...particle,
-        x: particle.x + particle.vx,
-        y: particle.y + particle.vy,
-        life: particle.life - deltaTime,
-        vx: particle.vx * 0.95, // More friction
-        vy: particle.vy * 0.95,
-      }))
-      .filter((particle) => particle.life > 0);
+    this.particles.block = this.updateParticles(
+      this.particles.block,
+      deltaTime,
+      GAME_CONSTANTS.PARTICLES.BLOCK_FRICTION
+    );
 
-    // Update attack trail particles
-    this.attackTrailParticles = this.attackTrailParticles
-      .map((particle) => ({
-        ...particle,
-        x: particle.x + particle.vx,
-        y: particle.y + particle.vy,
-        life: particle.life - deltaTime,
-        vx: particle.vx * 0.9, // Fast decay
-        vy: particle.vy * 0.9,
-      }))
-      .filter((particle) => particle.life > 0);
+    this.particles.attackTrail = this.updateParticles(
+      this.particles.attackTrail,
+      deltaTime,
+      GAME_CONSTANTS.PARTICLES.TRAIL_FRICTION
+    );
+
+    this.particles.deathExplosion = this.updateParticles(
+      this.particles.deathExplosion,
+      deltaTime,
+      GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_FRICTION
+    );
+
+    this.particles.enemyDeathExplosion = this.updateParticles(
+      this.particles.enemyDeathExplosion,
+      deltaTime,
+      GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_FRICTION
+    );
   }
 
   private updateLevelProgression(deltaTime: number): void {
-    if (this.gameStatus === "levelComplete") {
-      this.levelCompleteTimer -= deltaTime;
-      if (this.levelCompleteTimer <= 0) {
-        // Advance to next level
-        this.currentLevel++;
-
-        // Partial health regeneration (50% of missing health)
-        const missingHealth = this.maxHealth - this.playerHealth;
-        const healAmount = missingHealth * 0.5;
-        this.playerHealth = Math.min(
-          this.maxHealth,
-          this.playerHealth + healAmount
-        );
-
-        // Score multiplier continues to next level (don't reset)
-
-        this.initializeLevel();
-        this.gameStatus = "playing";
-        this.levelCompleteTimer = 0;
-      }
-    }
+    // Level complete screen now waits for space key press (handled in keydownHandler)
   }
 
   private update(deltaTime: number): void {
+    // Update logo fade progress
+    if (
+      this.gameStatus === "intro" &&
+      this.logoFadeStartTime > 0 &&
+      this.fadeOutStartTime === 0
+    ) {
+      const elapsed = performance.now() - this.logoFadeStartTime;
+      this.logoFadeProgress = Math.min(1, elapsed / this.logoFadeDuration);
+
+      // Start button fade-in when logo fade completes
+      if (this.logoFadeProgress >= 1 && this.buttonFadeStartTime === 0) {
+        this.buttonFadeStartTime = performance.now();
+        this.buttonFadeProgress = 0;
+      }
+    }
+
+    // Update button fade progress
+    if (
+      this.gameStatus === "intro" &&
+      this.buttonFadeStartTime > 0 &&
+      this.fadeOutStartTime === 0
+    ) {
+      const elapsed = performance.now() - this.buttonFadeStartTime;
+      this.buttonFadeProgress = Math.min(1, elapsed / this.buttonFadeDuration);
+    }
+
+    // Update fade-out progress
+    if (this.fadeOutStartTime > 0) {
+      const elapsed = performance.now() - this.fadeOutStartTime;
+      this.fadeOutProgress = Math.min(1, elapsed / this.fadeOutDuration);
+
+      // Transition after fade-out completes
+      if (this.fadeOutProgress >= 1 && this.pendingTransition) {
+        const oldStatus = this.gameStatus;
+        this.gameStatus = this.pendingTransition;
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
+        this.fadeOutProgress = 0;
+        this.fadeOutStartTime = 0;
+        this.pendingTransition = null;
+        // Reset logo and button fade if going back to intro
+        if (this.gameStatus === "intro") {
+          this.logoFadeProgress = 0;
+          this.logoFadeStartTime = performance.now();
+          this.buttonFadeProgress = 0;
+          this.buttonFadeStartTime = 0;
+        }
+      }
+    }
+
     // Update cooldowns
-    if (this.playerAttackCooldown > 0) {
-      this.playerAttackCooldown = Math.max(
+    if (this.player.attackCooldown > 0) {
+      this.player.attackCooldown = Math.max(
         0,
-        this.playerAttackCooldown - deltaTime
+        this.player.attackCooldown - deltaTime
       );
     }
-    if (this.playerBlockCooldown > 0) {
-      this.playerBlockCooldown = Math.max(
+    if (this.player.blockCooldown > 0) {
+      this.player.blockCooldown = Math.max(
         0,
-        this.playerBlockCooldown - deltaTime
+        this.player.blockCooldown - deltaTime
       );
     }
 
-    // Update stamina regeneration (only when not blocking)
-    if (!this.isPlayerBlocking && this.playerStamina < this.maxStamina) {
-      const regenAmount = (this.staminaRegenRate * deltaTime) / 1000;
-      this.playerStamina = Math.min(
-        this.maxStamina,
-        this.playerStamina + regenAmount
+    // Update stamina regeneration and block drain
+    if (this.player.isBlocking) {
+      // Continuous stamina drain while holding block
+      const drainRate =
+        (GAME_CONSTANTS.STAMINA.BLOCK_DRAIN_RATE * deltaTime) / 1000;
+      this.player.stamina = Math.max(0, this.player.stamina - drainRate);
+      if (this.player.stamina <= 0) {
+        this.player.isBlocking = false;
+        this.player.animation.state = "idle";
+      }
+    } else if (this.player.stamina < this.player.maxStamina) {
+      // Stamina regeneration when not blocking
+      const regenAmount =
+        (GAME_CONSTANTS.STAMINA.REGEN_RATE * deltaTime) / 1000;
+      this.player.stamina = Math.min(
+        this.player.maxStamina,
+        this.player.stamina + regenAmount
       );
     }
 
-    // Update player spear animation
+    // Update game systems
     this.updatePlayerSpear(deltaTime);
-
-    // Update enemy attack
     this.updateEnemyAttack(deltaTime);
-
-    // Update perfect block effects
     this.updatePerfectBlock(deltaTime);
-
-    // Update level progression
     this.updateLevelProgression(deltaTime);
 
-    // Update attack effects
-    this.attackEffects = this.attackEffects
-      .map((effect) => ({
-        ...effect,
-        duration: effect.duration - deltaTime,
-      }))
+    // Update death screen timer
+    if (this.gameStatus === "deathScreen") {
+      this.deathScreenTimer += deltaTime;
+      if (this.deathScreenTimer >= GAME_CONSTANTS.DEATH_SCREEN.TOTAL_DURATION) {
+        const oldStatus = this.gameStatus;
+        this.gameStatus = "enemyWon";
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
+      }
+    }
+
+    // Update enemy death timer
+    if (this.gameStatus === "enemyDeath") {
+      this.enemyDeathTimer += deltaTime;
+      if (
+        this.enemyDeathTimer >= GAME_CONSTANTS.ENEMY_DEATH.EXPLOSION_DURATION
+      ) {
+        // Transition to victory screen after explosion
+        const oldStatus = this.gameStatus;
+        if (this.currentLevel >= GAME_CONSTANTS.LEVEL.MAX_LEVEL) {
+          this.gameStatus = "level5Victory";
+          this.level5VictoryTimer = 0;
+        } else {
+          this.gameStatus = "enemyVanquished";
+          this.enemyVanquishedTimer = 0;
+        }
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
+      }
+    }
+
+    // Update enemy vanquished screen timer
+    if (this.gameStatus === "enemyVanquished") {
+      this.enemyVanquishedTimer += deltaTime;
+      if (
+        this.enemyVanquishedTimer >=
+        GAME_CONSTANTS.ENEMY_VANQUISHED_SCREEN.TOTAL_DURATION
+      ) {
+        const oldStatus = this.gameStatus;
+        this.gameStatus = "levelComplete";
+        this.levelCompleteTimer = 0; // No auto-transition, wait for space key
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
+      }
+    }
+
+    // Update level 5 victory screen timer
+    if (this.gameStatus === "level5Victory") {
+      this.level5VictoryTimer += deltaTime;
+      if (
+        this.level5VictoryTimer >=
+        GAME_CONSTANTS.LEVEL5_VICTORY_SCREEN.TOTAL_DURATION
+      ) {
+        const oldStatus = this.gameStatus;
+        this.gameStatus = "upgradeMenu";
+        this.score.value += Math.floor(
+          GAME_CONSTANTS.SCORE.VICTORY_BONUS * this.score.multiplier
+        );
+        this.upgrades.selected = null;
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
+      }
+    }
+
+    // Update UI effects
+    this.ui.attackEffects = this.ui.attackEffects
+      .map((effect) => ({ ...effect, duration: effect.duration - deltaTime }))
       .filter((effect) => effect.duration > 0);
 
-    // Update damage numbers
-    this.damageNumbers = this.damageNumbers
+    this.ui.damageNumbers = this.ui.damageNumbers
       .map((num) => ({
         ...num,
         life: num.life - deltaTime,
-        offsetY: num.offsetY + deltaTime * 0.1, // Move upward
+        offsetY: num.offsetY + deltaTime * 0.1,
       }))
       .filter((num) => num.life > 0);
 
     // Update screen shake
-    if (this.shakeIntensity > 0) {
-      // Random offset based on intensity
-      this.cameraOffsetX = (Math.random() - 0.5) * this.shakeIntensity;
-      this.cameraOffsetY = (Math.random() - 0.5) * this.shakeIntensity;
-
-      // Decay intensity
-      this.shakeIntensity *= this.shakeDecay;
-
-      // Reset when intensity is very low
-      if (this.shakeIntensity < 0.1) {
-        this.shakeIntensity = 0;
-        this.cameraOffsetX = 0;
-        this.cameraOffsetY = 0;
+    const shake = this.ui.screenShake;
+    if (shake.intensity > 0) {
+      const angle = Math.random() * Math.PI * 2;
+      const magnitude = shake.intensity;
+      shake.offsetX = Math.cos(angle) * magnitude;
+      shake.offsetY = Math.sin(angle) * magnitude;
+      shake.intensity *= GAME_CONSTANTS.SCREEN_SHAKE.DECAY;
+      if (shake.intensity < GAME_CONSTANTS.SCREEN_SHAKE.MIN_INTENSITY) {
+        shake.intensity = 0;
+        shake.offsetX = 0;
+        shake.offsetY = 0;
       }
     }
 
     // Update character animations
-    if (this.playerAnimationTimer > 0) {
-      this.playerAnimationTimer = Math.max(
+    // Skip countdown for attack animations - they are synchronized with spear/attack progress
+    if (
+      this.player.animation.timer > 0 &&
+      this.player.animation.state !== "attack"
+    ) {
+      this.player.animation.timer = Math.max(
         0,
-        this.playerAnimationTimer - deltaTime
+        this.player.animation.timer - deltaTime
       );
       if (
-        this.playerAnimationTimer <= 0 &&
-        this.playerAnimationState !== "idle" &&
-        !this.isPlayerBlocking
+        this.player.animation.timer <= 0 &&
+        this.player.animation.state !== "idle" &&
+        !this.player.isBlocking
       ) {
-        this.playerAnimationState = "idle";
+        this.player.animation.state = "idle";
       }
     }
-    if (this.enemyAnimationTimer > 0) {
-      this.enemyAnimationTimer = Math.max(
+    if (
+      this.enemy.animation.timer > 0 &&
+      this.enemy.animation.state !== "attack"
+    ) {
+      this.enemy.animation.timer = Math.max(
         0,
-        this.enemyAnimationTimer - deltaTime
+        this.enemy.animation.timer - deltaTime
       );
       if (
-        this.enemyAnimationTimer <= 0 &&
-        this.enemyAnimationState !== "idle"
+        this.enemy.animation.timer <= 0 &&
+        this.enemy.animation.state !== "idle"
       ) {
-        this.enemyAnimationState = "idle";
+        this.enemy.animation.state = "idle";
       }
     }
 
     // Update block animation state
-    if (this.isPlayerBlocking && this.playerAnimationState !== "block") {
-      this.playerAnimationState = "block";
+    if (this.player.isBlocking && this.player.animation.state !== "block") {
+      this.player.animation.state = "block";
     } else if (
-      !this.isPlayerBlocking &&
-      this.playerAnimationState === "block" &&
-      this.playerAnimationTimer <= 0
+      !this.player.isBlocking &&
+      this.player.animation.state === "block" &&
+      this.player.animation.timer <= 0
     ) {
-      this.playerAnimationState = "idle";
+      this.player.animation.state = "idle";
     }
   }
 
@@ -1212,22 +2200,35 @@ export class TinySouls {
     color: string,
     isEnemy: boolean
   ): void {
-    const spearLength = this.isMobile() ? 50 : 60;
-    const spearWidth = this.isMobile() ? 2.5 : 3;
-    const tipLength = this.isMobile() ? 12 : 15;
+    const spearLength = this.getMobileValue(
+      GAME_CONSTANTS.SPEAR.MOBILE_LENGTH,
+      GAME_CONSTANTS.SPEAR.DESKTOP_LENGTH
+    );
+    const spearWidth = this.getMobileValue(
+      GAME_CONSTANTS.SPEAR.MOBILE_WIDTH,
+      GAME_CONSTANTS.SPEAR.DESKTOP_WIDTH
+    );
+    const tipLength = this.getMobileValue(
+      GAME_CONSTANTS.SPEAR.MOBILE_TIP_LENGTH,
+      GAME_CONSTANTS.SPEAR.DESKTOP_TIP_LENGTH
+    );
     const isPortrait = this.isMobile();
 
     // Calculate spear color based on progress (for enemy)
     let spearColor = color;
     if (isEnemy && progress > 0) {
       // Use enemy's base color during wind-up, then transition to warning colors
-      if (progress < 0.6) {
+      const transitionStart = GAME_CONSTANTS.SPEAR.COLOR_TRANSITION_START;
+      if (progress < transitionStart) {
         // Wind-up: use enemy's base color
         spearColor = color;
       } else {
         // Strike: transition from enemy color -> orange -> red
-        const strikeProgress = (progress - 0.6) / 0.4;
-        if (strikeProgress < 0.5) {
+        const transitionRange = GAME_CONSTANTS.SPEAR.COLOR_TRANSITION_RANGE;
+        const strikeProgress = (progress - transitionStart) / transitionRange;
+        const orangeToRedThreshold =
+          GAME_CONSTANTS.SPEAR.COLOR_ORANGE_TO_RED_THRESHOLD;
+        if (strikeProgress < orangeToRedThreshold) {
           spearColor = "#FF8C00"; // Orange
         } else {
           spearColor = "#FF4500"; // Red
@@ -1265,20 +2266,31 @@ export class TinySouls {
       // Landscape mode: draw spear horizontally
       // Draw spear shaft (horizontal)
       this.ctx.fillStyle = spearColor;
-      this.ctx.fillRect(x, y - spearWidth / 2, spearLength, spearWidth);
 
-      // Draw spear tip
       if (isEnemy) {
         // Enemy spear points left (toward player)
-        // Tip point is furthest left, base is at the left end of the shaft
+        // Draw rectangle extending LEFT from x (base connection point)
+        this.ctx.fillRect(
+          x - spearLength,
+          y - spearWidth / 2,
+          spearLength,
+          spearWidth
+        );
+
+        // Draw spear tip
+        // Tip point is furthest left, base is at x (where shaft connects to character)
         this.ctx.beginPath();
-        this.ctx.moveTo(x - tipLength, y); // Tip point (furthest left)
-        this.ctx.lineTo(x, y - spearWidth * 2); // Top base vertex (at shaft)
-        this.ctx.lineTo(x, y + spearWidth * 2); // Bottom base vertex (at shaft)
+        this.ctx.moveTo(x - spearLength - tipLength, y); // Tip point (furthest left)
+        this.ctx.lineTo(x - spearLength, y - spearWidth * 2); // Top base vertex (at shaft)
+        this.ctx.lineTo(x - spearLength, y + spearWidth * 2); // Bottom base vertex (at shaft)
         this.ctx.closePath();
         this.ctx.fill();
       } else {
         // Player spear points right (toward enemy)
+        // Draw rectangle extending RIGHT from x
+        this.ctx.fillRect(x, y - spearWidth / 2, spearLength, spearWidth);
+
+        // Draw spear tip
         // Tip point is furthest right, base is at the right end of the shaft
         this.ctx.beginPath();
         this.ctx.moveTo(x + spearLength + tipLength, y); // Tip point (furthest right)
@@ -1296,7 +2308,18 @@ export class TinySouls {
       if (isPortrait) {
         this.ctx.fillRect(x - spearWidth / 2, y, spearWidth, spearLength);
       } else {
-        this.ctx.fillRect(x, y - spearWidth / 2, spearLength, spearWidth);
+        if (isEnemy) {
+          // Enemy spear extends left
+          this.ctx.fillRect(
+            x - spearLength,
+            y - spearWidth / 2,
+            spearLength,
+            spearWidth
+          );
+        } else {
+          // Player spear extends right
+          this.ctx.fillRect(x, y - spearWidth / 2, spearLength, spearWidth);
+        }
       }
       this.ctx.shadowBlur = 0;
     }
@@ -1305,23 +2328,23 @@ export class TinySouls {
   }
 
   private drawPerfectBlockEffect(): void {
-    if (!this.perfectBlockActive) {
+    if (!this.perfectBlock.active) {
       return;
     }
 
     // Draw shield effect around player
     const shieldRadius = 50;
-    const alpha = this.perfectBlockTimer / this.perfectBlockDuration;
+    const alpha = this.perfectBlock.timer / this.perfectBlock.duration;
 
     // Outer glow
     this.ctx.save();
     this.ctx.globalAlpha = alpha * 0.8;
     const gradient = this.ctx.createRadialGradient(
-      this.playerX,
-      this.playerY,
+      this.player.position.x,
+      this.player.position.y,
       0,
-      this.playerX,
-      this.playerY,
+      this.player.position.x,
+      this.player.position.y,
       shieldRadius
     );
     gradient.addColorStop(0, "#00FFFF");
@@ -1329,22 +2352,34 @@ export class TinySouls {
     gradient.addColorStop(1, "transparent");
     this.ctx.fillStyle = gradient;
     this.ctx.beginPath();
-    this.ctx.arc(this.playerX, this.playerY, shieldRadius, 0, Math.PI * 2);
+    this.ctx.arc(
+      this.player.position.x,
+      this.player.position.y,
+      shieldRadius,
+      0,
+      Math.PI * 2
+    );
     this.ctx.fill();
 
     // Shield ring
     this.ctx.strokeStyle = "#00FFFF";
     this.ctx.lineWidth = 4;
     this.ctx.beginPath();
-    this.ctx.arc(this.playerX, this.playerY, shieldRadius, 0, Math.PI * 2);
+    this.ctx.arc(
+      this.player.position.x,
+      this.player.position.y,
+      shieldRadius,
+      0,
+      Math.PI * 2
+    );
     this.ctx.stroke();
 
     // Inner glow
     this.ctx.fillStyle = `rgba(0, 255, 255, ${alpha * 0.3})`;
     this.ctx.beginPath();
     this.ctx.arc(
-      this.playerX,
-      this.playerY,
+      this.player.position.x,
+      this.player.position.y,
       shieldRadius * 0.6,
       0,
       Math.PI * 2
@@ -1353,46 +2388,17 @@ export class TinySouls {
 
     this.ctx.restore();
 
-    // Draw perfect block particles
-    this.perfectBlockParticles.forEach((particle) => {
-      this.ctx.save();
-      this.ctx.globalAlpha = particle.life;
-      this.ctx.fillStyle = particle.color || "#00FFFF";
-      this.ctx.beginPath();
-      this.ctx.arc(particle.x, particle.y, 3, 0, Math.PI * 2);
-      this.ctx.fill();
-      this.ctx.restore();
-    });
+    // Draw particles using helper methods
+    this.drawSimpleParticles(this.perfectBlock.particles);
+    this.drawParticles(this.particles.hit);
+    this.drawParticles(this.particles.block);
+    // Note: death explosion particles are drawn after death screen overlay
 
-    // Draw hit particles
-    this.hitParticles.forEach((particle) => {
-      const alpha = particle.life / particle.maxLife;
+    // Draw attack trail particles with reduced alpha
+    this.particles.attackTrail.forEach((particle) => {
+      const alpha = (particle.life / particle.maxLife) * 0.7;
       this.ctx.save();
       this.ctx.globalAlpha = alpha;
-      this.ctx.fillStyle = particle.color;
-      this.ctx.beginPath();
-      this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-      this.ctx.fill();
-      this.ctx.restore();
-    });
-
-    // Draw block particles
-    this.blockParticles.forEach((particle) => {
-      const alpha = particle.life / particle.maxLife;
-      this.ctx.save();
-      this.ctx.globalAlpha = alpha;
-      this.ctx.fillStyle = particle.color;
-      this.ctx.beginPath();
-      this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-      this.ctx.fill();
-      this.ctx.restore();
-    });
-
-    // Draw attack trail particles
-    this.attackTrailParticles.forEach((particle) => {
-      const alpha = particle.life / particle.maxLife;
-      this.ctx.save();
-      this.ctx.globalAlpha = alpha * 0.7;
       this.ctx.fillStyle = particle.color;
       this.ctx.beginPath();
       this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
@@ -1403,33 +2409,34 @@ export class TinySouls {
     // Draw "PERFECT BLOCK!" text
     this.ctx.save();
     this.ctx.globalAlpha = alpha;
-    this.ctx.fillStyle = "#00FFFF";
-    this.ctx.font = `bold ${this.getFontSize(32)} serif`;
-    this.ctx.textAlign = "center";
-    this.ctx.strokeStyle = "#000000";
-    this.ctx.lineWidth = this.isMobile() ? 2 : 4;
-    const perfectBlockY = this.isMobile()
-      ? this.displayHeight / 2 - 30
-      : this.displayHeight / 2 - 50;
-    this.ctx.strokeText("PERFECT BLOCK!", this.displayWidth / 2, perfectBlockY);
-    this.ctx.fillText("PERFECT BLOCK!", this.displayWidth / 2, perfectBlockY);
+    const perfectBlockY = this.getMobileValue(
+      this.displayHeight / 2 - 30,
+      this.displayHeight / 2 - 50
+    );
+    this.drawTextWithStroke(
+      "PERFECT BLOCK!",
+      this.displayWidth / 2,
+      perfectBlockY,
+      COLORS.PERFECT_BLOCK,
+      32
+    );
     this.ctx.restore();
   }
 
   private drawPerfectBlockIndicator(): void {
-    if (!this.isEnemyAttacking || this.enemyStunTimer > 0) {
+    if (!this.enemy.isAttacking || this.enemy.stunTimer > 0) {
       return;
     }
 
     const attackProgress =
-      this.enemyAttackDuration / this.enemyAttackTotalDuration;
-    const perfectBlockWindowStart = 0.85;
-    const perfectBlockWindowEnd = 0.95;
+      this.enemy.attackDuration / this.enemy.attackTotalDuration;
+    const perfectBlockWindowStart = GAME_CONSTANTS.PERFECT_BLOCK.WINDOW_START;
+    const perfectBlockWindowEnd = GAME_CONSTANTS.PERFECT_BLOCK.WINDOW_END;
 
     // Draw indicator showing enemy spear position
     const indicatorY = this.isMobile()
-      ? (this.playerY + this.enemyY) / 2 - 10
-      : this.playerY - 80;
+      ? (this.player.position.y + this.enemy.position.y) / 2 - 10
+      : this.player.position.y - 80;
     const indicatorWidth = this.isMobile()
       ? Math.min(280, this.displayWidth - 40)
       : 300;
@@ -1453,7 +2460,7 @@ export class TinySouls {
 
     if (inWindow) {
       // Pulsing effect
-      const pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
+      const pulse = Math.sin(this.cachedCurrentTime / 100) * 0.3 + 0.7;
       this.ctx.globalAlpha = pulse;
       this.ctx.fillRect(zoneX, indicatorY, zoneWidth, indicatorHeight);
       this.ctx.globalAlpha = 1;
@@ -1475,35 +2482,43 @@ export class TinySouls {
   }
 
   private render(): void {
+    // Cache expensive operations for this frame
+    this.cachedCurrentTime = Date.now();
+    this.cachedLevelConfig = this.getCurrentLevelConfig();
+    this.cachedIsMobile = this.isMobile();
+
     // Apply camera offset for screen shake
     this.ctx.save();
-    this.ctx.translate(this.cameraOffsetX, this.cameraOffsetY);
+    this.ctx.translate(
+      this.ui.screenShake.offsetX,
+      this.ui.screenShake.offsetY
+    );
 
     // Clear canvas
-    this.ctx.fillStyle = "#0b2e36";
+    this.ctx.fillStyle = COLORS.BACKGROUND;
     this.ctx.fillRect(
-      -this.cameraOffsetX,
-      -this.cameraOffsetY,
+      -this.ui.screenShake.offsetX,
+      -this.ui.screenShake.offsetY,
       this.displayWidth,
       this.displayHeight
     );
 
-    // Skip game rendering during intro
-    if (this.gameStatus !== "intro") {
+    // Skip game rendering during start screen and intro
+    if (this.gameStatus !== "startScreen" && this.gameStatus !== "intro") {
       // Draw level display
-      this.ctx.fillStyle = "#8BB8E8";
+      this.ctx.fillStyle = COLORS.TEXT_LIGHT_BLUE;
       this.ctx.font = `${this.getFontSize(24)} serif`;
       this.ctx.textAlign = "center";
       let levelText = `Level ${this.currentLevel}`;
-      if (this.newGamePlusLevel > 0) {
-        levelText += ` | NG+ ${this.newGamePlusLevel}`;
+      if (this.upgrades.newGamePlusLevel > 0) {
+        levelText += ` | NG+ ${this.upgrades.newGamePlusLevel}`;
       }
       const levelY = this.isMobile() ? 25 : 35;
       this.ctx.fillText(levelText, this.displayWidth / 2, levelY);
 
       // Draw score display (only during gameplay)
       if (this.gameStatus === "playing") {
-        this.ctx.fillStyle = "#FFD700";
+        this.ctx.fillStyle = COLORS.GOLD;
         this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
         this.ctx.textAlign = "right";
         const scoreX = this.isMobile()
@@ -1511,17 +2526,17 @@ export class TinySouls {
           : this.displayWidth - 20;
         const scoreY = this.isMobile() ? 25 : 35;
         this.ctx.fillText(
-          `Score: ${this.score.toLocaleString()}`,
+          `Score: ${this.score.value.toLocaleString()}`,
           scoreX,
           scoreY
         );
 
         // Draw score multiplier if above 1.0
-        if (this.scoreMultiplier > 1.0) {
-          this.ctx.fillStyle = "#FF6B6B";
+        if (this.score.multiplier > 1.0) {
+          this.ctx.fillStyle = COLORS.ERROR;
           this.ctx.font = `bold ${this.getFontSize(16)} sans-serif`;
           this.ctx.fillText(
-            `x${this.scoreMultiplier.toFixed(1)}`,
+            `x${this.score.multiplier.toFixed(1)}`,
             scoreX,
             scoreY + (this.isMobile() ? 18 : 20)
           );
@@ -1529,7 +2544,7 @@ export class TinySouls {
       }
 
       // Draw health bars
-      const config = this.getCurrentLevelConfig();
+      const config = this.cachedLevelConfig!;
 
       if (this.isMobile()) {
         // Portrait mode: stack health bars vertically, centered
@@ -1542,8 +2557,8 @@ export class TinySouls {
         this.drawHealthBar(
           playerHealthBarX,
           playerHealthBarY,
-          this.playerHealth,
-          this.maxHealth,
+          this.player.health,
+          this.player.maxHealth,
           "The Chosen One",
           undefined,
           healthBarWidth
@@ -1552,17 +2567,21 @@ export class TinySouls {
         // Stamina bar under player health bar (only during gameplay)
         if (this.gameStatus === "playing") {
           // Position stamina bar right under the player health bar
-          const healthBarHeight = 32;
-          const staminaBarY = playerHealthBarY + healthBarHeight + 10;
+          const healthBarHeight = UI_CONSTANTS.HEALTH_BAR.HEIGHT;
+          const staminaBarY =
+            playerHealthBarY +
+            healthBarHeight +
+            UI_CONSTANTS.HEALTH_BAR.SPACING;
           this.drawStaminaBar(playerHealthBarX, staminaBarY, healthBarWidth);
         }
 
         // Enemy health bar below enemy character
-        const enemyHealthBarY = this.enemyY + this.enemyHeight / 2 + 30;
+        const enemyHealthBarY =
+          this.enemy.position.y + this.enemy.size.height / 2 + 30;
         this.drawHealthBar(
           playerHealthBarX,
           enemyHealthBarY,
-          this.enemyHealth,
+          this.enemy.health,
           config.enemyHealth,
           config.enemyName,
           config.enemyColor,
@@ -1570,14 +2589,14 @@ export class TinySouls {
         );
       } else {
         // Landscape mode: side by side
-        const healthBarX = 50;
-        const healthBarY = 60;
-        const healthBarWidth = 200;
+        const healthBarX = UI_CONSTANTS.HEALTH_BAR.DESKTOP_X_OFFSET;
+        const healthBarY = UI_CONSTANTS.HEALTH_BAR.DESKTOP_Y_OFFSET;
+        const healthBarWidth = UI_CONSTANTS.HEALTH_BAR.DESKTOP_WIDTH;
         this.drawHealthBar(
           healthBarX,
           healthBarY,
-          this.playerHealth,
-          this.maxHealth,
+          this.player.health,
+          this.player.maxHealth,
           "The Chosen One",
           undefined,
           healthBarWidth
@@ -1586,7 +2605,7 @@ export class TinySouls {
         this.drawHealthBar(
           enemyHealthBarX,
           healthBarY,
-          this.enemyHealth,
+          this.enemy.health,
           config.enemyHealth,
           config.enemyName,
           config.enemyColor,
@@ -1595,64 +2614,77 @@ export class TinySouls {
 
         // Draw stamina bar (only during gameplay)
         if (this.gameStatus === "playing") {
-          const staminaBarY = 110;
+          const staminaBarY = UI_CONSTANTS.HEALTH_BAR.STAMINA_Y_OFFSET;
           this.drawStaminaBar(healthBarX, staminaBarY, healthBarWidth);
         }
       }
 
-      // Draw player
-      this.drawCharacter(
-        this.playerX,
-        this.playerY,
-        this.playerWidth,
-        this.playerHeight,
-        "#8BB8E8",
-        this.playerAnimationState,
-        false
-      );
+      // Draw player (hide during entire death screen)
+      const isDead = this.gameStatus === "deathScreen";
 
-      // Draw player spear (always visible, floating)
-      this.drawSpear(
-        this.playerSpearX,
-        this.playerSpearY,
-        this.playerSpearProgress,
-        "#8BB8E8",
-        false
-      );
+      if (!isDead) {
+        this.drawCharacter(
+          this.player.position.x,
+          this.player.position.y,
+          this.player.size.width,
+          this.player.size.height,
+          COLORS.PLAYER,
+          this.player.animation.state,
+          false
+        );
 
-      // Draw enemy
-      const isStunned = this.enemyStunTimer > 0;
-      const flashAlpha = isStunned ? Math.sin(Date.now() / 100) * 0.5 + 0.5 : 1;
-      const enemyColor = config.enemyColor;
-      const enemyColorRgb = this.hexToRgb(enemyColor);
-
-      // Use animation state, but override with stunned if needed
-      let enemyAnimState = this.enemyAnimationState;
-      if (isStunned) {
-        enemyAnimState = "hit";
+        // Draw player spear (always visible, floating)
+        this.drawSpear(
+          this.player.spear.x,
+          this.player.spear.y,
+          this.player.spear.progress,
+          COLORS.PLAYER,
+          false
+        );
       }
 
-      this.drawCharacter(
-        this.enemyX,
-        this.enemyY,
-        this.enemyWidth,
-        this.enemyHeight,
-        isStunned
-          ? `rgba(${enemyColorRgb.r}, ${enemyColorRgb.g}, ${enemyColorRgb.b}, ${flashAlpha})`
-          : enemyColor,
-        enemyAnimState,
-        true // isEnemy = true
-      );
+      // Draw enemy (hide during enemy death explosion and victory screens)
+      const isEnemyDead =
+        this.gameStatus === "enemyDeath" ||
+        this.gameStatus === "enemyVanquished" ||
+        this.gameStatus === "level5Victory";
 
-      // Draw enemy spear (always visible, floating)
-      if (!isStunned) {
-        this.drawSpear(
-          this.enemySpearX,
-          this.enemySpearY,
-          this.enemySpearProgress,
-          enemyColor,
-          true
+      if (!isEnemyDead) {
+        const isStunned = this.enemy.stunTimer > 0;
+        const flashAlpha = isStunned
+          ? Math.sin(this.cachedCurrentTime / 100) * 0.5 + 0.5
+          : 1;
+        const enemyColor = config.enemyColor;
+        const enemyColorRgb = this.hexToRgb(enemyColor);
+
+        // Use animation state, but override with stunned if needed
+        let enemyAnimState = this.enemy.animation.state;
+        if (isStunned) {
+          enemyAnimState = "hit";
+        }
+
+        this.drawCharacter(
+          this.enemy.position.x,
+          this.enemy.position.y,
+          this.enemy.size.width,
+          this.enemy.size.height,
+          isStunned
+            ? `rgba(${enemyColorRgb.r}, ${enemyColorRgb.g}, ${enemyColorRgb.b}, ${flashAlpha})`
+            : enemyColor,
+          enemyAnimState,
+          true // isEnemy = true
         );
+
+        // Draw enemy spear (always visible, floating)
+        if (!isStunned) {
+          this.drawSpear(
+            this.enemy.spear.x,
+            this.enemy.spear.y,
+            this.enemy.spear.progress,
+            enemyColor,
+            true
+          );
+        }
       }
 
       // Draw perfect block effect
@@ -1662,7 +2694,7 @@ export class TinySouls {
       this.drawPerfectBlockIndicator();
 
       // Draw attack effects
-      this.attackEffects.forEach((effect) => {
+      this.ui.attackEffects.forEach((effect) => {
         this.drawAttackEffect(effect.x, effect.y, effect.type);
       });
 
@@ -1671,16 +2703,35 @@ export class TinySouls {
     }
 
     // Draw game status overlays
-    if (this.gameStatus === "intro") {
+    if (this.gameStatus === "startScreen") {
+      this.drawStartScreen();
+    } else if (this.gameStatus === "intro") {
       this.drawIntro();
+    } else if (this.gameStatus === "controls") {
+      this.drawControls();
     } else if (this.gameStatus === "levelComplete") {
       this.drawLevelComplete();
     } else if (this.gameStatus === "upgradeMenu") {
       this.drawUpgradeMenu();
+    } else if (this.gameStatus === "deathScreen") {
+      this.drawDeathScreen();
+      // Draw death explosion particles on top of death screen overlay
+      this.drawParticles(this.particles.deathExplosion);
+    } else if (this.gameStatus === "enemyDeath") {
+      // Draw enemy death explosion particles
+      this.drawParticles(this.particles.enemyDeathExplosion);
+    } else if (this.gameStatus === "enemyVanquished") {
+      this.drawEnemyVanquishedScreen();
+      // Draw enemy death explosion particles on top
+      this.drawParticles(this.particles.enemyDeathExplosion);
+    } else if (this.gameStatus === "level5Victory") {
+      this.drawLevel5VictoryScreen();
+      // Draw enemy death explosion particles on top
+      this.drawParticles(this.particles.enemyDeathExplosion);
     } else if (this.gameStatus === "playerWon") {
       this.drawGameOver("Victory!", "#8BB8E8");
     } else if (this.gameStatus === "enemyWon") {
-      const config = this.getCurrentLevelConfig();
+      const config = this.cachedLevelConfig!;
       this.drawGameOver(`Defeated by ${config.enemyName}!`, config.enemyColor);
     }
 
@@ -1696,183 +2747,291 @@ export class TinySouls {
     this.ctx.restore();
   }
 
-  private drawIntro(): void {
-    // Dark background overlay
-    this.ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
+  private drawStartScreen(): void {
+    // Black background
+    this.ctx.fillStyle = COLORS.BLACK;
     this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
     const centerX = this.displayWidth / 2;
+    const centerY = this.displayHeight / 2;
 
-    // Calculate total content height to center vertically
-    // Title: ~60px (mobile) / ~80px (desktop)
-    // Description: ~30px (mobile) / ~50px (desktop)
-    // Controls header: ~25px (mobile) / ~50px (desktop)
-    // Controls: 3-4 items * ~20-30px
-    // Tips: 4 items * ~18-28px
-    // Start prompt: ~20px (mobile) / ~40px (desktop)
+    // "Click to start" text with pulsing effect
+    const pulse = Math.sin(this.cachedCurrentTime / 500) * 0.3 + 0.7;
+    this.ctx.save();
+    this.ctx.globalAlpha = pulse;
 
-    // Start from a calculated top position to center content
+    this.drawTextWithStroke(
+      "Click to start",
+      centerX,
+      centerY,
+      COLORS.TEXT_LIGHT_BLUE,
+      this.getMobileValue(32, 48)
+    );
+
+    this.ctx.restore();
+  }
+
+  private drawIntro(): void {
+    // Calculate overall opacity (fade out when transitioning)
+    const overallOpacity = 1 - this.fadeOutProgress;
+
+    // Black background
+    this.ctx.fillStyle = COLORS.BLACK;
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+
+    const centerX = this.displayWidth / 2;
+    const centerY = this.displayHeight / 2;
+
+    // Draw logo with fade-in animation
+    let logoBottomY = centerY;
+    if (this.logoImage && this.logoFadeProgress > 0) {
+      const logoWidth = this.getMobileValue(200, 300);
+      const logoHeight =
+        (this.logoImage.height / this.logoImage.width) * logoWidth;
+      const logoX = centerX - logoWidth / 2;
+      const logoY = centerY - logoHeight / 2 - (this.isMobile() ? 60 : 80);
+      logoBottomY = logoY + logoHeight;
+
+      this.ctx.save();
+      this.ctx.globalAlpha = this.logoFadeProgress * overallOpacity;
+      this.ctx.drawImage(this.logoImage, logoX, logoY, logoWidth, logoHeight);
+      this.ctx.restore();
+    }
+
+    // Only draw buttons after logo has finished fading in
+    if (this.logoFadeProgress >= 1 && this.buttonFadeProgress > 0) {
+      const buttonWidth = this.getMobileValue(120, 150);
+      const buttonHeight = this.getMobileValue(44, 50);
+      const buttonSpacing = this.getMobileValue(20, 30);
+      const verticalSpacing = this.getMobileValue(50, 70); // Space between logo bottom and buttons
+      const buttonY = logoBottomY + verticalSpacing;
+
+      // Center the gap between buttons under the logo
+      // Gap center should be at centerX, so:
+      // Start button right edge = centerX - buttonSpacing/2
+      // Controls button left edge = centerX + buttonSpacing/2
+      const startButtonX = centerX - buttonSpacing / 2 - buttonWidth;
+      const controlsButtonX = centerX + buttonSpacing / 2;
+
+      this.ctx.save();
+      // Apply both button fade-in and fade-out opacity
+      this.ctx.globalAlpha = this.buttonFadeProgress * overallOpacity;
+
+      // Start button (left)
+      this.drawButton(
+        startButtonX,
+        buttonY,
+        buttonWidth,
+        buttonHeight,
+        "Start",
+        this.buttonPressState.start
+      );
+
+      // Controls button (right)
+      this.drawButton(
+        controlsButtonX,
+        buttonY,
+        buttonWidth,
+        buttonHeight,
+        "Controls",
+        this.buttonPressState.controls
+      );
+
+      this.ctx.restore();
+    }
+  }
+
+  private drawButton(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    text: string,
+    isPressed: boolean
+  ): void {
+    const centerX = x + width / 2;
+    const centerY = y + height / 2;
+
+    // Button background
+    this.ctx.fillStyle = isPressed ? COLORS.TEXT_LIGHT_BLUE : COLORS.TEXT_TEAL;
+    this.ctx.strokeStyle = COLORS.GOLD;
+    this.ctx.lineWidth = 2;
+
+    // Draw rounded rectangle
+    const radius = this.getMobileValue(8, 10);
+    this.ctx.beginPath();
+    this.ctx.moveTo(x + radius, y);
+    this.ctx.lineTo(x + width - radius, y);
+    this.ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    this.ctx.lineTo(x + width, y + height - radius);
+    this.ctx.quadraticCurveTo(
+      x + width,
+      y + height,
+      x + width - radius,
+      y + height
+    );
+    this.ctx.lineTo(x + radius, y + height);
+    this.ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    this.ctx.lineTo(x, y + radius);
+    this.ctx.quadraticCurveTo(x, y, x + radius, y);
+    this.ctx.closePath();
+    this.ctx.fill();
+    this.ctx.stroke();
+
+    // Button text
+    this.ctx.fillStyle = isPressed ? COLORS.BLACK : COLORS.TEXT_WHITE;
+    this.ctx.font = `bold ${this.getFontSize(
+      this.isMobile() ? 16 : 18
+    )} sans-serif`;
+    this.ctx.textAlign = "center";
+    this.ctx.textBaseline = "middle";
+    this.ctx.fillText(text, centerX, centerY);
+  }
+
+  private drawControls(): void {
+    // Calculate overall opacity (fade out when transitioning)
+    const overallOpacity = 1 - this.fadeOutProgress;
+
+    // Black background
+    this.ctx.fillStyle = COLORS.BLACK;
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+
+    this.ctx.save();
+    this.ctx.globalAlpha = overallOpacity;
+
+    const centerX = this.displayWidth / 2;
     let currentY = this.isMobile() ? 60 : this.displayHeight * 0.15;
 
     // Title
-    this.ctx.fillStyle = "#D4AF37"; // Gold
-    this.ctx.font = `bold ${this.getFontSize(this.isMobile() ? 40 : 48)} serif`;
-    this.ctx.textAlign = "center";
-    this.ctx.strokeStyle = "#000000";
-    this.ctx.lineWidth = this.isMobile() ? 2 : 4;
-    this.ctx.strokeText("Tiny Souls", centerX, currentY);
-    this.ctx.fillText("Tiny Souls", centerX, currentY);
-    currentY += this.isMobile() ? 35 : 60;
-
-    // Description
-    this.ctx.fillStyle = "#8BB8E8"; // Light blue
-    this.ctx.font = `${this.getFontSize(this.isMobile() ? 14 : 18)} sans-serif`;
-    const description = this.isMobile()
-      ? "A challenging combat game where timing and strategy matter."
-      : "A challenging combat game where timing and strategy matter.";
-
-    // Split description into lines if needed for mobile
-    if (this.isMobile()) {
-      const words = description.split(" ");
-      let line = "";
-      const maxWidth = this.displayWidth - 40;
-      words.forEach((word) => {
-        const testLine = line + (line ? " " : "") + word;
-        const metrics = this.ctx.measureText(testLine);
-        if (metrics.width > maxWidth && line) {
-          this.ctx.fillText(line, centerX, currentY);
-          currentY += 20;
-          line = word;
-        } else {
-          line = testLine;
-        }
-      });
-      if (line) {
-        this.ctx.fillText(line, centerX, currentY);
-        currentY += 30;
-      }
-    } else {
-      this.ctx.fillText(description, centerX, currentY);
-      currentY += 50;
-    }
+    this.drawTextWithStroke(
+      "Controls",
+      centerX,
+      currentY,
+      COLORS.GOLD,
+      this.getMobileValue(40, 48)
+    );
+    currentY += this.isMobile() ? 50 : 70;
 
     // Controls section
-    this.ctx.fillStyle = "#D4AF37"; // Gold
-    this.ctx.font = `bold ${this.getFontSize(this.isMobile() ? 20 : 24)} serif`;
-    this.ctx.fillText("Controls:", centerX, currentY);
-    currentY += this.isMobile() ? 25 : 40;
-
-    this.ctx.fillStyle = "#8BB8E8"; // Light blue
-    this.ctx.font = `${this.getFontSize(this.isMobile() ? 14 : 16)} sans-serif`;
     this.ctx.textAlign = "center";
+    this.ctx.fillStyle = COLORS.TEXT_LIGHT_BLUE;
+    this.ctx.font = `${this.getFontSize(this.isMobile() ? 14 : 16)} sans-serif`;
 
     // Show mobile controls for mobile, PC controls for desktop
     const controls = this.isMobile()
-      ? [
-          "Tap ATTACK button - Attack",
-          "Tap BLOCK button - Block",
-          "Tap both - Perfect Block",
-        ]
-      : [
-          "Space - Attack",
-          "Ctrl - Block",
-          "Ctrl + Space - Perfect Block (timed)",
-          "R - Restart",
-        ];
+      ? ["Tap ATTACK button - Attack", "Tap BLOCK button - Block"]
+      : ["Space - Attack", "Ctrl - Block", "R - Restart"];
 
     controls.forEach((control) => {
       this.ctx.fillText(control, centerX, currentY);
-      currentY += this.isMobile() ? 20 : 25;
+      currentY += this.isMobile() ? 25 : 30;
     });
 
-    currentY += this.isMobile() ? 15 : 25;
+    currentY += this.isMobile() ? 20 : 30;
 
     // Tips section
-    this.ctx.fillStyle = "#2D5A7A"; // Teal
+    this.ctx.fillStyle = COLORS.TEXT_TEAL;
     this.ctx.font = `${this.getFontSize(this.isMobile() ? 12 : 14)} sans-serif`;
     const tips = this.isMobile()
       ? [
           "• Manage stamina - attacks/blocks consume it",
-          "• Perfect blocks stun & restore stamina",
           "• Defeat enemies to progress",
-          "• Choose upgrades between levels",
+          "• Choose upgrades after level 5 on New Game Plus",
         ]
       : [
           "• Manage your stamina - attacks and blocks consume it",
-          "• Perfect blocks stun enemies and restore stamina",
           "• Defeat enemies to progress through levels",
-          "• Choose upgrades between levels",
+          "• Choose upgrades after level 5 on New Game Plus",
         ];
 
     tips.forEach((tip) => {
       this.ctx.fillText(tip, centerX, currentY);
-      currentY += this.isMobile() ? 18 : 22;
+      currentY += this.isMobile() ? 20 : 25;
     });
 
-    // Start prompt - ensure it's visible
-    currentY += this.isMobile() ? 20 : 30;
-    // Make sure prompt doesn't go below screen
-    const maxY = this.displayHeight - (this.isMobile() ? 30 : 50);
-    if (currentY > maxY) {
-      currentY = maxY;
-    }
+    // Back button at bottom
+    const buttonWidth = this.getMobileValue(120, 150);
+    const buttonHeight = this.getMobileValue(44, 50);
+    const buttonY = this.displayHeight - (this.isMobile() ? 80 : 100);
+    const buttonX = centerX - buttonWidth / 2;
 
-    this.ctx.fillStyle = "#D4AF37"; // Gold
-    this.ctx.font = `bold ${this.getFontSize(this.isMobile() ? 18 : 20)} serif`;
-    const startText = this.isMobile()
-      ? "Tap anywhere to start"
-      : "Press Enter, Space, or Click to Start";
-    this.ctx.fillText(startText, centerX, currentY);
+    this.drawButton(
+      buttonX,
+      buttonY,
+      buttonWidth,
+      buttonHeight,
+      "Back",
+      this.buttonPressState.back
+    );
+
+    this.ctx.restore();
   }
 
-  private drawLevelComplete(): void {
-    this.ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
-    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+  private drawLevelComplete(showTopText: boolean = true): void {
+    // Only draw background if not transitioning (when showTopText is false, we're transitioning)
+    if (showTopText) {
+      this.ctx.fillStyle = "rgba(0, 0, 0, 1)";
+      this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+    }
 
-    const config = this.getCurrentLevelConfig();
+    // Draw "ENEMY VANQUISHED" text at top (from previous screen, only if not transitioning)
+    if (showTopText) {
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(255, 215, 0, 1)`; // Gold yellow
+      const text = "ENEMY VANQUISHED";
+      const maxWidth = this.displayWidth - 40; // 20px padding on each side
+      let baseFontSize = this.isMobile() ? 48 : 64;
+      let fontSize = parseFloat(this.getFontSize(baseFontSize));
+      this.ctx.font = `bold ${fontSize}px serif`;
+      let textWidth = this.ctx.measureText(text).width;
+      if (textWidth > maxWidth) {
+        fontSize = (fontSize * maxWidth) / textWidth;
+        this.ctx.font = `bold ${fontSize}px serif`;
+      }
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
+      this.ctx.shadowBlur = 20;
+      this.ctx.shadowOffsetX = 0;
+      this.ctx.shadowOffsetY = 0;
+      this.ctx.fillText(text, this.displayWidth / 2, 60);
+      this.ctx.restore();
+    }
+
+    const config = this.cachedLevelConfig!;
 
     // Level complete title
-    this.ctx.fillStyle = "#8BB8E8";
-    this.ctx.font = `bold ${this.getFontSize(48)} serif`;
-    this.ctx.textAlign = "center";
-    this.ctx.strokeStyle = "#000000";
-    this.ctx.lineWidth = this.isMobile() ? 2 : 4;
-    const titleY = this.isMobile()
-      ? this.displayHeight / 2 - 60
-      : this.displayHeight / 2 - 100;
-    this.ctx.strokeText(
-      `Level ${this.currentLevel} Complete!`,
-      this.displayWidth / 2,
-      titleY
+    const titleY = this.getMobileValue(
+      this.displayHeight / 2 - 60,
+      this.displayHeight / 2 - 100
     );
-    this.ctx.fillText(
+    this.drawTextWithStroke(
       `Level ${this.currentLevel} Complete!`,
       this.displayWidth / 2,
-      titleY
+      titleY,
+      COLORS.TEXT_LIGHT_BLUE,
+      48
     );
 
     // Enemy defeated
-    this.ctx.fillStyle = config.enemyColor;
-    this.ctx.font = `bold ${this.getFontSize(32)} serif`;
-    const defeatedY = this.isMobile()
-      ? this.displayHeight / 2 - 20
-      : this.displayHeight / 2 - 40;
-    this.ctx.strokeText(
-      `${config.enemyName} Defeated!`,
-      this.displayWidth / 2,
-      defeatedY
+    const defeatedY = this.getMobileValue(
+      this.displayHeight / 2 - 20,
+      this.displayHeight / 2 - 40
     );
-    this.ctx.fillText(
+    this.drawTextWithStroke(
       `${config.enemyName} Defeated!`,
       this.displayWidth / 2,
-      defeatedY
+      defeatedY,
+      config.enemyColor,
+      32
     );
 
     // Health regeneration message
-    const missingHealth = this.maxHealth - this.playerHealth;
+    const missingHealth = this.player.maxHealth - this.player.health;
     if (missingHealth > 0) {
-      const healAmount = missingHealth * 0.5;
-      this.ctx.fillStyle = "#4CAF50";
+      const healAmount =
+        missingHealth * GAME_CONSTANTS.LEVEL.HEALTH_REGEN_RATIO;
+      this.ctx.fillStyle = COLORS.SUCCESS;
       this.ctx.font = `${this.getFontSize(20)} sans-serif`;
       this.ctx.fillText(
         `Health Restored: +${Math.ceil(healAmount)}`,
@@ -1881,164 +3040,307 @@ export class TinySouls {
       );
     }
 
-    if (this.currentLevel < 5) {
-      this.ctx.fillStyle = "#ffffff";
+    // Press space/tap to continue message
+    const continueY = this.displayHeight / 2 + (this.isMobile() ? 50 : 80);
+    const continueText = this.isMobile()
+      ? "Tap to Continue"
+      : "Press Space to Continue";
+    if (this.currentLevel < GAME_CONSTANTS.LEVEL.MAX_LEVEL) {
+      this.ctx.fillStyle = COLORS.TEXT_WHITE;
       this.ctx.font = `${this.getFontSize(24)} sans-serif`;
-      this.ctx.fillText(
-        "Preparing next level...",
-        this.displayWidth / 2,
-        this.displayHeight / 2 + (this.isMobile() ? 50 : 80)
-      );
+      this.ctx.textAlign = "center";
+      this.ctx.fillText(continueText, this.displayWidth / 2, continueY);
     } else {
-      this.ctx.fillStyle = "#FFD700";
+      this.ctx.fillStyle = COLORS.GOLD;
       this.ctx.font = `bold ${this.getFontSize(28)} sans-serif`;
+      this.ctx.textAlign = "center";
       this.ctx.fillText(
         "All Levels Complete!",
         this.displayWidth / 2,
-        this.displayHeight / 2 + (this.isMobile() ? 50 : 80)
+        continueY - 30
       );
+      this.ctx.fillStyle = COLORS.TEXT_WHITE;
+      this.ctx.font = `${this.getFontSize(24)} sans-serif`;
+      this.ctx.fillText(continueText, this.displayWidth / 2, continueY + 30);
     }
   }
 
-  private drawUpgradeMenu(): void {
-    this.ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
-    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+  private drawUpgradeMenu(showTopText: boolean = true): void {
+    // Only draw background if not transitioning (when showTopText is false, we're transitioning)
+    if (showTopText) {
+      this.ctx.fillStyle = "rgba(0, 0, 0, 1)";
+      this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+    }
+
+    // Draw "YOU WIN" text at top (from previous screen, only if not transitioning)
+    if (showTopText) {
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(0, 255, 0, 1)`; // Bright green
+      this.ctx.font = `bold ${this.getFontSize(64)} serif`;
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
+      this.ctx.shadowBlur = 20;
+      this.ctx.shadowOffsetX = 0;
+      this.ctx.shadowOffsetY = 0;
+      this.ctx.fillText("YOU WIN", this.displayWidth / 2, 60);
+      this.ctx.restore();
+    }
 
     const centerX = this.displayWidth / 2;
-    const startY = this.displayHeight / 2 - 200;
 
-    // Title
-    this.ctx.fillStyle = "#FFD700";
-    this.ctx.font = `bold ${this.getFontSize(48)} serif`;
-    this.ctx.textAlign = "center";
-    this.ctx.strokeStyle = "#000000";
-    this.ctx.lineWidth = this.isMobile() ? 2 : 4;
-    const victoryStartY = this.isMobile()
-      ? this.displayHeight / 2 - 120
-      : startY;
-    this.ctx.strokeText("Victory!", centerX, victoryStartY);
-    this.ctx.fillText("Victory!", centerX, victoryStartY);
+    // Calculate layout to fit within canvas bounds on mobile
+    if (this.isMobile()) {
+      // Mobile layout - more compact, ensure everything fits
+      const totalContentHeight = 400; // Approximate total height needed
+      const topPadding = 20;
+      const bottomPadding = 20;
+      const availableHeight = this.displayHeight - topPadding - bottomPadding;
+      const startY = topPadding + (availableHeight - totalContentHeight) / 2;
 
-    // NG+ level display
-    this.ctx.fillStyle = "#8BB8E8";
-    this.ctx.font = `bold ${this.getFontSize(32)} serif`;
-    const ngPlusY = this.isMobile() ? victoryStartY + 40 : victoryStartY + 60;
-    this.ctx.strokeText(
-      `New Game+ ${this.newGamePlusLevel + 1}`,
-      centerX,
-      ngPlusY
-    );
-    this.ctx.fillText(
-      `New Game+ ${this.newGamePlusLevel + 1}`,
-      centerX,
-      ngPlusY
-    );
+      // NG+ level display (moved lower to give "YOU WIN" text room)
+      const ngPlusY = Math.max(120, startY + 60);
+      this.drawTextWithStroke(
+        `New Game+ ${this.upgrades.newGamePlusLevel + 1}`,
+        centerX,
+        ngPlusY,
+        COLORS.TEXT_LIGHT_BLUE,
+        26
+      );
 
-    // Instructions
-    this.ctx.fillStyle = "#ffffff";
-    this.ctx.font = `${this.getFontSize(24)} sans-serif`;
-    const instructionsY = this.isMobile()
-      ? victoryStartY + 80
-      : victoryStartY + 120;
-    const instructionText = this.isMobile()
-      ? "Tap an upgrade:"
-      : "Choose an upgrade:";
-    this.ctx.fillText(instructionText, centerX, instructionsY);
+      // Instructions
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.font = `${this.getFontSize(20)} sans-serif`;
+      this.ctx.textAlign = "center";
+      const instructionsY = ngPlusY + 30;
+      this.ctx.fillText("Tap an upgrade:", centerX, instructionsY);
 
-    // Upgrade options
-    const currentAttackDamage =
-      this.basePlayerDamage + this.attackDamageUpgrades * 20;
-    const options = [
-      {
-        key: "1",
-        name: "Health",
-        desc: `+20 Max Health (Current: ${this.maxHealth})`,
-        type: "health" as const,
-      },
-      {
-        key: "2",
-        name: "Stamina",
-        desc: `+20 Max Stamina (Current: ${this.maxStamina})`,
-        type: "stamina" as const,
-      },
-      {
-        key: "3",
-        name: "Perfect Block",
-        desc: `-20ms Perfect Block Duration (Current: ${this.perfectBlockDuration}ms)`,
-        type: "perfectBlock" as const,
-      },
-      {
-        key: "4",
-        name: "Attack Damage",
-        desc: `+20 Attack Damage (Current: ${currentAttackDamage})`,
-        type: "attackDamage" as const,
-      },
-    ];
+      // Upgrade options
+      const currentAttackDamage = this.getPlayerDamage();
+      const options = [
+        {
+          key: "1",
+          name: "Health",
+          desc: `+${GAME_CONSTANTS.UPGRADE_INCREMENT} Max Health (Current: ${this.player.maxHealth})`,
+          type: "health" as const,
+        },
+        {
+          key: "2",
+          name: "Stamina",
+          desc: `+${GAME_CONSTANTS.UPGRADE_INCREMENT} Max Stamina (Current: ${this.player.maxStamina})`,
+          type: "stamina" as const,
+        },
+        {
+          key: "3",
+          name: "Perfect Block",
+          desc: `-${
+            GAME_CONSTANTS.PERFECT_BLOCK.UPGRADE_REDUCTION
+          }ms Perfect Block Duration (Current: ${Math.round(
+            this.perfectBlock.duration
+          )}ms)`,
+          type: "perfectBlock" as const,
+        },
+        {
+          key: "4",
+          name: "Attack Damage",
+          desc: `+${GAME_CONSTANTS.DAMAGE.UPGRADE_INCREMENT} Attack Damage (Current: ${currentAttackDamage})`,
+          type: "attackDamage" as const,
+        },
+      ];
 
-    const optionStartY = this.isMobile() ? instructionsY + 40 : startY + 180;
-    const optionSpacing = this.isMobile() ? 55 : 70;
-    const optionWidth = this.isMobile() ? this.displayWidth - 40 : 600;
-    const optionLeft = this.isMobile() ? 20 : centerX - 300;
+      const optionStartY = instructionsY + 30;
+      const optionSpacing = 45; // Reduced from 55
+      const leftPadding = 15; // Increased padding from left edge
+      const rightPadding = 15; // Padding from right edge
+      const optionWidth = this.displayWidth - leftPadding - rightPadding;
+      const optionLeft = leftPadding;
+      const optionRight = optionLeft + optionWidth;
 
-    options.forEach((option, index) => {
-      const y = optionStartY + index * optionSpacing;
-      const isSelected = this.selectedUpgrade === option.type;
+      // Set text alignment to left for option text
+      this.ctx.textAlign = "left";
 
-      // Check if this option is being touched (for visual feedback)
-      const isTouched =
-        this.upgradeMenuTouchY !== null &&
-        this.upgradeMenuTouchY >= y - 35 &&
-        this.upgradeMenuTouchY <= y + 25;
+      options.forEach((option, index) => {
+        const y = optionStartY + index * optionSpacing;
+        const isSelected = this.upgrades.selected === option.type;
 
-      // Highlight selected or touched option
-      if (isSelected || isTouched) {
-        this.ctx.fillStyle = isTouched
-          ? "rgba(139, 184, 232, 0.5)"
-          : "rgba(139, 184, 232, 0.3)";
-        this.ctx.fillRect(optionLeft, y - 30, optionWidth, 50);
-      }
+        // Check if this option is being touched (for visual feedback)
+        const isTouched =
+          this.upgradeMenuTouchY !== null &&
+          this.upgradeMenuTouchY >= y - 30 &&
+          this.upgradeMenuTouchY <= y + 20;
 
-      // Key indicator (hide on mobile or make smaller)
-      if (!this.isMobile()) {
-        this.ctx.fillStyle = "#FFD700";
-        this.ctx.font = `bold ${this.getFontSize(28)} sans-serif`;
-        this.ctx.fillText(`[${option.key}]`, optionLeft + 20, y);
-      }
+        // Highlight selected or touched option
+        if (isSelected || isTouched) {
+          this.ctx.fillStyle = isTouched
+            ? "rgba(139, 184, 232, 0.5)"
+            : "rgba(139, 184, 232, 0.3)";
+          this.ctx.fillRect(optionLeft, y - 30, optionWidth, 50);
+        }
 
-      // Option name
-      this.ctx.fillStyle = isSelected ? "#8BB8E8" : "#ffffff";
-      this.ctx.font = `bold ${this.getFontSize(24)} sans-serif`;
-      const nameX = this.isMobile() ? optionLeft + 10 : optionLeft + 120;
-      this.ctx.fillText(option.name, nameX, y);
+        // Option name - ensure it fits within bounds
+        this.ctx.fillStyle = isSelected ? "#8BB8E8" : "#ffffff";
+        this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
+        const nameX = optionLeft + 10; // 10px padding from option left edge
+        this.ctx.fillText(option.name, nameX, y);
 
-      // Description
-      this.ctx.fillStyle = "#cccccc";
-      this.ctx.font = `${this.getFontSize(18)} sans-serif`;
-      const descX = this.isMobile() ? optionLeft + 10 : centerX + 50;
-      const descY = this.isMobile() ? y + 20 : y;
-      this.ctx.fillText(option.desc, descX, descY);
-    });
+        // Description - ensure it fits within bounds and doesn't overflow
+        this.ctx.fillStyle = "#cccccc";
+        this.ctx.font = `${this.getFontSize(14)} sans-serif`;
+        const descX = optionLeft + 10; // 10px padding from option left edge
+        const maxDescWidth = optionRight - descX - 10; // Leave 10px padding on right
 
-    // Current upgrade counts
-    this.ctx.fillStyle = "#888888";
-    this.ctx.font = `${this.getFontSize(16)} sans-serif`;
-    const upgradeCountsY = this.isMobile()
-      ? optionStartY + 4 * optionSpacing + 30
-      : startY + 450;
-    const upgradeText = this.isMobile()
-      ? `Upgrades: H(${this.healthUpgrades}) S(${this.staminaUpgrades}) PB(${this.perfectBlockUpgrades}) AD(${this.attackDamageUpgrades})`
-      : `Upgrades: Health (${this.healthUpgrades}) | Stamina (${this.staminaUpgrades}) | Perfect Block (${this.perfectBlockUpgrades}) | Attack Damage (${this.attackDamageUpgrades})`;
-    this.ctx.fillText(upgradeText, centerX, upgradeCountsY);
+        // Measure text and truncate if needed
+        const metrics = this.ctx.measureText(option.desc);
+        let descText = option.desc;
+        if (metrics.width > maxDescWidth) {
+          // Truncate text to fit
+          let truncated = option.desc;
+          while (
+            this.ctx.measureText(truncated + "...").width > maxDescWidth &&
+            truncated.length > 0
+          ) {
+            truncated = truncated.slice(0, -1);
+          }
+          descText = truncated + "...";
+        }
 
-    // Enemy difficulty multiplier
-    const nextMultiplier = this.getEnemyMultiplier(this.newGamePlusLevel + 1);
-    this.ctx.fillStyle = "#FF6B6B";
-    this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
-    this.ctx.fillText(
-      `Enemy Difficulty: x${nextMultiplier.toFixed(1)}`,
-      centerX,
-      upgradeCountsY + (this.isMobile() ? 25 : 40)
-    );
+        this.ctx.fillText(descText, descX, y + 18);
+      });
+
+      // Current upgrade counts
+      this.ctx.textAlign = "center"; // Reset to center for centered text
+      this.ctx.fillStyle = COLORS.TEXT_DARK_GRAY;
+      this.ctx.font = `${this.getFontSize(14)} sans-serif`;
+      const upgradeCountsY = optionStartY + 4 * optionSpacing + 20;
+      const upgradeText = `Upgrades: H(${this.upgrades.health}) S(${this.upgrades.stamina}) PB(${this.upgrades.perfectBlock}) AD(${this.upgrades.attackDamage})`;
+      this.ctx.fillText(upgradeText, centerX, upgradeCountsY);
+
+      // Enemy difficulty multiplier
+      const nextMultiplier = this.getEnemyMultiplier(
+        this.upgrades.newGamePlusLevel + 1
+      );
+      this.ctx.fillStyle = "#FF6B6B";
+      this.ctx.font = `bold ${this.getFontSize(18)} sans-serif`;
+      const difficultyY = Math.min(
+        upgradeCountsY + 20,
+        this.displayHeight - 15
+      );
+      this.ctx.fillText(
+        `Enemy Difficulty: x${nextMultiplier.toFixed(1)}`,
+        centerX,
+        difficultyY
+      );
+    } else {
+      // Desktop layout - ensure everything fits within canvas bounds
+      const totalContentHeight = 550; // Approximate total height needed
+      const topPadding = 30;
+      const bottomPadding = 30;
+      const availableHeight = this.displayHeight - topPadding - bottomPadding;
+      const startY = topPadding + (availableHeight - totalContentHeight) / 2;
+
+      // NG+ level display (moved lower to give "YOU WIN" text room)
+      const ngPlusY = Math.max(140, startY + 80);
+      this.drawTextWithStroke(
+        `New Game+ ${this.upgrades.newGamePlusLevel + 1}`,
+        centerX,
+        ngPlusY,
+        COLORS.TEXT_LIGHT_BLUE,
+        32
+      );
+
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.font = `${this.getFontSize(24)} sans-serif`;
+      this.ctx.textAlign = "center";
+      const instructionsY = ngPlusY + 40;
+      this.ctx.fillText("Click an upgrade:", centerX, instructionsY);
+
+      const currentAttackDamage = this.getPlayerDamage();
+      const options = [
+        {
+          name: "Health",
+          desc: `+${GAME_CONSTANTS.UPGRADE_INCREMENT} Max Health (Current: ${this.player.maxHealth})`,
+          type: "health" as const,
+        },
+        {
+          name: "Stamina",
+          desc: `+${GAME_CONSTANTS.UPGRADE_INCREMENT} Max Stamina (Current: ${this.player.maxStamina})`,
+          type: "stamina" as const,
+        },
+        {
+          name: "Perfect Block",
+          desc: `-${
+            GAME_CONSTANTS.PERFECT_BLOCK.UPGRADE_REDUCTION
+          }ms Perfect Block Duration (Current: ${Math.round(
+            this.perfectBlock.duration
+          )}ms)`,
+          type: "perfectBlock" as const,
+        },
+        {
+          name: "Attack Damage",
+          desc: `+${GAME_CONSTANTS.DAMAGE.UPGRADE_INCREMENT} Attack Damage (Current: ${currentAttackDamage})`,
+          type: "attackDamage" as const,
+        },
+      ];
+
+      const optionStartY = instructionsY + 40;
+      const optionSpacing = 70;
+      const optionWidth = 600;
+      const optionLeft = centerX - 300;
+
+      // Set text alignment to left for option text
+      this.ctx.textAlign = "left";
+
+      options.forEach((option, index) => {
+        const y = optionStartY + index * optionSpacing;
+        const isSelected = this.upgrades.selected === option.type;
+
+        const isTouched =
+          this.upgradeMenuTouchY !== null &&
+          this.upgradeMenuTouchY >= y - 35 &&
+          this.upgradeMenuTouchY <= y + 25;
+
+        if (isSelected || isTouched) {
+          this.ctx.fillStyle = isTouched
+            ? "rgba(139, 184, 232, 0.5)"
+            : "rgba(139, 184, 232, 0.3)";
+          this.ctx.fillRect(optionLeft, y - 30, optionWidth, 50);
+        }
+
+        // Option name
+        this.ctx.fillStyle = isSelected ? "#8BB8E8" : "#ffffff";
+        this.ctx.font = `bold ${this.getFontSize(24)} sans-serif`;
+        this.ctx.fillText(option.name, optionLeft + 20, y);
+
+        // Description
+        this.ctx.fillStyle = "#cccccc";
+        this.ctx.font = `${this.getFontSize(18)} sans-serif`;
+        this.ctx.fillText(option.desc, centerX + 50, y);
+      });
+
+      // Current upgrade counts
+      this.ctx.textAlign = "center"; // Reset to center for centered text
+      this.ctx.fillStyle = COLORS.TEXT_DARK_GRAY;
+      this.ctx.font = `${this.getFontSize(16)} sans-serif`;
+      const upgradeCountsY = optionStartY + 4 * optionSpacing + 30;
+      const upgradeText = `Upgrades: Health (${this.upgrades.health}) | Stamina (${this.upgrades.stamina}) | Perfect Block (${this.upgrades.perfectBlock}) | Attack Damage (${this.upgrades.attackDamage})`;
+      this.ctx.fillText(upgradeText, centerX, upgradeCountsY);
+
+      // Enemy difficulty multiplier
+      const nextMultiplier = this.getEnemyMultiplier(
+        this.upgrades.newGamePlusLevel + 1
+      );
+      this.ctx.fillStyle = "#FF6B6B";
+      this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
+      const difficultyY = Math.min(
+        upgradeCountsY + 30,
+        this.displayHeight - 20
+      );
+      this.ctx.fillText(
+        `Enemy Difficulty: x${nextMultiplier.toFixed(1)}`,
+        centerX,
+        difficultyY
+      );
+    }
   }
 
   private drawHealthBar(
@@ -2089,7 +3391,7 @@ export class TinySouls {
 
     // Low health pulsing effect
     if (percentage < 0.3) {
-      const pulse = Math.sin(Date.now() / 300) * 0.2 + 0.8;
+      const pulse = Math.sin(this.cachedCurrentTime / 300) * 0.2 + 0.8;
       this.ctx.fillStyle = `rgba(255, 255, 255, ${pulse * 0.2})`;
       this.ctx.fillRect(x + 2, y + 2, (width - 4) * percentage, height - 4);
     }
@@ -2122,8 +3424,8 @@ export class TinySouls {
   }
 
   private drawStaminaBar(x: number, y: number, width: number = 200): void {
-    const height = 22;
-    const percentage = this.playerStamina / this.maxStamina;
+    const height = UI_CONSTANTS.HEALTH_BAR.STAMINA_HEIGHT;
+    const percentage = this.player.stamina / this.player.maxStamina;
     const barColor = "#FFD700"; // Gold color for stamina
 
     // Background with rounded corners effect
@@ -2151,7 +3453,7 @@ export class TinySouls {
 
     // Low stamina pulsing effect
     if (percentage < 0.3) {
-      const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+      const pulse = Math.sin(this.cachedCurrentTime / 200) * 0.3 + 0.7;
       this.ctx.fillStyle = `rgba(255, 0, 0, ${pulse * 0.3})`;
       this.ctx.fillRect(x + 2, y + 2, (width - 4) * percentage, height - 4);
     }
@@ -2173,11 +3475,11 @@ export class TinySouls {
     this.ctx.fillText("Stamina", x, y - 5);
 
     // Stamina text
-    this.ctx.fillStyle = "#ffffff";
+    this.ctx.fillStyle = COLORS.TEXT_WHITE;
     this.ctx.font = `bold ${this.getFontSize(12)} sans-serif`;
     this.ctx.textAlign = "center";
     this.ctx.fillText(
-      `${Math.ceil(this.playerStamina)}/${this.maxStamina}`,
+      `${Math.ceil(this.player.stamina)}/${this.player.maxStamina}`,
       x + width / 2,
       y + height / 2 + 4
     );
@@ -2222,7 +3524,7 @@ export class TinySouls {
       case "idle":
       default:
         // Subtle idle animation (breathing)
-        const idleScale = 1 + Math.sin(Date.now() / 1000) * 0.02;
+        const idleScale = 1 + Math.sin(this.cachedCurrentTime / 1000) * 0.02;
         scaleX = idleScale;
         scaleY = idleScale;
         break;
@@ -2263,7 +3565,7 @@ export class TinySouls {
       this.ctx.fillRect(shieldX, y - height / 2, 10, height);
     } else if (animationState === "hit") {
       // Flash effect
-      const flashAlpha = Math.sin(Date.now() / 50) * 0.5 + 0.5;
+      const flashAlpha = Math.sin(this.cachedCurrentTime / 50) * 0.5 + 0.5;
       this.ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.5})`;
       this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
     }
@@ -2305,7 +3607,7 @@ export class TinySouls {
     if (type === "player") {
       this.ctx.fillStyle = `rgba(139, 184, 232, ${alpha})`;
     } else {
-      const config = this.getCurrentLevelConfig();
+      const config = this.cachedLevelConfig!;
       const enemyColorRgb = this.hexToRgb(config.enemyColor);
       this.ctx.fillStyle = `rgba(${enemyColorRgb.r}, ${enemyColorRgb.g}, ${enemyColorRgb.b}, ${alpha})`;
     }
@@ -2313,7 +3615,7 @@ export class TinySouls {
   }
 
   private drawDamageNumbers(): void {
-    this.damageNumbers.forEach((num) => {
+    this.ui.damageNumbers.forEach((num) => {
       const alpha = num.life / num.maxLife;
       const scale = 1 + (1 - alpha) * 0.5; // Scale up as it fades
 
@@ -2327,7 +3629,7 @@ export class TinySouls {
         this.ctx.fillStyle = "#8BB8E8";
         this.ctx.strokeStyle = "#4A6FA5";
       } else {
-        const config = this.getCurrentLevelConfig();
+        const config = this.cachedLevelConfig!;
         this.ctx.fillStyle = config.enemyColor;
         const enemyColorRgb = this.hexToRgb(config.enemyColor);
         this.ctx.strokeStyle = `rgb(${Math.max(
@@ -2351,129 +3653,418 @@ export class TinySouls {
     });
   }
 
-  private hexToRgb(hex: string): { r: number; g: number; b: number } {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result
-      ? {
-          r: parseInt(result[1], 16),
-          g: parseInt(result[2], 16),
-          b: parseInt(result[3], 16),
-        }
-      : { r: 212, g: 175, b: 55 }; // Default to gold if parsing fails
-  }
+  private drawDeathScreen(): void {
+    const explosionDuration = GAME_CONSTANTS.DEATH_SCREEN.EXPLOSION_DURATION;
+    const fadeInDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_IN_DURATION;
+    const holdDuration = GAME_CONSTANTS.DEATH_SCREEN.HOLD_DURATION;
+    const moveUpDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_OUT_DURATION;
 
-  private drawGameOver(text: string, color: string): void {
-    this.ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+    // During explosion phase, only show particles (no overlay or text)
+    if (this.deathScreenTimer < explosionDuration) {
+      // Draw a subtle darkening overlay that gradually increases
+      const explosionProgress = this.deathScreenTimer / explosionDuration;
+      const overlayAlpha = explosionProgress * 0.3; // Subtle darkening during explosion
+      this.ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
+      this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+      return; // Don't show "YOU DIED" text during explosion
+    }
+
+    // After explosion, show the "YOU DIED" screen
+    const textTimer = this.deathScreenTimer - explosionDuration;
+    let overlayAlpha = 0;
+    let textY = this.displayHeight / 2;
+    let nextScreenAlpha = 0;
+    const endY = 60; // Top of screen
+
+    if (textTimer < fadeInDuration) {
+      // Fade in phase - overlay fades in, text stays at center
+      overlayAlpha = textTimer / fadeInDuration;
+      textY = this.displayHeight / 2;
+      nextScreenAlpha = 0;
+    } else if (textTimer < fadeInDuration + holdDuration) {
+      // Hold phase - overlay stays at full opacity, text stays at center
+      overlayAlpha = 1;
+      textY = this.displayHeight / 2;
+      nextScreenAlpha = 0;
+    } else {
+      // Move up phase - text moves upward, next screen fades in below
+      overlayAlpha = 1;
+      const moveUpProgress = Math.min(
+        1,
+        (textTimer - fadeInDuration - holdDuration) / moveUpDuration
+      );
+      const startY = this.displayHeight / 2;
+      // Ensure text reaches exactly endY when moveUpProgress = 1
+      textY = startY - (startY - endY) * moveUpProgress;
+      // Fade in next screen as text moves up (start fading when text is halfway up)
+      nextScreenAlpha = Math.min(1, Math.max(0, (moveUpProgress - 0.3) / 0.7));
+    }
+
+    // Draw dark overlay (stays visible after fade-in) - fully opaque
+    this.ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
     this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
-    // Title
-    this.ctx.fillStyle = color;
-    this.ctx.font = `bold ${this.getFontSize(48)} serif`;
+    // Draw next screen below if transitioning (with fade in)
+    if (nextScreenAlpha > 0) {
+      this.ctx.save();
+      this.ctx.globalAlpha = nextScreenAlpha;
+      const config = this.cachedLevelConfig!;
+      this.drawGameOver(
+        `Defeated by ${config.enemyName}!`,
+        config.enemyColor,
+        false
+      );
+      this.ctx.restore();
+    }
+
+    // Draw "YOU DIED" text in red (moves up, stays visible)
+    this.ctx.save();
+    this.ctx.fillStyle = `rgba(220, 20, 60, 1)`; // Crimson red, always fully opaque
+    this.ctx.font = `bold ${this.getFontSize(64)} serif`;
     this.ctx.textAlign = "center";
-    const titleY = this.isMobile()
-      ? this.displayHeight / 2 - 120
-      : this.displayHeight / 2 - 200;
+    this.ctx.textBaseline = "middle";
+
+    // Add text shadow for better visibility
+    this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
+    this.ctx.shadowBlur = 20;
+    this.ctx.shadowOffsetX = 0;
+    this.ctx.shadowOffsetY = 0;
+
+    this.ctx.fillText("YOU DIED", this.displayWidth / 2, textY);
+
+    this.ctx.restore();
+  }
+
+  private drawEnemyVanquishedScreen(): void {
+    const fadeInDuration =
+      GAME_CONSTANTS.ENEMY_VANQUISHED_SCREEN.FADE_IN_DURATION;
+    const holdDuration = GAME_CONSTANTS.ENEMY_VANQUISHED_SCREEN.HOLD_DURATION;
+    const moveUpDuration =
+      GAME_CONSTANTS.ENEMY_VANQUISHED_SCREEN.FADE_OUT_DURATION;
+
+    const textTimer = this.enemyVanquishedTimer;
+    let overlayAlpha = 0;
+    let textY = this.displayHeight / 2;
+    let nextScreenAlpha = 0;
+    const endY = 60; // Top of screen
+
+    if (textTimer < fadeInDuration) {
+      // Fade in phase - overlay fades in, text stays at center
+      overlayAlpha = textTimer / fadeInDuration;
+      textY = this.displayHeight / 2;
+      nextScreenAlpha = 0;
+    } else if (textTimer < fadeInDuration + holdDuration) {
+      // Hold phase - overlay stays at full opacity, text stays at center
+      overlayAlpha = 1;
+      textY = this.displayHeight / 2;
+      nextScreenAlpha = 0;
+    } else {
+      // Move up phase - text moves upward, next screen fades in below
+      overlayAlpha = 1;
+      const moveUpProgress =
+        (textTimer - fadeInDuration - holdDuration) / moveUpDuration;
+      const startY = this.displayHeight / 2;
+      textY = startY - (startY - endY) * moveUpProgress;
+      // Fade in next screen as text moves up (start fading when text is halfway up)
+      nextScreenAlpha = Math.min(1, Math.max(0, (moveUpProgress - 0.3) / 0.7));
+    }
+
+    // Draw dark overlay (stays visible after fade-in) - fully opaque
+    this.ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+
+    // Draw next screen below if transitioning (with fade in)
+    if (nextScreenAlpha > 0) {
+      this.ctx.save();
+      this.ctx.globalAlpha = nextScreenAlpha;
+      this.drawLevelComplete(false);
+      this.ctx.restore();
+    }
+
+    // Draw "ENEMY VANQUISHED" text in yellow (moves up, stays visible)
+    this.ctx.save();
+    this.ctx.fillStyle = `rgba(255, 215, 0, 1)`; // Gold yellow, always fully opaque
+
+    // Calculate font size that fits within canvas width
+    const text = "ENEMY VANQUISHED";
+    const maxWidth = this.displayWidth - 40; // 20px padding on each side
+    let baseFontSize = this.isMobile() ? 48 : 64; // Smaller base size for mobile
+    let fontSize = parseFloat(this.getFontSize(baseFontSize));
+
+    // Measure text and adjust font size if needed
+    this.ctx.font = `bold ${fontSize}px serif`;
+    let textWidth = this.ctx.measureText(text).width;
+
+    if (textWidth > maxWidth) {
+      fontSize = (fontSize * maxWidth) / textWidth;
+      this.ctx.font = `bold ${fontSize}px serif`;
+    }
+
+    this.ctx.textAlign = "center";
+    this.ctx.textBaseline = "middle";
+
+    // Add text shadow for better visibility
+    this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
+    this.ctx.shadowBlur = 20;
+    this.ctx.shadowOffsetX = 0;
+    this.ctx.shadowOffsetY = 0;
+
+    this.ctx.fillText(text, this.displayWidth / 2, textY);
+
+    this.ctx.restore();
+  }
+
+  private drawLevel5VictoryScreen(): void {
+    const fadeInDuration =
+      GAME_CONSTANTS.LEVEL5_VICTORY_SCREEN.FADE_IN_DURATION;
+    const holdDuration = GAME_CONSTANTS.LEVEL5_VICTORY_SCREEN.HOLD_DURATION;
+    const moveUpDuration =
+      GAME_CONSTANTS.LEVEL5_VICTORY_SCREEN.FADE_OUT_DURATION;
+
+    const textTimer = this.level5VictoryTimer;
+    let overlayAlpha = 0;
+    let textY = this.displayHeight / 2;
+    let nextScreenAlpha = 0;
+    const endY = 60; // Top of screen
+
+    if (textTimer < fadeInDuration) {
+      // Fade in phase - overlay fades in, text stays at center
+      overlayAlpha = textTimer / fadeInDuration;
+      textY = this.displayHeight / 2;
+      nextScreenAlpha = 0;
+    } else if (textTimer < fadeInDuration + holdDuration) {
+      // Hold phase - overlay stays at full opacity, text stays at center
+      overlayAlpha = 1;
+      textY = this.displayHeight / 2;
+      nextScreenAlpha = 0;
+    } else {
+      // Move up phase - text moves upward, next screen fades in below
+      overlayAlpha = 1;
+      const moveUpProgress =
+        (textTimer - fadeInDuration - holdDuration) / moveUpDuration;
+      const startY = this.displayHeight / 2;
+      textY = startY - (startY - endY) * moveUpProgress;
+      // Fade in next screen as text moves up (start fading when text is halfway up)
+      nextScreenAlpha = Math.min(1, Math.max(0, (moveUpProgress - 0.3) / 0.7));
+    }
+
+    // Draw dark overlay (stays visible after fade-in) - fully opaque
+    this.ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+
+    // Draw next screen below if transitioning (with fade in)
+    if (nextScreenAlpha > 0) {
+      this.ctx.save();
+      this.ctx.globalAlpha = nextScreenAlpha;
+      this.drawUpgradeMenu(false);
+      this.ctx.restore();
+    }
+
+    // Draw "YOU WIN" text in green (moves up, stays visible)
+    this.ctx.save();
+    this.ctx.fillStyle = `rgba(0, 255, 0, 1)`; // Bright green, always fully opaque
+    this.ctx.font = `bold ${this.getFontSize(64)} serif`;
+    this.ctx.textAlign = "center";
+    this.ctx.textBaseline = "middle";
+
+    // Add text shadow for better visibility
+    this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
+    this.ctx.shadowBlur = 20;
+    this.ctx.shadowOffsetX = 0;
+    this.ctx.shadowOffsetY = 0;
+
+    this.ctx.fillText("YOU WIN", this.displayWidth / 2, textY);
+
+    this.ctx.restore();
+  }
+
+  private drawGameOver(
+    text: string,
+    color: string,
+    showTopText: boolean = true
+  ): void {
+    // Only draw background if not transitioning (when showTopText is false, we're transitioning)
+    if (showTopText) {
+      this.ctx.fillStyle = "rgba(0, 0, 0, 1)"; // Fully opaque background
+      this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+    }
+
+    // Draw "YOU DIED" text at top (only if coming from death screen and not transitioning)
+    if (showTopText && this.gameStatus === "enemyWon") {
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(220, 20, 60, 1)`; // Crimson red
+      this.ctx.font = `bold ${this.getFontSize(64)} serif`;
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
+      this.ctx.shadowBlur = 20;
+      this.ctx.shadowOffsetX = 0;
+      this.ctx.shadowOffsetY = 0;
+      this.ctx.fillText("YOU DIED", this.displayWidth / 2, 60);
+      this.ctx.restore();
+    }
+
+    // Title (adjusted to account for "YOU DIED" text at top)
+    this.ctx.fillStyle = color;
+    // Use smaller font on mobile to prevent overflow
+    const titleFontSize = this.isMobile() ? 32 : 48;
+    this.ctx.font = `bold ${this.getFontSize(titleFontSize)} serif`;
+    this.ctx.textAlign = "center";
+    // Start title lower to avoid overlap with "YOU DIED" at 60px
+    const topTextHeight = 100; // Space reserved for "YOU DIED" text
+    const titleY = this.isMobile() ? topTextHeight + 60 : topTextHeight + 120;
+
+    // On mobile, check if text fits and adjust font size if needed
+    if (this.isMobile()) {
+      this.ctx.font = `bold ${titleFontSize}px serif`;
+      const textWidth = this.ctx.measureText(text).width;
+      const maxWidth = this.displayWidth - 40; // 20px padding on each side
+      if (textWidth > maxWidth) {
+        const adjustedSize = (titleFontSize * maxWidth) / textWidth;
+        this.ctx.font = `bold ${adjustedSize}px serif`;
+      }
+    }
+
     this.ctx.fillText(text, this.displayWidth / 2, titleY);
 
     // NG+ level display
-    if (this.newGamePlusLevel > 0) {
-      this.ctx.fillStyle = "#8BB8E8";
+    if (this.upgrades.newGamePlusLevel > 0) {
+      this.ctx.fillStyle = COLORS.TEXT_LIGHT_BLUE;
       this.ctx.font = `bold ${this.getFontSize(28)} serif`;
       this.ctx.fillText(
-        `New Game+ ${this.newGamePlusLevel}`,
+        `New Game+ ${this.upgrades.newGamePlusLevel}`,
         this.displayWidth / 2,
         titleY + (this.isMobile() ? 35 : 50)
       );
     }
 
-    // Score
-    this.ctx.fillStyle = "#FFD700";
-    this.ctx.font = `bold ${this.getFontSize(32)} sans-serif`;
-    this.ctx.fillText(
-      `Final Score: ${this.score.toLocaleString()}`,
-      this.displayWidth / 2,
-      titleY + (this.isMobile() ? 70 : 100)
-    );
+    // Score and Statistics - side by side on desktop, stacked on mobile
+    const contentY = titleY + (this.isMobile() ? 50 : 100);
+    let statsBottomY: number;
 
-    // Upgrade summary
-    if (
-      this.healthUpgrades > 0 ||
-      this.staminaUpgrades > 0 ||
-      this.perfectBlockUpgrades > 0 ||
-      this.attackDamageUpgrades > 0
-    ) {
-      this.ctx.fillStyle = "#4CAF50";
+    if (this.isMobile()) {
+      // Mobile: Stack vertically, center aligned
+      this.ctx.textAlign = "center";
+
+      // Final Score (centered)
+      this.ctx.fillStyle = COLORS.GOLD;
       this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
-      const upgradeLabelY = this.isMobile()
-        ? titleY + 100
-        : this.canvas.height / 2 - 50;
-      this.ctx.fillText("Upgrades:", this.displayWidth / 2, upgradeLabelY);
+      this.ctx.fillText(
+        `Final Score: ${this.score.value.toLocaleString()}`,
+        this.displayWidth / 2,
+        contentY
+      );
+
+      // Statistics (centered, below score)
+      const statsY = contentY + 40;
       this.ctx.fillStyle = "#ffffff";
+      this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
+      this.ctx.fillText("Statistics", this.displayWidth / 2, statsY);
+
+      this.ctx.font = `${this.getFontSize(16)} sans-serif`;
+      const stats = [
+        `Damage Dealt: ${this.stats.totalDamageDealt}`,
+        `Perfect Blocks: ${this.stats.perfectBlocks}`,
+        `Attacks Blocked: ${this.stats.attacksBlocked}`,
+        `Hits Taken: ${this.stats.hitsTaken}`,
+        `Total Attacks: ${this.stats.totalAttacks}`,
+      ];
+
+      const statSpacing = 18;
+      stats.forEach((stat, index) => {
+        this.ctx.fillText(
+          stat,
+          this.displayWidth / 2,
+          statsY + 30 + index * statSpacing
+        );
+      });
+
+      // Calculate the bottom of stats for positioning restart hint
+      statsBottomY = statsY + 30 + stats.length * statSpacing;
+    } else {
+      // Desktop: Side by side
+      const columnSpacing = 200;
+      const leftColumnX = this.displayWidth / 2 - columnSpacing;
+      const rightColumnX = this.displayWidth / 2 + columnSpacing;
+
+      // Final Score (left column)
+      this.ctx.fillStyle = COLORS.GOLD;
+      this.ctx.font = `bold ${this.getFontSize(24)} sans-serif`;
+      this.ctx.textAlign = "left";
+      this.ctx.fillText(
+        `Final Score: ${this.score.value.toLocaleString()}`,
+        leftColumnX,
+        contentY
+      );
+
+      // Statistics (right column)
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.font = `bold ${this.getFontSize(24)} sans-serif`;
+      this.ctx.textAlign = "left";
+      this.ctx.fillText("Statistics", rightColumnX, contentY);
+
       this.ctx.font = `${this.getFontSize(18)} sans-serif`;
-      const upgradeText = [
-        this.healthUpgrades > 0 ? `Health: +${this.healthUpgrades * 20}` : null,
-        this.staminaUpgrades > 0
-          ? `Stamina: +${this.staminaUpgrades * 20}`
-          : null,
-        this.perfectBlockUpgrades > 0
-          ? `Perfect Block: -${this.perfectBlockUpgrades * 20}ms`
-          : null,
-        this.attackDamageUpgrades > 0
-          ? `Attack Damage: +${this.attackDamageUpgrades * 20}`
-          : null,
-      ]
-        .filter(Boolean)
-        .join(this.isMobile() ? " | " : " | ");
+      const stats = [
+        `Damage Dealt: ${this.stats.totalDamageDealt}`,
+        `Perfect Blocks: ${this.stats.perfectBlocks}`,
+        `Attacks Blocked: ${this.stats.attacksBlocked}`,
+        `Hits Taken: ${this.stats.hitsTaken}`,
+        `Total Attacks: ${this.stats.totalAttacks}`,
+      ];
+
+      const statSpacing = 25;
+      stats.forEach((stat, index) => {
+        this.ctx.fillText(
+          stat,
+          rightColumnX,
+          contentY + 30 + index * statSpacing
+        );
+      });
+
+      // Calculate the bottom of stats for positioning restart hint
+      statsBottomY = contentY + 30 + stats.length * statSpacing;
+    }
+
+    // Upgrade summary (below score/stats)
+    let upgradeBottomY = statsBottomY;
+    if (
+      this.upgrades.health > 0 ||
+      this.upgrades.stamina > 0 ||
+      this.upgrades.perfectBlock > 0 ||
+      this.upgrades.attackDamage > 0
+    ) {
+      const upgradeLabelY = statsBottomY + (this.isMobile() ? 20 : 30);
+      this.ctx.fillStyle = COLORS.SUCCESS;
+      this.ctx.font = `bold ${this.getFontSize(
+        this.isMobile() ? 18 : 20
+      )} sans-serif`;
+      this.ctx.textAlign = "center";
+      this.ctx.fillText("Upgrades:", this.displayWidth / 2, upgradeLabelY);
+      this.ctx.fillStyle = COLORS.TEXT_WHITE;
+      this.ctx.font = `${this.getFontSize(
+        this.isMobile() ? 16 : 18
+      )} sans-serif`;
+      const upgradeText = this.formatUpgradeText();
       this.ctx.fillText(
         upgradeText,
         this.displayWidth / 2,
-        upgradeLabelY + (this.isMobile() ? 25 : 30)
+        upgradeLabelY + (this.isMobile() ? 20 : 30)
       );
+      upgradeBottomY = upgradeLabelY + (this.isMobile() ? 50 : 60);
     }
 
-    // Statistics panel
-    const upgradeOffset =
-      this.healthUpgrades > 0 ||
-      this.staminaUpgrades > 0 ||
-      this.perfectBlockUpgrades > 0 ||
-      this.attackDamageUpgrades > 0
-        ? this.isMobile()
-          ? 20
-          : 30
-        : 0;
-    const statsY = titleY + (this.isMobile() ? 150 : 200) + upgradeOffset;
-    this.ctx.fillStyle = "#ffffff";
-    this.ctx.font = `bold ${this.getFontSize(24)} sans-serif`;
-    this.ctx.fillText("Statistics", this.displayWidth / 2, statsY);
-
-    this.ctx.font = `${this.getFontSize(18)} sans-serif`;
-    const stats = [
-      `Damage Dealt: ${this.stats.totalDamageDealt}`,
-      `Perfect Blocks: ${this.stats.perfectBlocks}`,
-      `Attacks Blocked: ${this.stats.attacksBlocked}`,
-      `Hits Taken: ${this.stats.hitsTaken}`,
-      `Total Attacks: ${this.stats.totalAttacks}`,
-    ];
-
-    const statSpacing = this.isMobile() ? 20 : 25;
-    stats.forEach((stat, index) => {
-      this.ctx.fillText(
-        stat,
-        this.displayWidth / 2,
-        statsY + 30 + index * statSpacing
-      );
-    });
-
-    // Restart hint
+    // Restart hint (below upgrades or stats, ensure it's visible)
     this.ctx.fillStyle = "#cccccc";
-    this.ctx.font = `${this.getFontSize(20)} sans-serif`;
-    const restartHintY = this.isMobile()
-      ? statsY + stats.length * statSpacing + 20
-      : this.displayHeight / 2 + 200;
+    this.ctx.font = `${this.getFontSize(this.isMobile() ? 18 : 20)} sans-serif`;
+    this.ctx.textAlign = "center";
+    const restartHintY = upgradeBottomY + (this.isMobile() ? 20 : 30);
+    // Ensure restart hint is visible on screen
+    const maxY = this.displayHeight - (this.isMobile() ? 100 : 120);
+    const finalRestartY = Math.min(restartHintY, maxY);
     const restartText = this.isMobile()
       ? "Tap Restart button"
       : "Press R to restart";
-    this.ctx.fillText(restartText, this.displayWidth / 2, restartHintY);
+    this.ctx.fillText(restartText, this.displayWidth / 2, finalRestartY);
   }
 
   private drawControlsHint(): void {
@@ -2506,8 +4097,10 @@ export class TinySouls {
     this.ctx.fillText("Ctrl - Block", hintX + 10, hintY + 65);
 
     // Stamina warning if low
-    if (this.playerStamina < 30) {
-      this.ctx.fillStyle = "#FF6B6B";
+    if (
+      this.player.stamina < UI_CONSTANTS.CONTROLS_HINT.LOW_STAMINA_THRESHOLD
+    ) {
+      this.ctx.fillStyle = COLORS.ERROR;
       this.ctx.font = "bold 12px sans-serif";
       this.ctx.fillText("Low Stamina!", hintX + 10, hintY + 82);
     }
@@ -2610,6 +4203,136 @@ export class TinySouls {
     return distance <= buttonSize / 2;
   }
 
+  // Helper method to check if point is within rectangular button
+  private isPointInRectButton(
+    x: number,
+    y: number,
+    buttonX: number,
+    buttonY: number,
+    buttonWidth: number,
+    buttonHeight: number
+  ): boolean {
+    return (
+      x >= buttonX &&
+      x <= buttonX + buttonWidth &&
+      y >= buttonY &&
+      y <= buttonY + buttonHeight
+    );
+  }
+
+  // Handle intro screen button clicks
+  private handleIntroButtonClick(x: number, y: number): boolean {
+    // Don't handle clicks if buttons haven't finished fading in or if already fading out
+    if (
+      this.logoFadeProgress < 1 ||
+      this.buttonFadeProgress < 1 ||
+      this.fadeOutStartTime > 0
+    ) {
+      return false;
+    }
+
+    const centerX = this.displayWidth / 2;
+    const centerY = this.displayHeight / 2;
+    const buttonWidth = this.getMobileValue(120, 150);
+    const buttonHeight = this.getMobileValue(44, 50);
+    const buttonSpacing = this.getMobileValue(20, 30);
+
+    // Calculate logo bottom position (same as in drawIntro)
+    let logoBottomY = centerY;
+    if (this.logoImage) {
+      const logoWidth = this.getMobileValue(200, 300);
+      const logoHeight =
+        (this.logoImage.height / this.logoImage.width) * logoWidth;
+      const logoY = centerY - logoHeight / 2 - (this.isMobile() ? 60 : 80);
+      logoBottomY = logoY + logoHeight;
+    }
+
+    const verticalSpacing = this.getMobileValue(50, 70);
+    const buttonY = logoBottomY + verticalSpacing;
+
+    // Center the gap between buttons under the logo (same as in drawIntro)
+    const startButtonX = centerX - buttonSpacing / 2 - buttonWidth;
+    const controlsButtonX = centerX + buttonSpacing / 2;
+
+    if (
+      this.isPointInRectButton(
+        x,
+        y,
+        startButtonX,
+        buttonY,
+        buttonWidth,
+        buttonHeight
+      )
+    ) {
+      // Play button click sound
+      this.audioManager.playSound("button-click.mp3");
+      // Stop intro music when starting the game
+      this.audioManager.stopMusic();
+      // Start fade-out, then transition to playing
+      this.startFadeOut("playing");
+      return true;
+    }
+
+    if (
+      this.isPointInRectButton(
+        x,
+        y,
+        controlsButtonX,
+        buttonY,
+        buttonWidth,
+        buttonHeight
+      )
+    ) {
+      // Play button click sound
+      this.audioManager.playSound("button-click.mp3");
+      // Start fade-out, then transition to controls
+      this.startFadeOut("controls");
+      return true;
+    }
+
+    return false;
+  }
+
+  // Start fade-out animation
+  private startFadeOut(targetStatus: GameStatus): void {
+    this.fadeOutStartTime = performance.now();
+    this.fadeOutProgress = 0;
+    this.pendingTransition = targetStatus;
+  }
+
+  // Handle controls screen button clicks
+  private handleControlsButtonClick(x: number, y: number): boolean {
+    // Don't handle clicks if already fading out
+    if (this.fadeOutStartTime > 0) {
+      return false;
+    }
+
+    const centerX = this.displayWidth / 2;
+    const buttonWidth = this.getMobileValue(120, 150);
+    const buttonHeight = this.getMobileValue(44, 50);
+    const buttonY = this.displayHeight - (this.isMobile() ? 80 : 100);
+    const buttonX = centerX - buttonWidth / 2;
+
+    if (
+      this.isPointInRectButton(
+        x,
+        y,
+        buttonX,
+        buttonY,
+        buttonWidth,
+        buttonHeight
+      )
+    ) {
+      // Play button click sound
+      this.audioManager.playSound("button-click.mp3");
+      // Start fade-out, then transition back to intro
+      this.startFadeOut("intro");
+      return true;
+    }
+
+    return false;
+  }
+
   private gameLoop = (timestamp: number): void => {
     if (!this.isRunning) {
       return;
@@ -2625,14 +4348,17 @@ export class TinySouls {
     this.animationFrameId = requestAnimationFrame(this.gameLoop);
   };
 
-  private lastFrameTime: number = 0;
-
   public start(): void {
     if (this.isRunning) {
       return;
     }
     this.isRunning = true;
     this.lastFrameTime = performance.now();
+    // Initialize logo fade if on intro screen
+    if (this.gameStatus === "intro" && this.logoFadeStartTime === 0) {
+      this.logoFadeStartTime = performance.now();
+      this.logoFadeProgress = 0;
+    }
     this.animationFrameId = requestAnimationFrame(this.gameLoop);
   }
 
@@ -2648,60 +4374,24 @@ export class TinySouls {
     this.stop();
     // Preserve NG+ level and upgrades - don't reset them
     // Only reset current playthrough state
-    this.currentLevel = 1;
-    // Apply upgrades to player stats (flat +20 increments)
-    this.maxHealth = this.baseMaxHealth + this.healthUpgrades * 20;
-    this.maxStamina = this.baseMaxStamina + this.staminaUpgrades * 20;
-    this.perfectBlockDuration = Math.max(
-      100,
-      this.basePerfectBlockDuration - this.perfectBlockUpgrades * 20
-    );
-    // Attack damage upgrades are applied directly in damage calculation
-    this.playerHealth = this.maxHealth;
-    this.enemyHealth = 100; // Will be set by initializeLevel()
-    this.playerStamina = this.maxStamina;
-    this.score = 0;
-    this.scoreMultiplier = 1.0;
-    this.stats = {
-      totalDamageDealt: 0,
-      perfectBlocks: 0,
-      attacksBlocked: 0,
-      hitsTaken: 0,
-      totalAttacks: 0,
-    };
-    this.playerAnimationState = "idle";
-    this.playerAnimationTimer = 0;
-    this.enemyAnimationState = "idle";
-    this.enemyAnimationTimer = 0;
-    this.lastPlayerHitTime = 0;
-    this.isPlayerBlocking = false;
-    this.playerAttackCooldown = 0;
-    this.playerBlockCooldown = 0;
-    this.playerSpearProgress = 0;
-    this.playerSpearTimer = 0;
-    this.enemyAttackTimer = 0;
-    this.isEnemyAttacking = false;
-    this.enemyAttackDuration = 0;
-    this.enemyStunTimer = 0;
-    this.enemySpearProgress = 0;
-    this.attackEffects = [];
-    this.damageNumbers = [];
-    this.perfectBlockActive = false;
-    this.perfectBlockParticles = [];
-    this.hitParticles = [];
-    this.blockParticles = [];
-    this.attackTrailParticles = [];
-    this.perfectBlockTimer = 0;
-    this.perfectBlockParticles = [];
-    this.perfectBlockAttempted = false;
-    this.wasCtrlHeld = false;
-    this.gameStatus = "playing";
-    this.levelCompleteTimer = 0;
-    this.selectedUpgrade = null;
+    this.resetGameState(true);
+    this.gameStatus = "startScreen";
     this.keys.clear();
+    this.activeTouches.clear();
     this.isAttackButtonPressed = false;
     this.isBlockButtonPressed = false;
-    this.initializeLevel();
+    this.wasSpaceHeld = false;
+    // Reset logo fade animation
+    this.logoFadeProgress = 0;
+    this.logoFadeStartTime = performance.now();
+    // Reset button fade animation
+    this.buttonFadeProgress = 0;
+    this.buttonFadeStartTime = 0;
+    // Reset fade-out state
+    this.fadeOutProgress = 0;
+    this.fadeOutStartTime = 0;
+    this.pendingTransition = null;
+    // Don't initialize level - return to title screen instead
     this.updateSpearPositions();
     this.start();
   }
@@ -2714,10 +4404,37 @@ export class TinySouls {
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
 
-      // Handle intro screen - any touch starts the game
+      // Handle start screen - any touch goes to intro
+      if (this.gameStatus === "startScreen") {
+        e.preventDefault();
+        const oldStatus = this.gameStatus;
+        this.gameStatus = "intro";
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
+        continue;
+      }
+
+      // Handle intro screen buttons
       if (this.gameStatus === "intro") {
         e.preventDefault();
-        this.gameStatus = "playing";
+        if (this.handleIntroButtonClick(x, y)) {
+          return;
+        }
+        continue;
+      }
+
+      // Handle controls screen back button
+      if (this.gameStatus === "controls") {
+        e.preventDefault();
+        if (this.handleControlsButtonClick(x, y)) {
+          return;
+        }
+        continue;
+      }
+
+      // Handle level complete screen - any touch continues
+      if (this.gameStatus === "levelComplete") {
+        e.preventDefault();
+        this.continueFromLevelComplete();
         return;
       }
 
@@ -2741,8 +4458,8 @@ export class TinySouls {
           e.preventDefault();
           this.isBlockButtonPressed = true;
           this.activeTouches.set(touch.identifier, { type: "block" });
-          const isNewPress = !this.wasCtrlHeld;
-          this.wasCtrlHeld = true;
+          const isNewPress = !this.perfectBlock.wasCtrlHeld;
+          this.perfectBlock.wasCtrlHeld = true;
           this.handlePlayerBlock();
           if (isNewPress) {
             this.checkPerfectBlockOnPress();
@@ -2772,8 +4489,8 @@ export class TinySouls {
       if (touchType === "attack") {
         this.handlePlayerAttack();
       } else if (touchType === "block") {
-        const isNewPress = !this.wasCtrlHeld;
-        this.wasCtrlHeld = true;
+        const isNewPress = !this.perfectBlock.wasCtrlHeld;
+        this.perfectBlock.wasCtrlHeld = true;
         this.handlePlayerBlock();
         if (isNewPress) {
           this.checkPerfectBlockOnPress();
@@ -2793,8 +4510,8 @@ export class TinySouls {
       const touchData = this.activeTouches.get(touch.identifier);
 
       if (touchData?.type === "block") {
-        this.isPlayerBlocking = false;
-        this.wasCtrlHeld = false;
+        this.player.isBlocking = false;
+        this.perfectBlock.wasCtrlHeld = false;
         this.isBlockButtonPressed = false;
       } else if (touchData?.type === "attack") {
         this.isAttackButtonPressed = false;
@@ -2806,45 +4523,86 @@ export class TinySouls {
 
   private handleUpgradeMenuTouch(x: number, y: number): void {
     const centerX = this.displayWidth / 2;
-    const startY = this.displayHeight / 2 - 200;
 
-    // Calculate layout values matching drawUpgradeMenu()
-    const victoryStartY = this.isMobile()
-      ? this.displayHeight / 2 - 120
-      : startY;
-    const instructionsY = this.isMobile()
-      ? victoryStartY + 80
-      : victoryStartY + 120;
-    const optionStartY = this.isMobile() ? instructionsY + 40 : startY + 180;
-    const optionSpacing = this.isMobile() ? 55 : 70;
-    const optionWidth = this.isMobile() ? this.displayWidth - 40 : 600;
-    const optionLeft = this.isMobile() ? 20 : centerX - 300;
-    const optionRight = optionLeft + optionWidth;
+    if (this.isMobile()) {
+      // Mobile layout - match drawUpgradeMenu() calculations
+      const totalContentHeight = 400;
+      const topPadding = 20;
+      const bottomPadding = 20;
+      const availableHeight = this.displayHeight - topPadding - bottomPadding;
+      const startY = topPadding + (availableHeight - totalContentHeight) / 2;
+      const ngPlusY = Math.max(120, startY + 60);
+      const instructionsY = ngPlusY + 30;
+      const optionStartY = instructionsY + 30;
+      const optionSpacing = 45;
+      const leftPadding = 15;
+      const rightPadding = 15;
+      const optionWidth = this.displayWidth - leftPadding - rightPadding;
+      const optionLeft = leftPadding;
+      const optionRight = optionLeft + optionWidth;
 
-    // Check which upgrade option was touched (larger touch area for mobile)
-    for (let i = 0; i < 4; i++) {
-      const optionY = optionStartY + i * optionSpacing;
-      const optionTop = optionY - 35; // Increased touch area
-      const optionBottom = optionY + 25;
+      // Check which upgrade option was touched
+      for (let i = 0; i < 4; i++) {
+        const optionY = optionStartY + i * optionSpacing;
+        const optionTop = optionY - 30; // Match visual highlight area
+        const optionBottom = optionY + 20;
 
-      if (
-        y >= optionTop &&
-        y <= optionBottom &&
-        x >= optionLeft &&
-        x <= optionRight
-      ) {
-        const upgradeTypes: Array<
-          "health" | "stamina" | "perfectBlock" | "attackDamage"
-        > = ["health", "stamina", "perfectBlock", "attackDamage"];
-        this.selectedUpgrade = upgradeTypes[i];
-        this.applyUpgrade(upgradeTypes[i]);
-        return;
+        if (
+          y >= optionTop &&
+          y <= optionBottom &&
+          x >= optionLeft &&
+          x <= optionRight
+        ) {
+          const upgradeTypes: Array<
+            "health" | "stamina" | "perfectBlock" | "attackDamage"
+          > = ["health", "stamina", "perfectBlock", "attackDamage"];
+          this.upgrades.selected = upgradeTypes[i];
+          this.applyUpgrade(upgradeTypes[i]);
+          return;
+        }
+      }
+    } else {
+      // Desktop layout - match drawUpgradeMenu() calculations
+      const totalContentHeight = 550;
+      const topPadding = 30;
+      const bottomPadding = 30;
+      const availableHeight = this.displayHeight - topPadding - bottomPadding;
+      const startY = topPadding + (availableHeight - totalContentHeight) / 2;
+      const ngPlusY = Math.max(140, startY + 80);
+      const instructionsY = ngPlusY + 40;
+      const optionStartY = instructionsY + 40;
+      const optionSpacing = 70;
+      const optionWidth = 600;
+      const optionLeft = centerX - 300;
+      const optionRight = optionLeft + optionWidth;
+
+      // Check which upgrade option was touched
+      for (let i = 0; i < 4; i++) {
+        const optionY = optionStartY + i * optionSpacing;
+        const optionTop = optionY - 35;
+        const optionBottom = optionY + 25;
+
+        if (
+          y >= optionTop &&
+          y <= optionBottom &&
+          x >= optionLeft &&
+          x <= optionRight
+        ) {
+          const upgradeTypes: Array<
+            "health" | "stamina" | "perfectBlock" | "attackDamage"
+          > = ["health", "stamina", "perfectBlock", "attackDamage"];
+          this.upgrades.selected = upgradeTypes[i];
+          this.applyUpgrade(upgradeTypes[i]);
+          return;
+        }
       }
     }
   }
 
-  // Track touch position for visual feedback in upgrade menu
-  private upgradeMenuTouchY: number | null = null;
+  private handleUpgradeMenuClick(x: number, y: number): void {
+    // Use the same logic as touch handling
+    this.handleUpgradeMenuTouch(x, y);
+  }
 
   public setUpgradeMenuTouchY(y: number | null): void {
     this.upgradeMenuTouchY = y;
@@ -2852,6 +4610,8 @@ export class TinySouls {
 
   public cleanup(): void {
     this.stop();
+    // Clean up audio
+    this.audioManager.cleanup();
     window.removeEventListener("resize", this.resizeHandler);
     window.removeEventListener("keydown", this.keydownHandler);
     window.removeEventListener("keyup", this.keyupHandler);
@@ -2859,5 +4619,6 @@ export class TinySouls {
     this.canvas.removeEventListener("touchend", this.touchendHandler);
     this.canvas.removeEventListener("touchcancel", this.touchcancelHandler);
     this.canvas.removeEventListener("click", this.clickHandler);
+    this.canvas.removeEventListener("mousemove", this.mousemoveHandler);
   }
 }
