@@ -55,6 +55,11 @@ const GAME_CONSTANTS = {
     ATTACK_COST: 30,
     BLOCK_COST: 20,
     BASE_MAX: 100,
+    BLOCK_DRAIN_RATE: 20, // Stamina drained per second while holding block
+  },
+  COOLDOWN: {
+    ATTACK: 200, // ms cooldown after attack
+    BLOCK: 100, // ms cooldown after starting block
   },
   HEALTH: {
     BASE_MAX: 100,
@@ -283,6 +288,7 @@ interface PlayerState {
     baseY: number;
     progress: number;
     timer: number;
+    damageDealt: boolean; // Track if damage was dealt this attack
   };
   lastHitTime: number;
 }
@@ -397,6 +403,7 @@ export class TinySouls {
       baseY: 0,
       progress: 0,
       timer: 0,
+      damageDealt: false,
     },
     lastHitTime: 0,
   };
@@ -541,6 +548,11 @@ export class TinySouls {
         return;
       }
 
+      if (e.code === "KeyR") {
+        e.preventDefault();
+        this.restart();
+        return;
+      }
       if (e.code === "Space") {
         e.preventDefault();
         this.handlePlayerAttack();
@@ -830,6 +842,7 @@ export class TinySouls {
       baseY: 0,
       progress: 0,
       timer: 0,
+      damageDealt: false,
     };
     this.player.lastHitTime = 0;
 
@@ -1069,6 +1082,8 @@ export class TinySouls {
       GAME_CONSTANTS.ANIMATION.PLAYER_SPEAR_DURATION;
     this.player.spear.progress = 0.01;
     this.player.spear.timer = 0;
+    this.player.spear.damageDealt = false;
+    this.player.attackCooldown = GAME_CONSTANTS.COOLDOWN.ATTACK;
     this.updateSpearPositions();
   }
 
@@ -1090,6 +1105,7 @@ export class TinySouls {
         this.player.stamina - GAME_CONSTANTS.STAMINA.BLOCK_COST
       );
       this.player.animation.state = "block";
+      this.player.blockCooldown = GAME_CONSTANTS.COOLDOWN.BLOCK;
     }
 
     this.player.isBlocking = true;
@@ -1114,6 +1130,13 @@ export class TinySouls {
       this.perfectBlock.active = true;
       this.perfectBlock.timer = this.perfectBlock.duration;
       this.enemy.stunTimer = GAME_CONSTANTS.PERFECT_BLOCK.STUN_DURATION;
+
+      // Restore stamina as promised in intro screen
+      const staminaRestore = Math.min(
+        GAME_CONSTANTS.STAMINA.ATTACK_COST + GAME_CONSTANTS.STAMINA.BLOCK_COST,
+        this.player.maxStamina - this.player.stamina
+      );
+      this.player.stamina += staminaRestore;
 
       this.stats.perfectBlocks++;
       const perfectBlockScore = Math.floor(
@@ -1216,7 +1239,10 @@ export class TinySouls {
   ): void {
     this.player.health = Math.max(0, this.player.health - damage);
     this.stats.hitsTaken++;
-    this.score.multiplier = 1.0;
+    // Only reset multiplier on unblocked hits
+    if (!isBlocked) {
+      this.score.multiplier = 1.0;
+    }
 
     if (isBlocked) {
       this.stats.attacksBlocked++;
@@ -1437,10 +1463,12 @@ export class TinySouls {
       const connectThreshold =
         GAME_CONSTANTS.ANIMATION.DAMAGE_CONNECT_THRESHOLD;
       if (
+        !this.player.spear.damageDealt &&
         this.player.spear.progress >= connectPoint &&
         this.player.spear.progress < connectPoint + connectThreshold
       ) {
         this.dealDamageToEnemy(this.getPlayerDamage());
+        this.player.spear.damageDealt = true;
       }
 
       if (this.player.spear.progress >= 1) {
@@ -1499,6 +1527,8 @@ export class TinySouls {
           this.player.maxHealth,
           this.player.health + healAmount
         );
+        // Reset stamina to max when level changes
+        this.player.stamina = this.player.maxStamina;
         this.initializeLevel();
         this.gameStatus = "playing";
         this.levelCompleteTimer = 0;
@@ -1521,11 +1551,18 @@ export class TinySouls {
       );
     }
 
-    // Update stamina regeneration
-    if (
-      !this.player.isBlocking &&
-      this.player.stamina < this.player.maxStamina
-    ) {
+    // Update stamina regeneration and block drain
+    if (this.player.isBlocking) {
+      // Continuous stamina drain while holding block
+      const drainRate =
+        (GAME_CONSTANTS.STAMINA.BLOCK_DRAIN_RATE * deltaTime) / 1000;
+      this.player.stamina = Math.max(0, this.player.stamina - drainRate);
+      if (this.player.stamina <= 0) {
+        this.player.isBlocking = false;
+        this.player.animation.state = "idle";
+      }
+    } else if (this.player.stamina < this.player.maxStamina) {
+      // Stamina regeneration when not blocking
       const regenAmount =
         (GAME_CONSTANTS.STAMINA.REGEN_RATE * deltaTime) / 1000;
       this.player.stamina = Math.min(
