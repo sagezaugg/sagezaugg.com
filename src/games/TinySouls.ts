@@ -68,8 +68,8 @@ const GAME_CONSTANTS = {
     PLAYER_SPEAR_DURATION: 400,
     ENEMY_ATTACK_RATIO: 0.4,
     HIT_DURATION: 300,
-    DAMAGE_CONNECT_POINT: 0.6,
-    DAMAGE_CONNECT_THRESHOLD: 0.01,
+    DAMAGE_CONNECT_POINT: 0.95,
+    DAMAGE_CONNECT_THRESHOLD: 0.05,
   },
   PERFECT_BLOCK: {
     WINDOW_START: 0.85,
@@ -296,6 +296,7 @@ interface PlayerState {
     progress: number;
     timer: number;
     damageDealt: boolean; // Track if damage was dealt this attack
+    targetDistance: number; // Calculated distance to target when attack starts
   };
   lastHitTime: number;
 }
@@ -318,6 +319,8 @@ interface EnemyState {
     baseX: number;
     baseY: number;
     progress: number;
+    damageDealt: boolean; // Track if damage was dealt this attack
+    targetDistance: number; // Calculated distance to target when attack starts
   };
 }
 
@@ -412,6 +415,7 @@ export class TinySouls {
       progress: 0,
       timer: 0,
       damageDealt: false,
+      targetDistance: 0,
     },
     lastHitTime: 0,
   };
@@ -437,6 +441,8 @@ export class TinySouls {
       baseX: 0,
       baseY: 0,
       progress: 0,
+      damageDealt: false,
+      targetDistance: 0,
     },
   };
 
@@ -852,6 +858,7 @@ export class TinySouls {
       progress: 0,
       timer: 0,
       damageDealt: false,
+      targetDistance: 0,
     };
     this.player.lastHitTime = 0;
 
@@ -867,6 +874,8 @@ export class TinySouls {
       baseX: 0,
       baseY: 0,
       progress: 0,
+      damageDealt: false,
+      targetDistance: 0,
     };
 
     // Reset perfect block
@@ -952,6 +961,8 @@ export class TinySouls {
     this.enemy.attackDuration = 0;
     this.enemy.stunTimer = 0;
     this.enemy.spear.progress = 0;
+    this.enemy.spear.damageDealt = false;
+    this.enemy.spear.targetDistance = 0;
     this.perfectBlock.attempted = false;
     this.perfectBlock.wasCtrlHeld = false;
     this.updateSpearPositions();
@@ -959,11 +970,17 @@ export class TinySouls {
 
   private updateSpearPositions(): void {
     const offset = GAME_CONSTANTS.SPEAR.OFFSET_FROM_CHARACTER;
+    // Player spear starts from right edge (player faces right)
     const playerBaseX =
       this.player.position.x + this.player.size.width / 2 + offset;
     const playerBaseY = this.player.position.y;
-    const enemyBaseX =
-      this.enemy.position.x - this.enemy.size.width / 2 - offset;
+    // Enemy spear: x is the base connection point (where spear connects to character)
+    // The rectangle now extends LEFT from x (toward player)
+    // Enemy attacks toward player (left), so their front edge is their LEFT side in world coords
+    // Front edge is at: position.x - width/2
+    // Set base at front edge, subtract offset to move it slightly left (forward toward player)
+    const enemyFrontEdge = this.enemy.position.x - this.enemy.size.width / 2;
+    const enemyBaseX = enemyFrontEdge - offset;
     const enemyBaseY = this.enemy.position.y;
 
     this.player.spear.baseX = playerBaseX;
@@ -1086,6 +1103,15 @@ export class TinySouls {
       this.player.stamina - GAME_CONSTANTS.STAMINA.ATTACK_COST
     );
     this.perfectBlock.attempted = false;
+    this.updateSpearPositions();
+
+    // Calculate distance from player spear base to enemy's left edge (where spear should hit)
+    const enemyTargetX = this.enemy.position.x - this.enemy.size.width / 2;
+    const enemyTargetY = this.enemy.position.y;
+    const dx = enemyTargetX - this.player.spear.baseX;
+    const dy = enemyTargetY - this.player.spear.baseY;
+    this.player.spear.targetDistance = Math.sqrt(dx * dx + dy * dy);
+
     this.player.animation.state = "attack";
     this.player.animation.timer =
       GAME_CONSTANTS.ANIMATION.PLAYER_SPEAR_DURATION;
@@ -1093,7 +1119,6 @@ export class TinySouls {
     this.player.spear.timer = 0;
     this.player.spear.damageDealt = false;
     this.player.attackCooldown = GAME_CONSTANTS.COOLDOWN.ATTACK;
-    this.updateSpearPositions();
   }
 
   public handlePlayerBlock(): void {
@@ -1196,6 +1221,8 @@ export class TinySouls {
       this.enemy.attackDuration = 0;
       this.enemy.attackTimer = 0;
       this.enemy.spear.progress = 0;
+      this.enemy.spear.damageDealt = false;
+      this.enemy.spear.targetDistance = 0;
       this.updateSpearPositions();
     }
   }
@@ -1299,19 +1326,42 @@ export class TinySouls {
   private updateEnemySpearPosition(): void {
     this.enemy.spear.progress =
       this.enemy.attackDuration / this.enemy.attackTotalDuration;
-    const travelDistance = this.getMobileValue(
-      GAME_CONSTANTS.SPEAR.MOBILE_TRAVEL_DISTANCE,
-      GAME_CONSTANTS.SPEAR.DESKTOP_TRAVEL_DISTANCE
-    );
 
-    if (this.isMobile()) {
-      this.enemy.spear.x = this.enemy.spear.baseX;
-      this.enemy.spear.y =
-        this.enemy.spear.baseY - travelDistance * this.enemy.spear.progress;
-    } else {
+    // Use calculated target distance, or fallback to fixed distance if not set
+    const travelDistance =
+      this.enemy.spear.targetDistance > 0
+        ? this.enemy.spear.targetDistance
+        : this.getMobileValue(
+            GAME_CONSTANTS.SPEAR.MOBILE_TRAVEL_DISTANCE,
+            GAME_CONSTANTS.SPEAR.DESKTOP_TRAVEL_DISTANCE
+          );
+
+    // Calculate direction vector from spear base to player
+    const dx = this.player.position.x - this.enemy.spear.baseX;
+    const dy = this.player.position.y - this.enemy.spear.baseY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > 0) {
+      // Normalize direction and multiply by progress
+      const normalizedDx = dx / distance;
+      const normalizedDy = dy / distance;
       this.enemy.spear.x =
-        this.enemy.spear.baseX - travelDistance * this.enemy.spear.progress;
-      this.enemy.spear.y = this.enemy.spear.baseY;
+        this.enemy.spear.baseX +
+        normalizedDx * travelDistance * this.enemy.spear.progress;
+      this.enemy.spear.y =
+        this.enemy.spear.baseY +
+        normalizedDy * travelDistance * this.enemy.spear.progress;
+    } else {
+      // Fallback to old behavior if distance is 0
+      if (this.isMobile()) {
+        this.enemy.spear.x = this.enemy.spear.baseX;
+        this.enemy.spear.y =
+          this.enemy.spear.baseY - travelDistance * this.enemy.spear.progress;
+      } else {
+        this.enemy.spear.x =
+          this.enemy.spear.baseX - travelDistance * this.enemy.spear.progress;
+        this.enemy.spear.y = this.enemy.spear.baseY;
+      }
     }
   }
 
@@ -1340,33 +1390,61 @@ export class TinySouls {
 
     if (this.enemy.isAttacking) {
       this.enemy.attackDuration += deltaTime;
+
+      // Synchronize animation timer with attack duration
+      if (this.enemy.animation.state === "attack") {
+        this.enemy.animation.timer = Math.max(
+          0,
+          this.enemy.attackTotalDuration - this.enemy.attackDuration
+        );
+      }
+
       this.updateEnemySpearPosition();
 
-      if (this.enemy.attackDuration >= this.enemy.attackTotalDuration) {
+      // Apply damage when spear reaches target (progress >= 1.0 or very close)
+      const attackProgress =
+        this.enemy.attackDuration / this.enemy.attackTotalDuration;
+
+      if (!this.enemy.spear.damageDealt && attackProgress >= 0.99) {
         if (!this.player.isBlocking) {
           this.processEnemyAttackHit();
         } else {
           this.processEnemyAttackBlock();
         }
+        this.enemy.spear.damageDealt = true;
+      }
 
+      if (this.enemy.attackDuration >= this.enemy.attackTotalDuration) {
         this.enemy.isAttacking = false;
         this.enemy.attackDuration = 0;
         this.enemy.attackTimer = 0;
         this.enemy.spear.progress = 0;
+        this.enemy.spear.damageDealt = false;
+        this.enemy.spear.targetDistance = 0;
         if (this.enemy.animation.state === "attack") {
           this.enemy.animation.state = "idle";
+          this.enemy.animation.timer = 0;
         }
         this.updateSpearPositions();
       }
     } else if (this.enemy.attackTimer >= this.enemy.attackCooldown) {
+      this.updateSpearPositions();
+
+      // Calculate distance from enemy spear base to player's right edge (where spear should hit)
+      const playerTargetX = this.player.position.x + this.player.size.width / 2;
+      const playerTargetY = this.player.position.y;
+      const dx = playerTargetX - this.enemy.spear.baseX;
+      const dy = playerTargetY - this.enemy.spear.baseY;
+      this.enemy.spear.targetDistance = Math.sqrt(dx * dx + dy * dy);
+
       this.enemy.isAttacking = true;
       this.enemy.attackTimer = 0;
       this.enemy.attackDuration = 0;
       this.enemy.spear.progress = 0;
+      this.enemy.spear.damageDealt = false;
       this.enemy.animation.state = "attack";
       this.enemy.animation.timer = this.enemy.attackTotalDuration;
       this.perfectBlock.attempted = false;
-      this.updateSpearPositions();
     }
   }
 
@@ -1443,19 +1521,43 @@ export class TinySouls {
   }
 
   private updatePlayerSpearPosition(): void {
-    const travelDistance = this.getMobileValue(
-      GAME_CONSTANTS.SPEAR.MOBILE_TRAVEL_DISTANCE,
-      GAME_CONSTANTS.SPEAR.DESKTOP_TRAVEL_DISTANCE
-    );
+    // Use calculated target distance, or fallback to fixed distance if not set
+    const travelDistance =
+      this.player.spear.targetDistance > 0
+        ? this.player.spear.targetDistance
+        : this.getMobileValue(
+            GAME_CONSTANTS.SPEAR.MOBILE_TRAVEL_DISTANCE,
+            GAME_CONSTANTS.SPEAR.DESKTOP_TRAVEL_DISTANCE
+          );
 
-    if (this.isMobile()) {
-      this.player.spear.x = this.player.spear.baseX;
-      this.player.spear.y =
-        this.player.spear.baseY + travelDistance * this.player.spear.progress;
-    } else {
+    // Calculate direction vector from spear base to enemy's left edge
+    const enemyTargetX = this.enemy.position.x - this.enemy.size.width / 2;
+    const enemyTargetY = this.enemy.position.y;
+    const dx = enemyTargetX - this.player.spear.baseX;
+    const dy = enemyTargetY - this.player.spear.baseY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > 0) {
+      // Normalize direction and multiply by progress
+      const normalizedDx = dx / distance;
+      const normalizedDy = dy / distance;
       this.player.spear.x =
-        this.player.spear.baseX + travelDistance * this.player.spear.progress;
-      this.player.spear.y = this.player.spear.baseY;
+        this.player.spear.baseX +
+        normalizedDx * travelDistance * this.player.spear.progress;
+      this.player.spear.y =
+        this.player.spear.baseY +
+        normalizedDy * travelDistance * this.player.spear.progress;
+    } else {
+      // Fallback to old behavior if distance is 0
+      if (this.isMobile()) {
+        this.player.spear.x = this.player.spear.baseX;
+        this.player.spear.y =
+          this.player.spear.baseY + travelDistance * this.player.spear.progress;
+      } else {
+        this.player.spear.x =
+          this.player.spear.baseX + travelDistance * this.player.spear.progress;
+        this.player.spear.y = this.player.spear.baseY;
+      }
     }
   }
 
@@ -1467,15 +1569,19 @@ export class TinySouls {
         this.player.spear.timer / GAME_CONSTANTS.ANIMATION.PLAYER_SPEAR_DURATION
       );
 
+      // Synchronize animation timer with spear progress
+      if (this.player.animation.state === "attack") {
+        this.player.animation.timer =
+          GAME_CONSTANTS.ANIMATION.PLAYER_SPEAR_DURATION *
+          (1 - this.player.spear.progress);
+      }
+
       this.updatePlayerSpearPosition();
 
-      const connectPoint = GAME_CONSTANTS.ANIMATION.DAMAGE_CONNECT_POINT;
-      const connectThreshold =
-        GAME_CONSTANTS.ANIMATION.DAMAGE_CONNECT_THRESHOLD;
+      // Apply damage when spear reaches target (progress >= 1.0 or very close)
       if (
         !this.player.spear.damageDealt &&
-        this.player.spear.progress >= connectPoint &&
-        this.player.spear.progress < connectPoint + connectThreshold
+        this.player.spear.progress >= 0.99
       ) {
         this.dealDamageToEnemy(this.getPlayerDamage());
         this.player.spear.damageDealt = true;
@@ -1484,8 +1590,10 @@ export class TinySouls {
       if (this.player.spear.progress >= 1) {
         this.player.spear.progress = 0;
         this.player.spear.timer = 0;
+        this.player.spear.targetDistance = 0;
         if (this.player.animation.state === "attack") {
           this.player.animation.state = "idle";
+          this.player.animation.timer = 0;
         }
         this.updateSpearPositions();
       }
@@ -1624,7 +1732,11 @@ export class TinySouls {
     }
 
     // Update character animations
-    if (this.player.animation.timer > 0) {
+    // Skip countdown for attack animations - they are synchronized with spear/attack progress
+    if (
+      this.player.animation.timer > 0 &&
+      this.player.animation.state !== "attack"
+    ) {
       this.player.animation.timer = Math.max(
         0,
         this.player.animation.timer - deltaTime
@@ -1637,7 +1749,10 @@ export class TinySouls {
         this.player.animation.state = "idle";
       }
     }
-    if (this.enemy.animation.timer > 0) {
+    if (
+      this.enemy.animation.timer > 0 &&
+      this.enemy.animation.state !== "attack"
+    ) {
       this.enemy.animation.timer = Math.max(
         0,
         this.enemy.animation.timer - deltaTime
@@ -1735,20 +1850,31 @@ export class TinySouls {
       // Landscape mode: draw spear horizontally
       // Draw spear shaft (horizontal)
       this.ctx.fillStyle = spearColor;
-      this.ctx.fillRect(x, y - spearWidth / 2, spearLength, spearWidth);
 
-      // Draw spear tip
       if (isEnemy) {
         // Enemy spear points left (toward player)
-        // Tip point is furthest left, base is at the left end of the shaft
+        // Draw rectangle extending LEFT from x (base connection point)
+        this.ctx.fillRect(
+          x - spearLength,
+          y - spearWidth / 2,
+          spearLength,
+          spearWidth
+        );
+
+        // Draw spear tip
+        // Tip point is furthest left, base is at x (where shaft connects to character)
         this.ctx.beginPath();
-        this.ctx.moveTo(x - tipLength, y); // Tip point (furthest left)
-        this.ctx.lineTo(x, y - spearWidth * 2); // Top base vertex (at shaft)
-        this.ctx.lineTo(x, y + spearWidth * 2); // Bottom base vertex (at shaft)
+        this.ctx.moveTo(x - spearLength - tipLength, y); // Tip point (furthest left)
+        this.ctx.lineTo(x - spearLength, y - spearWidth * 2); // Top base vertex (at shaft)
+        this.ctx.lineTo(x - spearLength, y + spearWidth * 2); // Bottom base vertex (at shaft)
         this.ctx.closePath();
         this.ctx.fill();
       } else {
         // Player spear points right (toward enemy)
+        // Draw rectangle extending RIGHT from x
+        this.ctx.fillRect(x, y - spearWidth / 2, spearLength, spearWidth);
+
+        // Draw spear tip
         // Tip point is furthest right, base is at the right end of the shaft
         this.ctx.beginPath();
         this.ctx.moveTo(x + spearLength + tipLength, y); // Tip point (furthest right)
@@ -1766,7 +1892,18 @@ export class TinySouls {
       if (isPortrait) {
         this.ctx.fillRect(x - spearWidth / 2, y, spearWidth, spearLength);
       } else {
-        this.ctx.fillRect(x, y - spearWidth / 2, spearLength, spearWidth);
+        if (isEnemy) {
+          // Enemy spear extends left
+          this.ctx.fillRect(
+            x - spearLength,
+            y - spearWidth / 2,
+            spearLength,
+            spearWidth
+          );
+        } else {
+          // Player spear extends right
+          this.ctx.fillRect(x, y - spearWidth / 2, spearLength, spearWidth);
+        }
       }
       this.ctx.shadowBlur = 0;
     }
