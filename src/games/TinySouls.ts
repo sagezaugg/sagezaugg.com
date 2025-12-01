@@ -97,6 +97,12 @@ const GAME_CONSTANTS = {
     HEALTH_REGEN_RATIO: 0.5,
     MAX_LEVEL: 5,
   },
+  DEATH_SCREEN: {
+    FADE_IN_DURATION: 1000,
+    HOLD_DURATION: 1500,
+    FADE_OUT_DURATION: 1000,
+    TOTAL_DURATION: 3500, // fade in + hold + fade out
+  },
   SPEAR: {
     MOBILE_TRAVEL_DISTANCE: 150,
     DESKTOP_TRAVEL_DISTANCE: 200,
@@ -230,7 +236,8 @@ type GameStatus =
   | "levelComplete"
   | "playerWon"
   | "enemyWon"
-  | "upgradeMenu";
+  | "upgradeMenu"
+  | "deathScreen";
 type UpgradeType = "health" | "stamina" | "perfectBlock" | "attackDamage";
 
 interface Particle {
@@ -379,6 +386,7 @@ export class TinySouls {
   // Game state
   private currentLevel: number = 1;
   private levelCompleteTimer: number = 0;
+  private deathScreenTimer: number = 0;
   private gameStatus: GameStatus = "intro";
 
   // Grouped state objects
@@ -819,6 +827,7 @@ export class TinySouls {
   private resetGameState(preserveUpgrades: boolean = false): void {
     this.currentLevel = 1;
     this.levelCompleteTimer = 0;
+    this.deathScreenTimer = 0;
 
     // Reset player state
     if (!preserveUpgrades) {
@@ -1281,8 +1290,9 @@ export class TinySouls {
       });
     }
 
-    if (this.player.health <= 0) {
-      this.gameStatus = "enemyWon";
+    if (this.player.health <= 0 && this.gameStatus === "playing") {
+      this.gameStatus = "deathScreen";
+      this.deathScreenTimer = 0;
     }
   }
 
@@ -1576,6 +1586,14 @@ export class TinySouls {
     this.updateEnemyAttack(deltaTime);
     this.updatePerfectBlock(deltaTime);
     this.updateLevelProgression(deltaTime);
+
+    // Update death screen timer
+    if (this.gameStatus === "deathScreen") {
+      this.deathScreenTimer += deltaTime;
+      if (this.deathScreenTimer >= GAME_CONSTANTS.DEATH_SCREEN.TOTAL_DURATION) {
+        this.gameStatus = "enemyWon";
+      }
+    }
 
     // Update UI effects
     this.ui.attackEffects = this.ui.attackEffects
@@ -2126,6 +2144,8 @@ export class TinySouls {
       this.drawLevelComplete();
     } else if (this.gameStatus === "upgradeMenu") {
       this.drawUpgradeMenu();
+    } else if (this.gameStatus === "deathScreen") {
+      this.drawDeathScreen();
     } else if (this.gameStatus === "playerWon") {
       this.drawGameOver("Victory!", "#8BB8E8");
     } else if (this.gameStatus === "enemyWon") {
@@ -2789,6 +2809,54 @@ export class TinySouls {
 
       this.ctx.restore();
     });
+  }
+
+  private drawDeathScreen(): void {
+    const fadeInDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_IN_DURATION;
+    const holdDuration = GAME_CONSTANTS.DEATH_SCREEN.HOLD_DURATION;
+    const fadeOutDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_OUT_DURATION;
+
+    let overlayAlpha = 0;
+    let textAlpha = 0;
+
+    if (this.deathScreenTimer < fadeInDuration) {
+      // Fade in phase - both overlay and text fade in
+      overlayAlpha = this.deathScreenTimer / fadeInDuration;
+      textAlpha = overlayAlpha;
+    } else if (this.deathScreenTimer < fadeInDuration + holdDuration) {
+      // Hold phase - both stay at full opacity
+      overlayAlpha = 1;
+      textAlpha = 1;
+    } else {
+      // Fade out phase - only text fades out, overlay stays visible
+      overlayAlpha = 1; // Keep overlay at full opacity
+      const fadeOutProgress =
+        (this.deathScreenTimer - fadeInDuration - holdDuration) /
+        fadeOutDuration;
+      textAlpha = 1 - fadeOutProgress; // Only text fades out
+    }
+
+    // Draw dark overlay (stays visible after fade-in)
+    this.ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha * 0.9})`;
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+
+    // Draw "YOU DIED" text in red (fades out)
+    this.ctx.save();
+    this.ctx.fillStyle = `rgba(220, 20, 60, ${textAlpha})`; // Crimson red
+    this.ctx.font = `bold ${this.getFontSize(64)} serif`;
+    this.ctx.textAlign = "center";
+    this.ctx.textBaseline = "middle";
+
+    // Add text shadow for better visibility
+    this.ctx.shadowColor = `rgba(0, 0, 0, ${textAlpha * 0.8})`;
+    this.ctx.shadowBlur = 20;
+    this.ctx.shadowOffsetX = 0;
+    this.ctx.shadowOffsetY = 0;
+
+    const centerY = this.displayHeight / 2;
+    this.ctx.fillText("YOU DIED", this.displayWidth / 2, centerY);
+
+    this.ctx.restore();
   }
 
   private drawGameOver(text: string, color: string): void {
