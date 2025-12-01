@@ -102,7 +102,7 @@ const GAME_CONSTANTS = {
     FADE_IN_DURATION: 1000,
     HOLD_DURATION: 1500,
     FADE_OUT_DURATION: 1000,
-    TOTAL_DURATION: 4500, // explosion + fade in + hold + fade out
+    TOTAL_DURATION: 5500, // explosion + fade in + hold + fade out (2000 + 1000 + 1500 + 1000)
   },
   ENEMY_DEATH: {
     EXPLOSION_DURATION: 2000, // Duration of explosion animation before showing victory screen
@@ -534,6 +534,7 @@ export class TinySouls {
   private isAttackButtonPressed: boolean = false;
   private isBlockButtonPressed: boolean = false;
   private upgradeMenuTouchY: number | null = null;
+  private wasSpaceHeld: boolean = false;
 
   // Event handlers for cleanup
   private resizeHandler: () => void;
@@ -590,7 +591,11 @@ export class TinySouls {
       }
       if (e.code === "Space") {
         e.preventDefault();
-        this.handlePlayerAttack();
+        // Only attack on initial press, not on key repeat
+        if (!this.wasSpaceHeld) {
+          this.wasSpaceHeld = true;
+          this.handlePlayerAttack();
+        }
       }
       if (e.code === "ControlLeft" || e.code === "ControlRight") {
         e.preventDefault();
@@ -607,6 +612,9 @@ export class TinySouls {
       if (e.code === "ControlLeft" || e.code === "ControlRight") {
         this.player.isBlocking = false;
         this.perfectBlock.wasCtrlHeld = false;
+      }
+      if (e.code === "Space") {
+        this.wasSpaceHeld = false;
       }
     };
 
@@ -968,6 +976,7 @@ export class TinySouls {
     this.activeTouches.clear();
     this.isAttackButtonPressed = false;
     this.isBlockButtonPressed = false;
+    this.wasSpaceHeld = false;
   }
 
   private applyUpgrade(upgradeType: UpgradeType): void {
@@ -2635,10 +2644,36 @@ export class TinySouls {
     this.ctx.fillText(startText, centerX, currentY);
   }
 
-  private drawLevelComplete(): void {
-    // Fully opaque background
-    this.ctx.fillStyle = "rgba(0, 0, 0, 1)";
-    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+  private drawLevelComplete(showTopText: boolean = true): void {
+    // Only draw background if not transitioning (when showTopText is false, we're transitioning)
+    if (showTopText) {
+      this.ctx.fillStyle = "rgba(0, 0, 0, 1)";
+      this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+    }
+
+    // Draw "ENEMY VANQUISHED" text at top (from previous screen, only if not transitioning)
+    if (showTopText) {
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(255, 215, 0, 1)`; // Gold yellow
+      const text = "ENEMY VANQUISHED";
+      const maxWidth = this.displayWidth - 40; // 20px padding on each side
+      let baseFontSize = this.isMobile() ? 48 : 64;
+      let fontSize = parseFloat(this.getFontSize(baseFontSize));
+      this.ctx.font = `bold ${fontSize}px serif`;
+      let textWidth = this.ctx.measureText(text).width;
+      if (textWidth > maxWidth) {
+        fontSize = (fontSize * maxWidth) / textWidth;
+        this.ctx.font = `bold ${fontSize}px serif`;
+      }
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
+      this.ctx.shadowBlur = 20;
+      this.ctx.shadowOffsetX = 0;
+      this.ctx.shadowOffsetY = 0;
+      this.ctx.fillText(text, this.displayWidth / 2, 60);
+      this.ctx.restore();
+    }
 
     const config = this.cachedLevelConfig!;
 
@@ -2707,9 +2742,27 @@ export class TinySouls {
     }
   }
 
-  private drawUpgradeMenu(): void {
-    this.ctx.fillStyle = "rgba(0, 0, 0, 1)";
-    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+  private drawUpgradeMenu(showTopText: boolean = true): void {
+    // Only draw background if not transitioning (when showTopText is false, we're transitioning)
+    if (showTopText) {
+      this.ctx.fillStyle = "rgba(0, 0, 0, 1)";
+      this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+    }
+
+    // Draw "YOU WIN" text at top (from previous screen, only if not transitioning)
+    if (showTopText) {
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(0, 255, 0, 1)`; // Bright green
+      this.ctx.font = `bold ${this.getFontSize(64)} serif`;
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
+      this.ctx.shadowBlur = 20;
+      this.ctx.shadowOffsetX = 0;
+      this.ctx.shadowOffsetY = 0;
+      this.ctx.fillText("YOU WIN", this.displayWidth / 2, 60);
+      this.ctx.restore();
+    }
 
     const centerX = this.displayWidth / 2;
 
@@ -2722,18 +2775,8 @@ export class TinySouls {
       const availableHeight = this.displayHeight - topPadding - bottomPadding;
       const startY = topPadding + (availableHeight - totalContentHeight) / 2;
 
-      // Title
-      const victoryStartY = Math.max(30, startY);
-      this.drawTextWithStroke(
-        "Victory!",
-        centerX,
-        victoryStartY,
-        COLORS.GOLD,
-        40
-      );
-
-      // NG+ level display
-      const ngPlusY = victoryStartY + 35;
+      // NG+ level display (moved lower to give "YOU WIN" text room)
+      const ngPlusY = Math.max(120, startY + 60);
       this.drawTextWithStroke(
         `New Game+ ${this.upgrades.newGamePlusLevel + 1}`,
         centerX,
@@ -2871,17 +2914,9 @@ export class TinySouls {
       const bottomPadding = 30;
       const availableHeight = this.displayHeight - topPadding - bottomPadding;
       const startY = topPadding + (availableHeight - totalContentHeight) / 2;
-      const victoryStartY = Math.max(40, startY);
 
-      this.drawTextWithStroke(
-        "Victory!",
-        centerX,
-        victoryStartY,
-        COLORS.GOLD,
-        48
-      );
-
-      const ngPlusY = victoryStartY + 60;
+      // NG+ level display (moved lower to give "YOU WIN" text room)
+      const ngPlusY = Math.max(140, startY + 80);
       this.drawTextWithStroke(
         `New Game+ ${this.upgrades.newGamePlusLevel + 1}`,
         centerX,
@@ -2893,7 +2928,7 @@ export class TinySouls {
       this.ctx.fillStyle = "#ffffff";
       this.ctx.font = `${this.getFontSize(24)} sans-serif`;
       this.ctx.textAlign = "center";
-      const instructionsY = victoryStartY + 120;
+      const instructionsY = ngPlusY + 40;
       this.ctx.fillText("Click an upgrade:", centerX, instructionsY);
 
       const currentAttackDamage = this.getPlayerDamage();
@@ -3300,7 +3335,7 @@ export class TinySouls {
     const explosionDuration = GAME_CONSTANTS.DEATH_SCREEN.EXPLOSION_DURATION;
     const fadeInDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_IN_DURATION;
     const holdDuration = GAME_CONSTANTS.DEATH_SCREEN.HOLD_DURATION;
-    const fadeOutDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_OUT_DURATION;
+    const moveUpDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_OUT_DURATION;
 
     // During explosion phase, only show particles (no overlay or text)
     if (this.deathScreenTimer < explosionDuration) {
@@ -3315,43 +3350,65 @@ export class TinySouls {
     // After explosion, show the "YOU DIED" screen
     const textTimer = this.deathScreenTimer - explosionDuration;
     let overlayAlpha = 0;
-    let textAlpha = 0;
+    let textY = this.displayHeight / 2;
+    let nextScreenAlpha = 0;
+    const endY = 60; // Top of screen
 
     if (textTimer < fadeInDuration) {
-      // Fade in phase - both overlay and text fade in
+      // Fade in phase - overlay fades in, text stays at center
       overlayAlpha = textTimer / fadeInDuration;
-      textAlpha = overlayAlpha;
+      textY = this.displayHeight / 2;
+      nextScreenAlpha = 0;
     } else if (textTimer < fadeInDuration + holdDuration) {
-      // Hold phase - both stay at full opacity
+      // Hold phase - overlay stays at full opacity, text stays at center
       overlayAlpha = 1;
-      textAlpha = 1;
+      textY = this.displayHeight / 2;
+      nextScreenAlpha = 0;
     } else {
-      // Fade out phase - only text fades out, overlay stays visible
-      overlayAlpha = 1; // Keep overlay at full opacity
-      const fadeOutProgress =
-        (textTimer - fadeInDuration - holdDuration) / fadeOutDuration;
-      textAlpha = 1 - fadeOutProgress; // Only text fades out
+      // Move up phase - text moves upward, next screen fades in below
+      overlayAlpha = 1;
+      const moveUpProgress = Math.min(
+        1,
+        (textTimer - fadeInDuration - holdDuration) / moveUpDuration
+      );
+      const startY = this.displayHeight / 2;
+      // Ensure text reaches exactly endY when moveUpProgress = 1
+      textY = startY - (startY - endY) * moveUpProgress;
+      // Fade in next screen as text moves up (start fading when text is halfway up)
+      nextScreenAlpha = Math.min(1, Math.max(0, (moveUpProgress - 0.3) / 0.7));
     }
 
     // Draw dark overlay (stays visible after fade-in) - fully opaque
     this.ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
     this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
-    // Draw "YOU DIED" text in red (fades out)
+    // Draw next screen below if transitioning (with fade in)
+    if (nextScreenAlpha > 0) {
+      this.ctx.save();
+      this.ctx.globalAlpha = nextScreenAlpha;
+      const config = this.cachedLevelConfig!;
+      this.drawGameOver(
+        `Defeated by ${config.enemyName}!`,
+        config.enemyColor,
+        false
+      );
+      this.ctx.restore();
+    }
+
+    // Draw "YOU DIED" text in red (moves up, stays visible)
     this.ctx.save();
-    this.ctx.fillStyle = `rgba(220, 20, 60, ${textAlpha})`; // Crimson red
+    this.ctx.fillStyle = `rgba(220, 20, 60, 1)`; // Crimson red, always fully opaque
     this.ctx.font = `bold ${this.getFontSize(64)} serif`;
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
 
     // Add text shadow for better visibility
-    this.ctx.shadowColor = `rgba(0, 0, 0, ${textAlpha * 0.8})`;
+    this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
     this.ctx.shadowBlur = 20;
     this.ctx.shadowOffsetX = 0;
     this.ctx.shadowOffsetY = 0;
 
-    const centerY = this.displayHeight / 2;
-    this.ctx.fillText("YOU DIED", this.displayWidth / 2, centerY);
+    this.ctx.fillText("YOU DIED", this.displayWidth / 2, textY);
 
     this.ctx.restore();
   }
@@ -3360,48 +3417,77 @@ export class TinySouls {
     const fadeInDuration =
       GAME_CONSTANTS.ENEMY_VANQUISHED_SCREEN.FADE_IN_DURATION;
     const holdDuration = GAME_CONSTANTS.ENEMY_VANQUISHED_SCREEN.HOLD_DURATION;
-    const fadeOutDuration =
+    const moveUpDuration =
       GAME_CONSTANTS.ENEMY_VANQUISHED_SCREEN.FADE_OUT_DURATION;
 
     const textTimer = this.enemyVanquishedTimer;
     let overlayAlpha = 0;
-    let textAlpha = 0;
+    let textY = this.displayHeight / 2;
+    let nextScreenAlpha = 0;
+    const endY = 60; // Top of screen
 
     if (textTimer < fadeInDuration) {
-      // Fade in phase - both overlay and text fade in
+      // Fade in phase - overlay fades in, text stays at center
       overlayAlpha = textTimer / fadeInDuration;
-      textAlpha = overlayAlpha;
+      textY = this.displayHeight / 2;
+      nextScreenAlpha = 0;
     } else if (textTimer < fadeInDuration + holdDuration) {
-      // Hold phase - both stay at full opacity
+      // Hold phase - overlay stays at full opacity, text stays at center
       overlayAlpha = 1;
-      textAlpha = 1;
+      textY = this.displayHeight / 2;
+      nextScreenAlpha = 0;
     } else {
-      // Fade out phase - only text fades out, overlay stays visible
-      overlayAlpha = 1; // Keep overlay at full opacity
-      const fadeOutProgress =
-        (textTimer - fadeInDuration - holdDuration) / fadeOutDuration;
-      textAlpha = 1 - fadeOutProgress; // Only text fades out
+      // Move up phase - text moves upward, next screen fades in below
+      overlayAlpha = 1;
+      const moveUpProgress =
+        (textTimer - fadeInDuration - holdDuration) / moveUpDuration;
+      const startY = this.displayHeight / 2;
+      textY = startY - (startY - endY) * moveUpProgress;
+      // Fade in next screen as text moves up (start fading when text is halfway up)
+      nextScreenAlpha = Math.min(1, Math.max(0, (moveUpProgress - 0.3) / 0.7));
     }
 
     // Draw dark overlay (stays visible after fade-in) - fully opaque
     this.ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
     this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
-    // Draw "ENEMY VANQUISHED" text in yellow (fades out)
+    // Draw next screen below if transitioning (with fade in)
+    if (nextScreenAlpha > 0) {
+      this.ctx.save();
+      this.ctx.globalAlpha = nextScreenAlpha;
+      this.drawLevelComplete(false);
+      this.ctx.restore();
+    }
+
+    // Draw "ENEMY VANQUISHED" text in yellow (moves up, stays visible)
     this.ctx.save();
-    this.ctx.fillStyle = `rgba(255, 215, 0, ${textAlpha})`; // Gold yellow
-    this.ctx.font = `bold ${this.getFontSize(64)} serif`;
+    this.ctx.fillStyle = `rgba(255, 215, 0, 1)`; // Gold yellow, always fully opaque
+
+    // Calculate font size that fits within canvas width
+    const text = "ENEMY VANQUISHED";
+    const maxWidth = this.displayWidth - 40; // 20px padding on each side
+    let baseFontSize = this.isMobile() ? 48 : 64; // Smaller base size for mobile
+    let fontSize = parseFloat(this.getFontSize(baseFontSize));
+
+    // Measure text and adjust font size if needed
+    this.ctx.font = `bold ${fontSize}px serif`;
+    let textWidth = this.ctx.measureText(text).width;
+
+    if (textWidth > maxWidth) {
+      fontSize = (fontSize * maxWidth) / textWidth;
+      this.ctx.font = `bold ${fontSize}px serif`;
+    }
+
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
 
     // Add text shadow for better visibility
-    this.ctx.shadowColor = `rgba(0, 0, 0, ${textAlpha * 0.8})`;
+    this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
     this.ctx.shadowBlur = 20;
     this.ctx.shadowOffsetX = 0;
     this.ctx.shadowOffsetY = 0;
 
-    const centerY = this.displayHeight / 2;
-    this.ctx.fillText("ENEMY VANQUISHED", this.displayWidth / 2, centerY);
+    this.ctx.fillText(text, this.displayWidth / 2, textY);
 
     this.ctx.restore();
   }
@@ -3410,63 +3496,113 @@ export class TinySouls {
     const fadeInDuration =
       GAME_CONSTANTS.LEVEL5_VICTORY_SCREEN.FADE_IN_DURATION;
     const holdDuration = GAME_CONSTANTS.LEVEL5_VICTORY_SCREEN.HOLD_DURATION;
-    const fadeOutDuration =
+    const moveUpDuration =
       GAME_CONSTANTS.LEVEL5_VICTORY_SCREEN.FADE_OUT_DURATION;
 
     const textTimer = this.level5VictoryTimer;
     let overlayAlpha = 0;
-    let textAlpha = 0;
+    let textY = this.displayHeight / 2;
+    let nextScreenAlpha = 0;
+    const endY = 60; // Top of screen
 
     if (textTimer < fadeInDuration) {
-      // Fade in phase - both overlay and text fade in
+      // Fade in phase - overlay fades in, text stays at center
       overlayAlpha = textTimer / fadeInDuration;
-      textAlpha = overlayAlpha;
+      textY = this.displayHeight / 2;
+      nextScreenAlpha = 0;
     } else if (textTimer < fadeInDuration + holdDuration) {
-      // Hold phase - both stay at full opacity
+      // Hold phase - overlay stays at full opacity, text stays at center
       overlayAlpha = 1;
-      textAlpha = 1;
+      textY = this.displayHeight / 2;
+      nextScreenAlpha = 0;
     } else {
-      // Fade out phase - only text fades out, overlay stays visible
-      overlayAlpha = 1; // Keep overlay at full opacity
-      const fadeOutProgress =
-        (textTimer - fadeInDuration - holdDuration) / fadeOutDuration;
-      textAlpha = 1 - fadeOutProgress; // Only text fades out
+      // Move up phase - text moves upward, next screen fades in below
+      overlayAlpha = 1;
+      const moveUpProgress =
+        (textTimer - fadeInDuration - holdDuration) / moveUpDuration;
+      const startY = this.displayHeight / 2;
+      textY = startY - (startY - endY) * moveUpProgress;
+      // Fade in next screen as text moves up (start fading when text is halfway up)
+      nextScreenAlpha = Math.min(1, Math.max(0, (moveUpProgress - 0.3) / 0.7));
     }
 
     // Draw dark overlay (stays visible after fade-in) - fully opaque
     this.ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
     this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
-    // Draw "YOU WIN" text in green (fades out)
+    // Draw next screen below if transitioning (with fade in)
+    if (nextScreenAlpha > 0) {
+      this.ctx.save();
+      this.ctx.globalAlpha = nextScreenAlpha;
+      this.drawUpgradeMenu(false);
+      this.ctx.restore();
+    }
+
+    // Draw "YOU WIN" text in green (moves up, stays visible)
     this.ctx.save();
-    this.ctx.fillStyle = `rgba(0, 255, 0, ${textAlpha})`; // Bright green
+    this.ctx.fillStyle = `rgba(0, 255, 0, 1)`; // Bright green, always fully opaque
     this.ctx.font = `bold ${this.getFontSize(64)} serif`;
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
 
     // Add text shadow for better visibility
-    this.ctx.shadowColor = `rgba(0, 0, 0, ${textAlpha * 0.8})`;
+    this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
     this.ctx.shadowBlur = 20;
     this.ctx.shadowOffsetX = 0;
     this.ctx.shadowOffsetY = 0;
 
-    const centerY = this.displayHeight / 2;
-    this.ctx.fillText("YOU WIN", this.displayWidth / 2, centerY);
+    this.ctx.fillText("YOU WIN", this.displayWidth / 2, textY);
 
     this.ctx.restore();
   }
 
-  private drawGameOver(text: string, color: string): void {
-    this.ctx.fillStyle = "rgba(0, 0, 0, 1)"; // Fully opaque background
-    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+  private drawGameOver(
+    text: string,
+    color: string,
+    showTopText: boolean = true
+  ): void {
+    // Only draw background if not transitioning (when showTopText is false, we're transitioning)
+    if (showTopText) {
+      this.ctx.fillStyle = "rgba(0, 0, 0, 1)"; // Fully opaque background
+      this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+    }
 
-    // Title
+    // Draw "YOU DIED" text at top (only if coming from death screen and not transitioning)
+    if (showTopText && this.gameStatus === "enemyWon") {
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(220, 20, 60, 1)`; // Crimson red
+      this.ctx.font = `bold ${this.getFontSize(64)} serif`;
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
+      this.ctx.shadowBlur = 20;
+      this.ctx.shadowOffsetX = 0;
+      this.ctx.shadowOffsetY = 0;
+      this.ctx.fillText("YOU DIED", this.displayWidth / 2, 60);
+      this.ctx.restore();
+    }
+
+    // Title (adjusted to account for "YOU DIED" text at top)
     this.ctx.fillStyle = color;
-    this.ctx.font = `bold ${this.getFontSize(48)} serif`;
+    // Use smaller font on mobile to prevent overflow
+    const titleFontSize = this.isMobile() ? 32 : 48;
+    this.ctx.font = `bold ${this.getFontSize(titleFontSize)} serif`;
     this.ctx.textAlign = "center";
-    const titleY = this.isMobile()
-      ? this.displayHeight / 2 - 120
-      : this.displayHeight / 2 - 200;
+    // Start title lower to avoid overlap with "YOU DIED" at 60px
+    const topTextHeight = 100; // Space reserved for "YOU DIED" text
+    const titleY = this.isMobile() ? topTextHeight + 60 : topTextHeight + 120;
+
+    // On mobile, check if text fits and adjust font size if needed
+    if (this.isMobile()) {
+      this.ctx.font = `bold ${titleFontSize}px serif`;
+      const textWidth = this.ctx.measureText(text).width;
+      const maxWidth = this.displayWidth - 40; // 20px padding on each side
+      if (textWidth > maxWidth) {
+        const adjustedSize = (titleFontSize * maxWidth) / textWidth;
+        this.ctx.font = `bold ${adjustedSize}px serif`;
+      }
+    }
+
     this.ctx.fillText(text, this.displayWidth / 2, titleY);
 
     // NG+ level display
@@ -3480,81 +3616,133 @@ export class TinySouls {
       );
     }
 
-    // Score
-    this.ctx.fillStyle = COLORS.GOLD;
-    this.ctx.font = `bold ${this.getFontSize(32)} sans-serif`;
-    this.ctx.fillText(
-      `Final Score: ${this.score.value.toLocaleString()}`,
-      this.displayWidth / 2,
-      titleY + (this.isMobile() ? 70 : 100)
-    );
+    // Score and Statistics - side by side on desktop, stacked on mobile
+    const contentY = titleY + (this.isMobile() ? 50 : 100);
+    let statsBottomY: number;
 
-    // Upgrade summary
+    if (this.isMobile()) {
+      // Mobile: Stack vertically, center aligned
+      this.ctx.textAlign = "center";
+
+      // Final Score (centered)
+      this.ctx.fillStyle = COLORS.GOLD;
+      this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
+      this.ctx.fillText(
+        `Final Score: ${this.score.value.toLocaleString()}`,
+        this.displayWidth / 2,
+        contentY
+      );
+
+      // Statistics (centered, below score)
+      const statsY = contentY + 40;
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
+      this.ctx.fillText("Statistics", this.displayWidth / 2, statsY);
+
+      this.ctx.font = `${this.getFontSize(16)} sans-serif`;
+      const stats = [
+        `Damage Dealt: ${this.stats.totalDamageDealt}`,
+        `Perfect Blocks: ${this.stats.perfectBlocks}`,
+        `Attacks Blocked: ${this.stats.attacksBlocked}`,
+        `Hits Taken: ${this.stats.hitsTaken}`,
+        `Total Attacks: ${this.stats.totalAttacks}`,
+      ];
+
+      const statSpacing = 18;
+      stats.forEach((stat, index) => {
+        this.ctx.fillText(
+          stat,
+          this.displayWidth / 2,
+          statsY + 30 + index * statSpacing
+        );
+      });
+
+      // Calculate the bottom of stats for positioning restart hint
+      statsBottomY = statsY + 30 + stats.length * statSpacing;
+    } else {
+      // Desktop: Side by side
+      const columnSpacing = 200;
+      const leftColumnX = this.displayWidth / 2 - columnSpacing;
+      const rightColumnX = this.displayWidth / 2 + columnSpacing;
+
+      // Final Score (left column)
+      this.ctx.fillStyle = COLORS.GOLD;
+      this.ctx.font = `bold ${this.getFontSize(24)} sans-serif`;
+      this.ctx.textAlign = "left";
+      this.ctx.fillText(
+        `Final Score: ${this.score.value.toLocaleString()}`,
+        leftColumnX,
+        contentY
+      );
+
+      // Statistics (right column)
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.font = `bold ${this.getFontSize(24)} sans-serif`;
+      this.ctx.textAlign = "left";
+      this.ctx.fillText("Statistics", rightColumnX, contentY);
+
+      this.ctx.font = `${this.getFontSize(18)} sans-serif`;
+      const stats = [
+        `Damage Dealt: ${this.stats.totalDamageDealt}`,
+        `Perfect Blocks: ${this.stats.perfectBlocks}`,
+        `Attacks Blocked: ${this.stats.attacksBlocked}`,
+        `Hits Taken: ${this.stats.hitsTaken}`,
+        `Total Attacks: ${this.stats.totalAttacks}`,
+      ];
+
+      const statSpacing = 25;
+      stats.forEach((stat, index) => {
+        this.ctx.fillText(
+          stat,
+          rightColumnX,
+          contentY + 30 + index * statSpacing
+        );
+      });
+
+      // Calculate the bottom of stats for positioning restart hint
+      statsBottomY = contentY + 30 + stats.length * statSpacing;
+    }
+
+    // Upgrade summary (below score/stats)
+    let upgradeBottomY = statsBottomY;
     if (
       this.upgrades.health > 0 ||
       this.upgrades.stamina > 0 ||
       this.upgrades.perfectBlock > 0 ||
       this.upgrades.attackDamage > 0
     ) {
+      const upgradeLabelY = statsBottomY + (this.isMobile() ? 20 : 30);
       this.ctx.fillStyle = COLORS.SUCCESS;
-      this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
-      const upgradeLabelY = this.isMobile()
-        ? titleY + 100
-        : this.displayHeight / 2 - 50;
+      this.ctx.font = `bold ${this.getFontSize(
+        this.isMobile() ? 18 : 20
+      )} sans-serif`;
+      this.ctx.textAlign = "center";
       this.ctx.fillText("Upgrades:", this.displayWidth / 2, upgradeLabelY);
       this.ctx.fillStyle = COLORS.TEXT_WHITE;
-      this.ctx.font = `${this.getFontSize(18)} sans-serif`;
+      this.ctx.font = `${this.getFontSize(
+        this.isMobile() ? 16 : 18
+      )} sans-serif`;
       const upgradeText = this.formatUpgradeText();
       this.ctx.fillText(
         upgradeText,
         this.displayWidth / 2,
-        upgradeLabelY + (this.isMobile() ? 25 : 30)
+        upgradeLabelY + (this.isMobile() ? 20 : 30)
       );
+      upgradeBottomY = upgradeLabelY + (this.isMobile() ? 50 : 60);
     }
 
-    // Statistics panel
-    const upgradeOffset =
-      this.upgrades.health > 0 ||
-      this.upgrades.stamina > 0 ||
-      this.upgrades.perfectBlock > 0 ||
-      this.upgrades.attackDamage > 0
-        ? this.isMobile()
-          ? 20
-          : 30
-        : 0;
-    const statsY = titleY + (this.isMobile() ? 150 : 200) + upgradeOffset;
-    this.ctx.fillStyle = "#ffffff";
-    this.ctx.font = `bold ${this.getFontSize(24)} sans-serif`;
-    this.ctx.fillText("Statistics", this.displayWidth / 2, statsY);
-
-    this.ctx.font = `${this.getFontSize(18)} sans-serif`;
-    const stats = [
-      `Damage Dealt: ${this.stats.totalDamageDealt}`,
-      `Perfect Blocks: ${this.stats.perfectBlocks}`,
-      `Attacks Blocked: ${this.stats.attacksBlocked}`,
-      `Hits Taken: ${this.stats.hitsTaken}`,
-      `Total Attacks: ${this.stats.totalAttacks}`,
-    ];
-
-    const statSpacing = this.isMobile() ? 20 : 25;
-    stats.forEach((stat, index) => {
-      this.ctx.fillText(
-        stat,
-        this.displayWidth / 2,
-        statsY + 30 + index * statSpacing
-      );
-    });
-
-    // Restart hint
+    // Restart hint (below upgrades or stats, ensure it's visible)
     this.ctx.fillStyle = "#cccccc";
-    this.ctx.font = `${this.getFontSize(20)} sans-serif`;
-    const restartHintY = this.isMobile()
-      ? statsY + stats.length * statSpacing + 20
-      : this.displayHeight / 2 + 200;
+    this.ctx.font = `${this.getFontSize(this.isMobile() ? 18 : 20)} sans-serif`;
+    this.ctx.textAlign = "center";
+    const restartHintY = upgradeBottomY + (this.isMobile() ? 20 : 30);
+    // Ensure restart hint is visible on screen
+    const maxY = this.displayHeight - (this.isMobile() ? 100 : 120);
+    const finalRestartY = Math.min(restartHintY, maxY);
     const restartText = this.isMobile()
       ? "Tap Restart button"
       : "Press R to restart";
-    this.ctx.fillText(restartText, this.displayWidth / 2, restartHintY);
+    this.ctx.fillText(restartText, this.displayWidth / 2, finalRestartY);
   }
 
   private drawControlsHint(): void {
@@ -3735,6 +3923,7 @@ export class TinySouls {
     this.activeTouches.clear();
     this.isAttackButtonPressed = false;
     this.isBlockButtonPressed = false;
+    this.wasSpaceHeld = false;
     // Don't initialize level - return to title screen instead
     this.updateSpearPositions();
     this.start();
@@ -3855,8 +4044,7 @@ export class TinySouls {
       const bottomPadding = 20;
       const availableHeight = this.displayHeight - topPadding - bottomPadding;
       const startY = topPadding + (availableHeight - totalContentHeight) / 2;
-      const victoryStartY = Math.max(30, startY);
-      const ngPlusY = victoryStartY + 35;
+      const ngPlusY = Math.max(120, startY + 60);
       const instructionsY = ngPlusY + 30;
       const optionStartY = instructionsY + 30;
       const optionSpacing = 45;
@@ -3893,8 +4081,8 @@ export class TinySouls {
       const bottomPadding = 30;
       const availableHeight = this.displayHeight - topPadding - bottomPadding;
       const startY = topPadding + (availableHeight - totalContentHeight) / 2;
-      const victoryStartY = Math.max(40, startY);
-      const instructionsY = victoryStartY + 120;
+      const ngPlusY = Math.max(140, startY + 80);
+      const instructionsY = ngPlusY + 40;
       const optionStartY = instructionsY + 40;
       const optionSpacing = 70;
       const optionWidth = 600;
