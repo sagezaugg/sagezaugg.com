@@ -252,6 +252,7 @@ const UI_CONSTANTS = {
 type AnimationState = "idle" | "attack" | "block" | "hit";
 type GameStatus =
   | "intro"
+  | "controls"
   | "playing"
   | "levelComplete"
   | "playerWon"
@@ -553,6 +554,24 @@ export class TinySouls {
   private cachedLevelConfig: LevelConfig | null = null;
   private cachedIsMobile: boolean = false;
 
+  // Logo and intro screen state
+  private logoImage: HTMLImageElement | null = null;
+  private logoFadeProgress: number = 0;
+  private logoFadeDuration: number = 1500;
+  private logoFadeStartTime: number = 0;
+  private buttonFadeProgress: number = 0;
+  private buttonFadeDuration: number = 500;
+  private buttonFadeStartTime: number = 0;
+  private fadeOutProgress: number = 0;
+  private fadeOutDuration: number = 500;
+  private fadeOutStartTime: number = 0;
+  private pendingTransition: GameStatus | null = null;
+  private buttonPressState: { start: boolean; controls: boolean; back: boolean } = {
+    start: false,
+    controls: false,
+    back: false,
+  };
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const context = canvas.getContext("2d");
@@ -566,11 +585,8 @@ export class TinySouls {
     this.keydownHandler = (e: KeyboardEvent) => {
       this.keys.add(e.code);
 
-      if (this.gameStatus === "intro") {
-        if (e.code === "Enter" || e.code === "Space") {
-          e.preventDefault();
-          this.gameStatus = "playing";
-        }
+      // Intro and controls screens use buttons, not keyboard shortcuts
+      if (this.gameStatus === "intro" || this.gameStatus === "controls") {
         return;
       }
 
@@ -632,12 +648,26 @@ export class TinySouls {
       this.handleTouchEnd(e);
     };
     this.clickHandler = (e: MouseEvent) => {
-      // Handle intro screen - any click starts the game
+      const rect = this.canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // Handle intro screen buttons
       if (this.gameStatus === "intro") {
         e.preventDefault();
-        this.gameStatus = "playing";
-        return;
+        if (this.handleIntroButtonClick(x, y)) {
+          return;
+        }
       }
+
+      // Handle controls screen back button
+      if (this.gameStatus === "controls") {
+        e.preventDefault();
+        if (this.handleControlsButtonClick(x, y)) {
+          return;
+        }
+      }
+
       // Handle level complete screen - any click continues
       if (this.gameStatus === "levelComplete") {
         e.preventDefault();
@@ -646,9 +676,6 @@ export class TinySouls {
       }
       // Handle upgrade menu - click to select upgrade
       if (this.gameStatus === "upgradeMenu") {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
         this.handleUpgradeMenuClick(x, y);
         return;
       }
@@ -657,6 +684,9 @@ export class TinySouls {
     // Set canvas size
     this.resize();
     window.addEventListener("resize", this.resizeHandler);
+
+    // Load logo image
+    this.loadLogo();
 
     // Keyboard event listeners
     window.addEventListener("keydown", this.keydownHandler);
@@ -1026,6 +1056,22 @@ export class TinySouls {
     this.initializeLevel();
     this.gameStatus = "playing";
     this.levelCompleteTimer = 0;
+  }
+
+  private loadLogo(): void {
+    const img = new Image();
+    img.onload = () => {
+      this.logoImage = img;
+      // Initialize fade start time if game is running and on intro screen
+      if (this.isRunning && this.gameStatus === "intro" && this.logoFadeStartTime === 0) {
+        this.logoFadeStartTime = performance.now();
+      }
+    };
+    img.onerror = () => {
+      console.warn("Failed to load logo image");
+      this.logoImage = null;
+    };
+    img.src = "/assets/games/tiny-souls-logo.png";
   }
 
   private initializeLevel(): void {
@@ -1809,6 +1855,45 @@ export class TinySouls {
   }
 
   private update(deltaTime: number): void {
+    // Update logo fade progress
+    if (this.gameStatus === "intro" && this.logoFadeStartTime > 0 && this.fadeOutStartTime === 0) {
+      const elapsed = performance.now() - this.logoFadeStartTime;
+      this.logoFadeProgress = Math.min(1, elapsed / this.logoFadeDuration);
+      
+      // Start button fade-in when logo fade completes
+      if (this.logoFadeProgress >= 1 && this.buttonFadeStartTime === 0) {
+        this.buttonFadeStartTime = performance.now();
+        this.buttonFadeProgress = 0;
+      }
+    }
+
+    // Update button fade progress
+    if (this.gameStatus === "intro" && this.buttonFadeStartTime > 0 && this.fadeOutStartTime === 0) {
+      const elapsed = performance.now() - this.buttonFadeStartTime;
+      this.buttonFadeProgress = Math.min(1, elapsed / this.buttonFadeDuration);
+    }
+
+    // Update fade-out progress
+    if (this.fadeOutStartTime > 0) {
+      const elapsed = performance.now() - this.fadeOutStartTime;
+      this.fadeOutProgress = Math.min(1, elapsed / this.fadeOutDuration);
+      
+      // Transition after fade-out completes
+      if (this.fadeOutProgress >= 1 && this.pendingTransition) {
+        this.gameStatus = this.pendingTransition;
+        this.fadeOutProgress = 0;
+        this.fadeOutStartTime = 0;
+        this.pendingTransition = null;
+        // Reset logo and button fade if going back to intro
+        if (this.gameStatus === "intro") {
+          this.logoFadeProgress = 0;
+          this.logoFadeStartTime = performance.now();
+          this.buttonFadeProgress = 0;
+          this.buttonFadeStartTime = 0;
+        }
+      }
+    }
+
     // Update cooldowns
     if (this.player.attackCooldown > 0) {
       this.player.attackCooldown = Math.max(
@@ -2487,6 +2572,8 @@ export class TinySouls {
     // Draw game status overlays
     if (this.gameStatus === "intro") {
       this.drawIntro();
+    } else if (this.gameStatus === "controls") {
+      this.drawControls();
     } else if (this.gameStatus === "levelComplete") {
       this.drawLevelComplete();
     } else if (this.gameStatus === "upgradeMenu") {
@@ -2526,74 +2613,141 @@ export class TinySouls {
   }
 
   private drawIntro(): void {
-    // Dark background overlay
-    this.ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
+    // Calculate overall opacity (fade out when transitioning)
+    const overallOpacity = 1 - this.fadeOutProgress;
+
+    // Black background
+    this.ctx.fillStyle = COLORS.BLACK;
     this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
     const centerX = this.displayWidth / 2;
+    const centerY = this.displayHeight / 2;
 
-    // Calculate total content height to center vertically
-    // Title: ~60px (mobile) / ~80px (desktop)
-    // Description: ~30px (mobile) / ~50px (desktop)
-    // Controls header: ~25px (mobile) / ~50px (desktop)
-    // Controls: 3-4 items * ~20-30px
-    // Tips: 4 items * ~18-28px
-    // Start prompt: ~20px (mobile) / ~40px (desktop)
+    // Draw logo with fade-in animation
+    let logoBottomY = centerY;
+    if (this.logoImage && this.logoFadeProgress > 0) {
+      const logoWidth = this.getMobileValue(200, 300);
+      const logoHeight = (this.logoImage.height / this.logoImage.width) * logoWidth;
+      const logoX = centerX - logoWidth / 2;
+      const logoY = centerY - logoHeight / 2 - (this.isMobile() ? 60 : 80);
+      logoBottomY = logoY + logoHeight;
 
-    // Start from a calculated top position to center content
+      this.ctx.save();
+      this.ctx.globalAlpha = this.logoFadeProgress * overallOpacity;
+      this.ctx.drawImage(this.logoImage, logoX, logoY, logoWidth, logoHeight);
+      this.ctx.restore();
+    }
+
+    // Only draw buttons after logo has finished fading in
+    if (this.logoFadeProgress >= 1 && this.buttonFadeProgress > 0) {
+      const buttonWidth = this.getMobileValue(120, 150);
+      const buttonHeight = this.getMobileValue(44, 50);
+      const buttonSpacing = this.getMobileValue(20, 30);
+      const verticalSpacing = this.getMobileValue(50, 70); // Space between logo bottom and buttons
+      const buttonY = logoBottomY + verticalSpacing;
+
+      // Center the gap between buttons under the logo
+      // Gap center should be at centerX, so:
+      // Start button right edge = centerX - buttonSpacing/2
+      // Controls button left edge = centerX + buttonSpacing/2
+      const startButtonX = centerX - buttonSpacing / 2 - buttonWidth;
+      const controlsButtonX = centerX + buttonSpacing / 2;
+
+      this.ctx.save();
+      // Apply both button fade-in and fade-out opacity
+      this.ctx.globalAlpha = this.buttonFadeProgress * overallOpacity;
+
+      // Start button (left)
+      this.drawButton(
+        startButtonX,
+        buttonY,
+        buttonWidth,
+        buttonHeight,
+        "Start",
+        this.buttonPressState.start
+      );
+
+      // Controls button (right)
+      this.drawButton(
+        controlsButtonX,
+        buttonY,
+        buttonWidth,
+        buttonHeight,
+        "Controls",
+        this.buttonPressState.controls
+      );
+
+      this.ctx.restore();
+    }
+  }
+
+  private drawButton(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    text: string,
+    isPressed: boolean
+  ): void {
+    const centerX = x + width / 2;
+    const centerY = y + height / 2;
+
+    // Button background
+    this.ctx.fillStyle = isPressed ? COLORS.TEXT_LIGHT_BLUE : COLORS.TEXT_TEAL;
+    this.ctx.strokeStyle = COLORS.GOLD;
+    this.ctx.lineWidth = 2;
+
+    // Draw rounded rectangle
+    const radius = this.getMobileValue(8, 10);
+    this.ctx.beginPath();
+    this.ctx.moveTo(x + radius, y);
+    this.ctx.lineTo(x + width - radius, y);
+    this.ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    this.ctx.lineTo(x + width, y + height - radius);
+    this.ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    this.ctx.lineTo(x + radius, y + height);
+    this.ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    this.ctx.lineTo(x, y + radius);
+    this.ctx.quadraticCurveTo(x, y, x + radius, y);
+    this.ctx.closePath();
+    this.ctx.fill();
+    this.ctx.stroke();
+
+    // Button text
+    this.ctx.fillStyle = isPressed ? COLORS.BLACK : COLORS.TEXT_WHITE;
+    this.ctx.font = `bold ${this.getFontSize(this.isMobile() ? 16 : 18)} sans-serif`;
+    this.ctx.textAlign = "center";
+    this.ctx.textBaseline = "middle";
+    this.ctx.fillText(text, centerX, centerY);
+  }
+
+  private drawControls(): void {
+    // Calculate overall opacity (fade out when transitioning)
+    const overallOpacity = 1 - this.fadeOutProgress;
+
+    // Black background
+    this.ctx.fillStyle = COLORS.BLACK;
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+
+    this.ctx.save();
+    this.ctx.globalAlpha = overallOpacity;
+
+    const centerX = this.displayWidth / 2;
     let currentY = this.isMobile() ? 60 : this.displayHeight * 0.15;
 
     // Title
     this.drawTextWithStroke(
-      "Tiny Souls",
+      "Controls",
       centerX,
       currentY,
       COLORS.GOLD,
       this.getMobileValue(40, 48)
     );
-    currentY += this.isMobile() ? 35 : 60;
-
-    // Description
-    this.ctx.textAlign = "center";
-    this.ctx.fillStyle = "#8BB8E8"; // Light blue
-    this.ctx.font = `${this.getFontSize(this.isMobile() ? 14 : 18)} sans-serif`;
-    const description = this.isMobile()
-      ? "A challenging combat game where timing and strategy matter."
-      : "A challenging combat game where timing and strategy matter.";
-
-    // Split description into lines if needed for mobile
-    if (this.isMobile()) {
-      const words = description.split(" ");
-      let line = "";
-      const maxWidth = this.displayWidth - 40;
-      words.forEach((word) => {
-        const testLine = line + (line ? " " : "") + word;
-        const metrics = this.ctx.measureText(testLine);
-        if (metrics.width > maxWidth && line) {
-          this.ctx.fillText(line, centerX, currentY);
-          currentY += 20;
-          line = word;
-        } else {
-          line = testLine;
-        }
-      });
-      if (line) {
-        this.ctx.fillText(line, centerX, currentY);
-        currentY += 30;
-      }
-    } else {
-      this.ctx.fillText(description, centerX, currentY);
-      currentY += 50;
-    }
+    currentY += this.isMobile() ? 50 : 70;
 
     // Controls section
     this.ctx.textAlign = "center";
-    this.ctx.fillStyle = "#D4AF37"; // Gold
-    this.ctx.font = `bold ${this.getFontSize(this.isMobile() ? 20 : 24)} serif`;
-    this.ctx.fillText("Controls:", centerX, currentY);
-    currentY += this.isMobile() ? 25 : 40;
-
-    this.ctx.fillStyle = "#8BB8E8"; // Light blue
+    this.ctx.fillStyle = COLORS.TEXT_LIGHT_BLUE;
     this.ctx.font = `${this.getFontSize(this.isMobile() ? 14 : 16)} sans-serif`;
 
     // Show mobile controls for mobile, PC controls for desktop
@@ -2603,13 +2757,13 @@ export class TinySouls {
 
     controls.forEach((control) => {
       this.ctx.fillText(control, centerX, currentY);
-      currentY += this.isMobile() ? 20 : 25;
+      currentY += this.isMobile() ? 25 : 30;
     });
 
-    currentY += this.isMobile() ? 15 : 25;
+    currentY += this.isMobile() ? 20 : 30;
 
     // Tips section
-    this.ctx.fillStyle = "#2D5A7A"; // Teal
+    this.ctx.fillStyle = COLORS.TEXT_TEAL;
     this.ctx.font = `${this.getFontSize(this.isMobile() ? 12 : 14)} sans-serif`;
     const tips = this.isMobile()
       ? [
@@ -2625,23 +2779,25 @@ export class TinySouls {
 
     tips.forEach((tip) => {
       this.ctx.fillText(tip, centerX, currentY);
-      currentY += this.isMobile() ? 18 : 22;
+      currentY += this.isMobile() ? 20 : 25;
     });
 
-    // Start prompt - ensure it's visible
-    currentY += this.isMobile() ? 20 : 30;
-    // Make sure prompt doesn't go below screen
-    const maxY = this.displayHeight - (this.isMobile() ? 30 : 50);
-    if (currentY > maxY) {
-      currentY = maxY;
-    }
+    // Back button at bottom
+    const buttonWidth = this.getMobileValue(120, 150);
+    const buttonHeight = this.getMobileValue(44, 50);
+    const buttonY = this.displayHeight - (this.isMobile() ? 80 : 100);
+    const buttonX = centerX - buttonWidth / 2;
 
-    this.ctx.fillStyle = "#D4AF37"; // Gold
-    this.ctx.font = `bold ${this.getFontSize(this.isMobile() ? 18 : 20)} serif`;
-    const startText = this.isMobile()
-      ? "Tap anywhere to start"
-      : "Press Enter, Space, or Click to Start";
-    this.ctx.fillText(startText, centerX, currentY);
+    this.drawButton(
+      buttonX,
+      buttonY,
+      buttonWidth,
+      buttonHeight,
+      "Back",
+      this.buttonPressState.back
+    );
+
+    this.ctx.restore();
   }
 
   private drawLevelComplete(showTopText: boolean = true): void {
@@ -3881,6 +4037,123 @@ export class TinySouls {
     return distance <= buttonSize / 2;
   }
 
+  // Helper method to check if point is within rectangular button
+  private isPointInRectButton(
+    x: number,
+    y: number,
+    buttonX: number,
+    buttonY: number,
+    buttonWidth: number,
+    buttonHeight: number
+  ): boolean {
+    return (
+      x >= buttonX &&
+      x <= buttonX + buttonWidth &&
+      y >= buttonY &&
+      y <= buttonY + buttonHeight
+    );
+  }
+
+  // Handle intro screen button clicks
+  private handleIntroButtonClick(x: number, y: number): boolean {
+    // Don't handle clicks if buttons haven't finished fading in or if already fading out
+    if (this.logoFadeProgress < 1 || this.buttonFadeProgress < 1 || this.fadeOutStartTime > 0) {
+      return false;
+    }
+
+    const centerX = this.displayWidth / 2;
+    const centerY = this.displayHeight / 2;
+    const buttonWidth = this.getMobileValue(120, 150);
+    const buttonHeight = this.getMobileValue(44, 50);
+    const buttonSpacing = this.getMobileValue(20, 30);
+    
+    // Calculate logo bottom position (same as in drawIntro)
+    let logoBottomY = centerY;
+    if (this.logoImage) {
+      const logoWidth = this.getMobileValue(200, 300);
+      const logoHeight = (this.logoImage.height / this.logoImage.width) * logoWidth;
+      const logoY = centerY - logoHeight / 2 - (this.isMobile() ? 60 : 80);
+      logoBottomY = logoY + logoHeight;
+    }
+    
+    const verticalSpacing = this.getMobileValue(50, 70);
+    const buttonY = logoBottomY + verticalSpacing;
+
+    // Center the gap between buttons under the logo (same as in drawIntro)
+    const startButtonX = centerX - buttonSpacing / 2 - buttonWidth;
+    const controlsButtonX = centerX + buttonSpacing / 2;
+
+    if (
+      this.isPointInRectButton(
+        x,
+        y,
+        startButtonX,
+        buttonY,
+        buttonWidth,
+        buttonHeight
+      )
+    ) {
+      // Start fade-out, then transition to playing
+      this.startFadeOut("playing");
+      return true;
+    }
+
+    if (
+      this.isPointInRectButton(
+        x,
+        y,
+        controlsButtonX,
+        buttonY,
+        buttonWidth,
+        buttonHeight
+      )
+    ) {
+      // Start fade-out, then transition to controls
+      this.startFadeOut("controls");
+      return true;
+    }
+
+    return false;
+  }
+
+  // Start fade-out animation
+  private startFadeOut(targetStatus: GameStatus): void {
+    this.fadeOutStartTime = performance.now();
+    this.fadeOutProgress = 0;
+    this.pendingTransition = targetStatus;
+  }
+
+  // Handle controls screen button clicks
+  private handleControlsButtonClick(x: number, y: number): boolean {
+    // Don't handle clicks if already fading out
+    if (this.fadeOutStartTime > 0) {
+      return false;
+    }
+
+    const centerX = this.displayWidth / 2;
+    const buttonWidth = this.getMobileValue(120, 150);
+    const buttonHeight = this.getMobileValue(44, 50);
+    const buttonY = this.displayHeight - (this.isMobile() ? 80 : 100);
+    const buttonX = centerX - buttonWidth / 2;
+
+    if (
+      this.isPointInRectButton(
+        x,
+        y,
+        buttonX,
+        buttonY,
+        buttonWidth,
+        buttonHeight
+      )
+    ) {
+      // Start fade-out, then transition back to intro
+      this.startFadeOut("intro");
+      return true;
+    }
+
+    return false;
+  }
+
   private gameLoop = (timestamp: number): void => {
     if (!this.isRunning) {
       return;
@@ -3902,6 +4175,11 @@ export class TinySouls {
     }
     this.isRunning = true;
     this.lastFrameTime = performance.now();
+    // Initialize logo fade if on intro screen
+    if (this.gameStatus === "intro" && this.logoFadeStartTime === 0) {
+      this.logoFadeStartTime = performance.now();
+      this.logoFadeProgress = 0;
+    }
     this.animationFrameId = requestAnimationFrame(this.gameLoop);
   }
 
@@ -3924,6 +4202,16 @@ export class TinySouls {
     this.isAttackButtonPressed = false;
     this.isBlockButtonPressed = false;
     this.wasSpaceHeld = false;
+    // Reset logo fade animation
+    this.logoFadeProgress = 0;
+    this.logoFadeStartTime = performance.now();
+    // Reset button fade animation
+    this.buttonFadeProgress = 0;
+    this.buttonFadeStartTime = 0;
+    // Reset fade-out state
+    this.fadeOutProgress = 0;
+    this.fadeOutStartTime = 0;
+    this.pendingTransition = null;
     // Don't initialize level - return to title screen instead
     this.updateSpearPositions();
     this.start();
@@ -3937,11 +4225,22 @@ export class TinySouls {
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
 
-      // Handle intro screen - any touch starts the game
+      // Handle intro screen buttons
       if (this.gameStatus === "intro") {
         e.preventDefault();
-        this.gameStatus = "playing";
-        return;
+        if (this.handleIntroButtonClick(x, y)) {
+          return;
+        }
+        continue;
+      }
+
+      // Handle controls screen back button
+      if (this.gameStatus === "controls") {
+        e.preventDefault();
+        if (this.handleControlsButtonClick(x, y)) {
+          return;
+        }
+        continue;
       }
 
       // Handle level complete screen - any touch continues
