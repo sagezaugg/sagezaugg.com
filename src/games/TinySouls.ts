@@ -107,6 +107,18 @@ const GAME_CONSTANTS = {
   ENEMY_DEATH: {
     EXPLOSION_DURATION: 2000, // Duration of explosion animation before showing victory screen
   },
+  ENEMY_VANQUISHED_SCREEN: {
+    FADE_IN_DURATION: 1000,
+    HOLD_DURATION: 1500,
+    FADE_OUT_DURATION: 1000,
+    TOTAL_DURATION: 3500, // fade in + hold + fade out
+  },
+  LEVEL5_VICTORY_SCREEN: {
+    FADE_IN_DURATION: 1000,
+    HOLD_DURATION: 2000,
+    FADE_OUT_DURATION: 1000,
+    TOTAL_DURATION: 4000, // fade in + hold + fade out
+  },
   SPEAR: {
     MOBILE_TRAVEL_DISTANCE: 150,
     DESKTOP_TRAVEL_DISTANCE: 200,
@@ -246,7 +258,9 @@ type GameStatus =
   | "enemyWon"
   | "upgradeMenu"
   | "deathScreen"
-  | "enemyDeath";
+  | "enemyDeath"
+  | "enemyVanquished"
+  | "level5Victory";
 type UpgradeType = "health" | "stamina" | "perfectBlock" | "attackDamage";
 
 interface Particle {
@@ -402,6 +416,8 @@ export class TinySouls {
   private levelCompleteTimer: number = 0;
   private deathScreenTimer: number = 0;
   private enemyDeathTimer: number = 0;
+  private enemyVanquishedTimer: number = 0;
+  private level5VictoryTimer: number = 0;
   private gameStatus: GameStatus = "intro";
 
   // Grouped state objects
@@ -869,6 +885,8 @@ export class TinySouls {
     this.currentLevel = 1;
     this.levelCompleteTimer = 0;
     this.deathScreenTimer = 0;
+    this.enemyVanquishedTimer = 0;
+    this.level5VictoryTimer = 0;
 
     // Reset player state
     if (!preserveUpgrades) {
@@ -1838,15 +1856,39 @@ export class TinySouls {
       ) {
         // Transition to victory screen after explosion
         if (this.currentLevel >= GAME_CONSTANTS.LEVEL.MAX_LEVEL) {
-          this.gameStatus = "upgradeMenu";
-          this.score.value += Math.floor(
-            GAME_CONSTANTS.SCORE.VICTORY_BONUS * this.score.multiplier
-          );
-          this.upgrades.selected = null;
+          this.gameStatus = "level5Victory";
+          this.level5VictoryTimer = 0;
         } else {
-          this.gameStatus = "levelComplete";
-          this.levelCompleteTimer = 0; // No auto-transition, wait for space key
+          this.gameStatus = "enemyVanquished";
+          this.enemyVanquishedTimer = 0;
         }
+      }
+    }
+
+    // Update enemy vanquished screen timer
+    if (this.gameStatus === "enemyVanquished") {
+      this.enemyVanquishedTimer += deltaTime;
+      if (
+        this.enemyVanquishedTimer >=
+        GAME_CONSTANTS.ENEMY_VANQUISHED_SCREEN.TOTAL_DURATION
+      ) {
+        this.gameStatus = "levelComplete";
+        this.levelCompleteTimer = 0; // No auto-transition, wait for space key
+      }
+    }
+
+    // Update level 5 victory screen timer
+    if (this.gameStatus === "level5Victory") {
+      this.level5VictoryTimer += deltaTime;
+      if (
+        this.level5VictoryTimer >=
+        GAME_CONSTANTS.LEVEL5_VICTORY_SCREEN.TOTAL_DURATION
+      ) {
+        this.gameStatus = "upgradeMenu";
+        this.score.value += Math.floor(
+          GAME_CONSTANTS.SCORE.VICTORY_BONUS * this.score.multiplier
+        );
+        this.upgrades.selected = null;
       }
     }
 
@@ -2374,8 +2416,11 @@ export class TinySouls {
         );
       }
 
-      // Draw enemy (hide during enemy death explosion)
-      const isEnemyDead = this.gameStatus === "enemyDeath";
+      // Draw enemy (hide during enemy death explosion and victory screens)
+      const isEnemyDead =
+        this.gameStatus === "enemyDeath" ||
+        this.gameStatus === "enemyVanquished" ||
+        this.gameStatus === "level5Victory";
 
       if (!isEnemyDead) {
         const isStunned = this.enemy.stunTimer > 0;
@@ -2443,6 +2488,14 @@ export class TinySouls {
       this.drawParticles(this.particles.deathExplosion);
     } else if (this.gameStatus === "enemyDeath") {
       // Draw enemy death explosion particles
+      this.drawParticles(this.particles.enemyDeathExplosion);
+    } else if (this.gameStatus === "enemyVanquished") {
+      this.drawEnemyVanquishedScreen();
+      // Draw enemy death explosion particles on top
+      this.drawParticles(this.particles.enemyDeathExplosion);
+    } else if (this.gameStatus === "level5Victory") {
+      this.drawLevel5VictoryScreen();
+      // Draw enemy death explosion particles on top
       this.drawParticles(this.particles.enemyDeathExplosion);
     } else if (this.gameStatus === "playerWon") {
       this.drawGameOver("Victory!", "#8BB8E8");
@@ -2536,17 +2589,8 @@ export class TinySouls {
 
     // Show mobile controls for mobile, PC controls for desktop
     const controls = this.isMobile()
-      ? [
-          "Tap ATTACK button - Attack",
-          "Tap BLOCK button - Block",
-          "Tap both - Perfect Block",
-        ]
-      : [
-          "Space - Attack",
-          "Ctrl - Block",
-          "Ctrl + Space - Perfect Block (timed)",
-          "R - Restart",
-        ];
+      ? ["Tap ATTACK button - Attack", "Tap BLOCK button - Block"]
+      : ["Space - Attack", "Ctrl - Block", "R - Restart"];
 
     controls.forEach((control) => {
       this.ctx.fillText(control, centerX, currentY);
@@ -2561,15 +2605,13 @@ export class TinySouls {
     const tips = this.isMobile()
       ? [
           "• Manage stamina - attacks/blocks consume it",
-          "• Perfect blocks stun & restore stamina",
           "• Defeat enemies to progress",
-          "• Choose upgrades between levels",
+          "• Choose upgrades after level 5 on New Game Plus",
         ]
       : [
           "• Manage your stamina - attacks and blocks consume it",
-          "• Perfect blocks stun enemies and restore stamina",
           "• Defeat enemies to progress through levels",
-          "• Choose upgrades between levels",
+          "• Choose upgrades after level 5 on New Game Plus",
         ];
 
     tips.forEach((tip) => {
@@ -3310,6 +3352,106 @@ export class TinySouls {
 
     const centerY = this.displayHeight / 2;
     this.ctx.fillText("YOU DIED", this.displayWidth / 2, centerY);
+
+    this.ctx.restore();
+  }
+
+  private drawEnemyVanquishedScreen(): void {
+    const fadeInDuration =
+      GAME_CONSTANTS.ENEMY_VANQUISHED_SCREEN.FADE_IN_DURATION;
+    const holdDuration = GAME_CONSTANTS.ENEMY_VANQUISHED_SCREEN.HOLD_DURATION;
+    const fadeOutDuration =
+      GAME_CONSTANTS.ENEMY_VANQUISHED_SCREEN.FADE_OUT_DURATION;
+
+    const textTimer = this.enemyVanquishedTimer;
+    let overlayAlpha = 0;
+    let textAlpha = 0;
+
+    if (textTimer < fadeInDuration) {
+      // Fade in phase - both overlay and text fade in
+      overlayAlpha = textTimer / fadeInDuration;
+      textAlpha = overlayAlpha;
+    } else if (textTimer < fadeInDuration + holdDuration) {
+      // Hold phase - both stay at full opacity
+      overlayAlpha = 1;
+      textAlpha = 1;
+    } else {
+      // Fade out phase - only text fades out, overlay stays visible
+      overlayAlpha = 1; // Keep overlay at full opacity
+      const fadeOutProgress =
+        (textTimer - fadeInDuration - holdDuration) / fadeOutDuration;
+      textAlpha = 1 - fadeOutProgress; // Only text fades out
+    }
+
+    // Draw dark overlay (stays visible after fade-in) - fully opaque
+    this.ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+
+    // Draw "ENEMY VANQUISHED" text in yellow (fades out)
+    this.ctx.save();
+    this.ctx.fillStyle = `rgba(255, 215, 0, ${textAlpha})`; // Gold yellow
+    this.ctx.font = `bold ${this.getFontSize(64)} serif`;
+    this.ctx.textAlign = "center";
+    this.ctx.textBaseline = "middle";
+
+    // Add text shadow for better visibility
+    this.ctx.shadowColor = `rgba(0, 0, 0, ${textAlpha * 0.8})`;
+    this.ctx.shadowBlur = 20;
+    this.ctx.shadowOffsetX = 0;
+    this.ctx.shadowOffsetY = 0;
+
+    const centerY = this.displayHeight / 2;
+    this.ctx.fillText("ENEMY VANQUISHED", this.displayWidth / 2, centerY);
+
+    this.ctx.restore();
+  }
+
+  private drawLevel5VictoryScreen(): void {
+    const fadeInDuration =
+      GAME_CONSTANTS.LEVEL5_VICTORY_SCREEN.FADE_IN_DURATION;
+    const holdDuration = GAME_CONSTANTS.LEVEL5_VICTORY_SCREEN.HOLD_DURATION;
+    const fadeOutDuration =
+      GAME_CONSTANTS.LEVEL5_VICTORY_SCREEN.FADE_OUT_DURATION;
+
+    const textTimer = this.level5VictoryTimer;
+    let overlayAlpha = 0;
+    let textAlpha = 0;
+
+    if (textTimer < fadeInDuration) {
+      // Fade in phase - both overlay and text fade in
+      overlayAlpha = textTimer / fadeInDuration;
+      textAlpha = overlayAlpha;
+    } else if (textTimer < fadeInDuration + holdDuration) {
+      // Hold phase - both stay at full opacity
+      overlayAlpha = 1;
+      textAlpha = 1;
+    } else {
+      // Fade out phase - only text fades out, overlay stays visible
+      overlayAlpha = 1; // Keep overlay at full opacity
+      const fadeOutProgress =
+        (textTimer - fadeInDuration - holdDuration) / fadeOutDuration;
+      textAlpha = 1 - fadeOutProgress; // Only text fades out
+    }
+
+    // Draw dark overlay (stays visible after fade-in) - fully opaque
+    this.ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+
+    // Draw "YOU WIN" text in green (fades out)
+    this.ctx.save();
+    this.ctx.fillStyle = `rgba(0, 255, 0, ${textAlpha})`; // Bright green
+    this.ctx.font = `bold ${this.getFontSize(64)} serif`;
+    this.ctx.textAlign = "center";
+    this.ctx.textBaseline = "middle";
+
+    // Add text shadow for better visibility
+    this.ctx.shadowColor = `rgba(0, 0, 0, ${textAlpha * 0.8})`;
+    this.ctx.shadowBlur = 20;
+    this.ctx.shadowOffsetX = 0;
+    this.ctx.shadowOffsetY = 0;
+
+    const centerY = this.displayHeight / 2;
+    this.ctx.fillText("YOU WIN", this.displayWidth / 2, centerY);
 
     this.ctx.restore();
   }
