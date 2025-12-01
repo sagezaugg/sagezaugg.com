@@ -2,6 +2,8 @@
 // CONSTANTS AND CONFIGURATION
 // ============================================================================
 
+import { AudioManager } from "./audioService";
+
 interface LevelConfig {
   enemyHealth: number;
   enemyDamage: number;
@@ -251,6 +253,7 @@ const UI_CONSTANTS = {
 
 type AnimationState = "idle" | "attack" | "block" | "hit";
 type GameStatus =
+  | "startScreen"
   | "intro"
   | "controls"
   | "playing"
@@ -419,7 +422,7 @@ export class TinySouls {
   private enemyDeathTimer: number = 0;
   private enemyVanquishedTimer: number = 0;
   private level5VictoryTimer: number = 0;
-  private gameStatus: GameStatus = "intro";
+  private gameStatus: GameStatus = "startScreen";
 
   // Grouped state objects
   private player: PlayerState = {
@@ -554,6 +557,9 @@ export class TinySouls {
   private cachedLevelConfig: LevelConfig | null = null;
   private cachedIsMobile: boolean = false;
 
+  // Audio manager
+  private audioManager: AudioManager;
+
   // Logo and intro screen state
   private logoImage: HTMLImageElement | null = null;
   private logoFadeProgress: number = 0;
@@ -566,7 +572,11 @@ export class TinySouls {
   private fadeOutDuration: number = 500;
   private fadeOutStartTime: number = 0;
   private pendingTransition: GameStatus | null = null;
-  private buttonPressState: { start: boolean; controls: boolean; back: boolean } = {
+  private buttonPressState: {
+    start: boolean;
+    controls: boolean;
+    back: boolean;
+  } = {
     start: false,
     controls: false,
     back: false,
@@ -580,13 +590,20 @@ export class TinySouls {
     }
     this.ctx = context;
 
+    // Initialize audio manager
+    this.audioManager = new AudioManager();
+
     // Set up event handlers
     this.resizeHandler = () => this.resize();
     this.keydownHandler = (e: KeyboardEvent) => {
       this.keys.add(e.code);
 
-      // Intro and controls screens use buttons, not keyboard shortcuts
-      if (this.gameStatus === "intro" || this.gameStatus === "controls") {
+      // Start, intro and controls screens use buttons, not keyboard shortcuts
+      if (
+        this.gameStatus === "startScreen" ||
+        this.gameStatus === "intro" ||
+        this.gameStatus === "controls"
+      ) {
         return;
       }
 
@@ -651,6 +668,15 @@ export class TinySouls {
       const rect = this.canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+
+      // Handle start screen - any click goes to intro
+      if (this.gameStatus === "startScreen") {
+        e.preventDefault();
+        const oldStatus = this.gameStatus;
+        this.gameStatus = "intro";
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
+        return;
+      }
 
       // Handle intro screen buttons
       if (this.gameStatus === "intro") {
@@ -728,6 +754,64 @@ export class TinySouls {
   // ============================================================================
   // HELPER METHODS
   // ============================================================================
+
+  /**
+   * Handle game status changes and trigger appropriate audio
+   */
+  private handleGameStatusChange(
+    oldStatus: GameStatus,
+    newStatus: GameStatus
+  ): void {
+    // Play intro music when transitioning from startScreen to intro
+    // (This happens after user interaction, so autoplay should work)
+    if (newStatus === "intro" && oldStatus === "startScreen") {
+      this.audioManager.playMusic("game-intro.mp3").catch(() => {
+        // Silently handle if file doesn't exist or fails to play
+      });
+      // Initialize logo fade animation when transitioning to intro
+      if (this.logoImage && this.logoFadeStartTime === 0) {
+        this.logoFadeStartTime = performance.now();
+        this.logoFadeProgress = 0;
+        this.buttonFadeProgress = 0;
+        this.buttonFadeStartTime = 0;
+      }
+    }
+
+    // Start combat music when entering playing state at 50% volume
+    if (newStatus === "playing" && oldStatus !== "playing") {
+      this.audioManager.playMusic("combat-music.mp3", 0.3);
+    }
+
+    // Stop combat music when leaving playing state
+    if (oldStatus === "playing" && newStatus !== "playing") {
+      this.audioManager.stopMusic();
+    }
+
+    // Play death screen sound
+    if (newStatus === "deathScreen" && oldStatus !== "deathScreen") {
+      this.audioManager.playSound("player-death.mp3");
+    }
+
+    // Play enemy death sound
+    if (newStatus === "enemyDeath" && oldStatus !== "enemyDeath") {
+      this.audioManager.playSound("player-death.mp3"); // Using same sound for enemy death
+    }
+
+    // Play "You Died" sound
+    if (newStatus === "enemyWon" && oldStatus !== "enemyWon") {
+      this.audioManager.playSound("you-died.mp3");
+    }
+
+    // Play "Enemy Vanquished" sound
+    if (newStatus === "enemyVanquished" && oldStatus !== "enemyVanquished") {
+      this.audioManager.playSound("enemy-vanquished.mp3");
+    }
+
+    // Play "You Win" sound
+    if (newStatus === "level5Victory" && oldStatus !== "level5Victory") {
+      this.audioManager.playSound("you-win.mp3");
+    }
+  }
 
   private getMobileValue<T>(mobile: T, desktop: T): T {
     return this.isMobile() ? mobile : desktop;
@@ -1037,7 +1121,9 @@ export class TinySouls {
     this.upgrades.newGamePlusLevel++;
     this.resetGameState(true);
     if (this.gameStatus !== "intro") {
+      const oldStatus = this.gameStatus;
       this.gameStatus = "playing";
+      this.handleGameStatusChange(oldStatus, this.gameStatus);
     }
     this.initializeLevel();
     this.updateSpearPositions();
@@ -1054,7 +1140,9 @@ export class TinySouls {
     // Reset stamina to max when level changes
     this.player.stamina = this.player.maxStamina;
     this.initializeLevel();
+    const oldStatus = this.gameStatus;
     this.gameStatus = "playing";
+    this.handleGameStatusChange(oldStatus, this.gameStatus);
     this.levelCompleteTimer = 0;
   }
 
@@ -1063,8 +1151,14 @@ export class TinySouls {
     img.onload = () => {
       this.logoImage = img;
       // Initialize fade start time if game is running and on intro screen
-      if (this.isRunning && this.gameStatus === "intro" && this.logoFadeStartTime === 0) {
+      if (
+        this.isRunning &&
+        this.gameStatus === "intro" &&
+        this.logoFadeStartTime === 0
+      ) {
         this.logoFadeStartTime = performance.now();
+        // Intro sound is played when transitioning from startScreen to intro
+        // (after user interaction, so autoplay works)
       }
     };
     img.onerror = () => {
@@ -1244,6 +1338,9 @@ export class TinySouls {
     this.player.spear.timer = 0;
     this.player.spear.damageDealt = false;
     this.player.attackCooldown = GAME_CONSTANTS.COOLDOWN.ATTACK;
+
+    // Play attack sound
+    this.audioManager.playSound("attack.mp3");
   }
 
   public handlePlayerBlock(): void {
@@ -1265,6 +1362,8 @@ export class TinySouls {
       );
       this.player.animation.state = "block";
       this.player.blockCooldown = GAME_CONSTANTS.COOLDOWN.BLOCK;
+      // Play block sound when starting to block
+      this.audioManager.playSound("block.mp3");
     }
 
     this.player.isBlocking = true;
@@ -1289,6 +1388,9 @@ export class TinySouls {
       this.perfectBlock.active = true;
       this.perfectBlock.timer = this.perfectBlock.duration;
       this.enemy.stunTimer = GAME_CONSTANTS.PERFECT_BLOCK.STUN_DURATION;
+
+      // Play perfect block sound
+      this.audioManager.playSound("perfect-block.mp3");
 
       // Restore stamina as promised in intro screen
       const staminaRestore = Math.min(
@@ -1493,6 +1595,8 @@ export class TinySouls {
       this.ui.screenShake.intensity =
         GAME_CONSTANTS.SCREEN_SHAKE.BLOCKED_HIT_INTENSITY;
     } else {
+      // Play attack-hit sound when player gets hit (not blocked)
+      this.audioManager.playSound("attack-hit.mp3");
       this.player.animation.state = "hit";
       this.player.animation.timer = GAME_CONSTANTS.ANIMATION.HIT_DURATION;
       this.player.lastHitTime = Date.now();
@@ -1526,8 +1630,10 @@ export class TinySouls {
     }
 
     if (this.player.health <= 0 && this.gameStatus === "playing") {
+      const oldStatus = this.gameStatus;
       this.gameStatus = "deathScreen";
       this.deathScreenTimer = 0;
+      this.handleGameStatusChange(oldStatus, this.gameStatus);
       // Create death explosion particles
       this.createDeathExplosion();
     }
@@ -1583,6 +1689,8 @@ export class TinySouls {
   private processEnemyAttackBlock(): void {
     const config = this.getCurrentLevelConfig();
     const damage = config.enemyDamage * GAME_CONSTANTS.DAMAGE.BLOCK_REDUCTION;
+    // Play attack block sound
+    this.audioManager.playSound("attack-block.mp3");
     this.dealDamageToPlayer(damage, true, config.enemyColor);
   }
 
@@ -1647,6 +1755,8 @@ export class TinySouls {
       const dy = playerTargetY - this.enemy.spear.baseY;
       this.enemy.spear.targetDistance = Math.sqrt(dx * dx + dy * dy);
 
+      // Play attack sound when enemy starts attacking
+      this.audioManager.playSound("attack.mp3");
       this.enemy.isAttacking = true;
       this.enemy.attackTimer = 0;
       this.enemy.attackDuration = 0;
@@ -1662,6 +1772,9 @@ export class TinySouls {
     this.enemy.health = Math.max(0, this.enemy.health - damage);
     this.stats.totalDamageDealt += damage;
     this.stats.totalAttacks++;
+
+    // Play attack hit sound
+    this.audioManager.playSound("attack-hit.mp3");
 
     const damageScore = Math.floor(
       damage * GAME_CONSTANTS.DAMAGE.SCORE_MULTIPLIER * this.score.multiplier
@@ -1714,8 +1827,10 @@ export class TinySouls {
 
     if (this.enemy.health <= 0 && this.gameStatus === "playing") {
       // Create enemy death explosion and delay victory screen
+      const oldStatus = this.gameStatus;
       this.gameStatus = "enemyDeath";
       this.enemyDeathTimer = 0;
+      this.handleGameStatusChange(oldStatus, this.gameStatus);
       this.createEnemyDeathExplosion();
 
       // Calculate score bonuses (will be applied after explosion)
@@ -1856,10 +1971,14 @@ export class TinySouls {
 
   private update(deltaTime: number): void {
     // Update logo fade progress
-    if (this.gameStatus === "intro" && this.logoFadeStartTime > 0 && this.fadeOutStartTime === 0) {
+    if (
+      this.gameStatus === "intro" &&
+      this.logoFadeStartTime > 0 &&
+      this.fadeOutStartTime === 0
+    ) {
       const elapsed = performance.now() - this.logoFadeStartTime;
       this.logoFadeProgress = Math.min(1, elapsed / this.logoFadeDuration);
-      
+
       // Start button fade-in when logo fade completes
       if (this.logoFadeProgress >= 1 && this.buttonFadeStartTime === 0) {
         this.buttonFadeStartTime = performance.now();
@@ -1868,7 +1987,11 @@ export class TinySouls {
     }
 
     // Update button fade progress
-    if (this.gameStatus === "intro" && this.buttonFadeStartTime > 0 && this.fadeOutStartTime === 0) {
+    if (
+      this.gameStatus === "intro" &&
+      this.buttonFadeStartTime > 0 &&
+      this.fadeOutStartTime === 0
+    ) {
       const elapsed = performance.now() - this.buttonFadeStartTime;
       this.buttonFadeProgress = Math.min(1, elapsed / this.buttonFadeDuration);
     }
@@ -1877,10 +2000,12 @@ export class TinySouls {
     if (this.fadeOutStartTime > 0) {
       const elapsed = performance.now() - this.fadeOutStartTime;
       this.fadeOutProgress = Math.min(1, elapsed / this.fadeOutDuration);
-      
+
       // Transition after fade-out completes
       if (this.fadeOutProgress >= 1 && this.pendingTransition) {
+        const oldStatus = this.gameStatus;
         this.gameStatus = this.pendingTransition;
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
         this.fadeOutProgress = 0;
         this.fadeOutStartTime = 0;
         this.pendingTransition = null;
@@ -1938,7 +2063,9 @@ export class TinySouls {
     if (this.gameStatus === "deathScreen") {
       this.deathScreenTimer += deltaTime;
       if (this.deathScreenTimer >= GAME_CONSTANTS.DEATH_SCREEN.TOTAL_DURATION) {
+        const oldStatus = this.gameStatus;
         this.gameStatus = "enemyWon";
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
       }
     }
 
@@ -1949,6 +2076,7 @@ export class TinySouls {
         this.enemyDeathTimer >= GAME_CONSTANTS.ENEMY_DEATH.EXPLOSION_DURATION
       ) {
         // Transition to victory screen after explosion
+        const oldStatus = this.gameStatus;
         if (this.currentLevel >= GAME_CONSTANTS.LEVEL.MAX_LEVEL) {
           this.gameStatus = "level5Victory";
           this.level5VictoryTimer = 0;
@@ -1956,6 +2084,7 @@ export class TinySouls {
           this.gameStatus = "enemyVanquished";
           this.enemyVanquishedTimer = 0;
         }
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
       }
     }
 
@@ -1966,8 +2095,10 @@ export class TinySouls {
         this.enemyVanquishedTimer >=
         GAME_CONSTANTS.ENEMY_VANQUISHED_SCREEN.TOTAL_DURATION
       ) {
+        const oldStatus = this.gameStatus;
         this.gameStatus = "levelComplete";
         this.levelCompleteTimer = 0; // No auto-transition, wait for space key
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
       }
     }
 
@@ -1978,11 +2109,13 @@ export class TinySouls {
         this.level5VictoryTimer >=
         GAME_CONSTANTS.LEVEL5_VICTORY_SCREEN.TOTAL_DURATION
       ) {
+        const oldStatus = this.gameStatus;
         this.gameStatus = "upgradeMenu";
         this.score.value += Math.floor(
           GAME_CONSTANTS.SCORE.VICTORY_BONUS * this.score.multiplier
         );
         this.upgrades.selected = null;
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
       }
     }
 
@@ -2370,8 +2503,8 @@ export class TinySouls {
       this.displayHeight
     );
 
-    // Skip game rendering during intro
-    if (this.gameStatus !== "intro") {
+    // Skip game rendering during start screen and intro
+    if (this.gameStatus !== "startScreen" && this.gameStatus !== "intro") {
       // Draw level display
       this.ctx.fillStyle = COLORS.TEXT_LIGHT_BLUE;
       this.ctx.font = `${this.getFontSize(24)} serif`;
@@ -2570,7 +2703,9 @@ export class TinySouls {
     }
 
     // Draw game status overlays
-    if (this.gameStatus === "intro") {
+    if (this.gameStatus === "startScreen") {
+      this.drawStartScreen();
+    } else if (this.gameStatus === "intro") {
       this.drawIntro();
     } else if (this.gameStatus === "controls") {
       this.drawControls();
@@ -2612,6 +2747,30 @@ export class TinySouls {
     this.ctx.restore();
   }
 
+  private drawStartScreen(): void {
+    // Black background
+    this.ctx.fillStyle = COLORS.BLACK;
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+
+    const centerX = this.displayWidth / 2;
+    const centerY = this.displayHeight / 2;
+
+    // "Click to start" text with pulsing effect
+    const pulse = Math.sin(this.cachedCurrentTime / 500) * 0.3 + 0.7;
+    this.ctx.save();
+    this.ctx.globalAlpha = pulse;
+
+    this.drawTextWithStroke(
+      "Click to start",
+      centerX,
+      centerY,
+      COLORS.TEXT_LIGHT_BLUE,
+      this.getMobileValue(32, 48)
+    );
+
+    this.ctx.restore();
+  }
+
   private drawIntro(): void {
     // Calculate overall opacity (fade out when transitioning)
     const overallOpacity = 1 - this.fadeOutProgress;
@@ -2627,7 +2786,8 @@ export class TinySouls {
     let logoBottomY = centerY;
     if (this.logoImage && this.logoFadeProgress > 0) {
       const logoWidth = this.getMobileValue(200, 300);
-      const logoHeight = (this.logoImage.height / this.logoImage.width) * logoWidth;
+      const logoHeight =
+        (this.logoImage.height / this.logoImage.width) * logoWidth;
       const logoX = centerX - logoWidth / 2;
       const logoY = centerY - logoHeight / 2 - (this.isMobile() ? 60 : 80);
       logoBottomY = logoY + logoHeight;
@@ -2704,7 +2864,12 @@ export class TinySouls {
     this.ctx.lineTo(x + width - radius, y);
     this.ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
     this.ctx.lineTo(x + width, y + height - radius);
-    this.ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    this.ctx.quadraticCurveTo(
+      x + width,
+      y + height,
+      x + width - radius,
+      y + height
+    );
     this.ctx.lineTo(x + radius, y + height);
     this.ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
     this.ctx.lineTo(x, y + radius);
@@ -2715,7 +2880,9 @@ export class TinySouls {
 
     // Button text
     this.ctx.fillStyle = isPressed ? COLORS.BLACK : COLORS.TEXT_WHITE;
-    this.ctx.font = `bold ${this.getFontSize(this.isMobile() ? 16 : 18)} sans-serif`;
+    this.ctx.font = `bold ${this.getFontSize(
+      this.isMobile() ? 16 : 18
+    )} sans-serif`;
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
     this.ctx.fillText(text, centerX, centerY);
@@ -4057,7 +4224,11 @@ export class TinySouls {
   // Handle intro screen button clicks
   private handleIntroButtonClick(x: number, y: number): boolean {
     // Don't handle clicks if buttons haven't finished fading in or if already fading out
-    if (this.logoFadeProgress < 1 || this.buttonFadeProgress < 1 || this.fadeOutStartTime > 0) {
+    if (
+      this.logoFadeProgress < 1 ||
+      this.buttonFadeProgress < 1 ||
+      this.fadeOutStartTime > 0
+    ) {
       return false;
     }
 
@@ -4066,16 +4237,17 @@ export class TinySouls {
     const buttonWidth = this.getMobileValue(120, 150);
     const buttonHeight = this.getMobileValue(44, 50);
     const buttonSpacing = this.getMobileValue(20, 30);
-    
+
     // Calculate logo bottom position (same as in drawIntro)
     let logoBottomY = centerY;
     if (this.logoImage) {
       const logoWidth = this.getMobileValue(200, 300);
-      const logoHeight = (this.logoImage.height / this.logoImage.width) * logoWidth;
+      const logoHeight =
+        (this.logoImage.height / this.logoImage.width) * logoWidth;
       const logoY = centerY - logoHeight / 2 - (this.isMobile() ? 60 : 80);
       logoBottomY = logoY + logoHeight;
     }
-    
+
     const verticalSpacing = this.getMobileValue(50, 70);
     const buttonY = logoBottomY + verticalSpacing;
 
@@ -4093,6 +4265,10 @@ export class TinySouls {
         buttonHeight
       )
     ) {
+      // Play button click sound
+      this.audioManager.playSound("button-click.mp3");
+      // Stop intro music when starting the game
+      this.audioManager.stopMusic();
       // Start fade-out, then transition to playing
       this.startFadeOut("playing");
       return true;
@@ -4108,6 +4284,8 @@ export class TinySouls {
         buttonHeight
       )
     ) {
+      // Play button click sound
+      this.audioManager.playSound("button-click.mp3");
       // Start fade-out, then transition to controls
       this.startFadeOut("controls");
       return true;
@@ -4146,6 +4324,8 @@ export class TinySouls {
         buttonHeight
       )
     ) {
+      // Play button click sound
+      this.audioManager.playSound("button-click.mp3");
       // Start fade-out, then transition back to intro
       this.startFadeOut("intro");
       return true;
@@ -4196,7 +4376,7 @@ export class TinySouls {
     // Preserve NG+ level and upgrades - don't reset them
     // Only reset current playthrough state
     this.resetGameState(true);
-    this.gameStatus = "intro";
+    this.gameStatus = "startScreen";
     this.keys.clear();
     this.activeTouches.clear();
     this.isAttackButtonPressed = false;
@@ -4224,6 +4404,15 @@ export class TinySouls {
       const touch = e.changedTouches[i];
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top;
+
+      // Handle start screen - any touch goes to intro
+      if (this.gameStatus === "startScreen") {
+        e.preventDefault();
+        const oldStatus = this.gameStatus;
+        this.gameStatus = "intro";
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
+        continue;
+      }
 
       // Handle intro screen buttons
       if (this.gameStatus === "intro") {
@@ -4422,6 +4611,8 @@ export class TinySouls {
 
   public cleanup(): void {
     this.stop();
+    // Clean up audio
+    this.audioManager.cleanup();
     window.removeEventListener("resize", this.resizeHandler);
     window.removeEventListener("keydown", this.keydownHandler);
     window.removeEventListener("keyup", this.keyupHandler);

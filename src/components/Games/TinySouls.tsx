@@ -1,11 +1,23 @@
 import React, { useEffect, useRef, useState } from "react";
 import { TinySouls } from "../../games/TinySouls";
+import { AudioManager } from "../../games/audioService";
 
 const TinySoulsComponent: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<TinySouls | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const audioManagerRef = useRef<AudioManager | null>(null);
+
+  // Initialize audio manager
+  useEffect(() => {
+    audioManagerRef.current = new AudioManager();
+    return () => {
+      if (audioManagerRef.current) {
+        audioManagerRef.current.cleanup();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!canvasRef.current) {
@@ -49,12 +61,18 @@ const TinySoulsComponent: React.FC = () => {
   }, [isFullscreen]);
 
   const handleRestart = () => {
+    if (audioManagerRef.current) {
+      audioManagerRef.current.playSound("button-click.mp3");
+    }
     if (gameRef.current) {
       gameRef.current.restart();
     }
   };
 
   const toggleFullscreen = () => {
+    if (audioManagerRef.current) {
+      audioManagerRef.current.playSound("button-click.mp3");
+    }
     setIsFullscreen(!isFullscreen);
   };
 
