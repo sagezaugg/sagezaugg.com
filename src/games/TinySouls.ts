@@ -527,6 +527,7 @@ export class TinySouls {
   private touchendHandler: (e: TouchEvent) => void;
   private touchcancelHandler: (e: TouchEvent) => void;
   private clickHandler: (e: MouseEvent) => void;
+  private mousemoveHandler: (e: MouseEvent) => void;
 
   // Cached values for performance
   private rgbCache: Map<string, { r: number; g: number; b: number }> =
@@ -556,25 +557,7 @@ export class TinySouls {
         return;
       }
 
-      if (this.gameStatus === "upgradeMenu") {
-        const upgradeMap: Record<string, UpgradeType> = {
-          Digit1: "health",
-          Numpad1: "health",
-          Digit2: "stamina",
-          Numpad2: "stamina",
-          Digit3: "perfectBlock",
-          Numpad3: "perfectBlock",
-          Digit4: "attackDamage",
-          Numpad4: "attackDamage",
-        };
-        const upgradeType = upgradeMap[e.code];
-        if (upgradeType) {
-          e.preventDefault();
-          this.upgrades.selected = upgradeType;
-          this.applyUpgrade(upgradeType);
-        }
-        return;
-      }
+      // Upgrade menu now uses click/touch instead of keyboard
 
       if (this.gameStatus === "levelComplete") {
         if (e.code === "Space") {
@@ -637,6 +620,14 @@ export class TinySouls {
         this.continueFromLevelComplete();
         return;
       }
+      // Handle upgrade menu - click to select upgrade
+      if (this.gameStatus === "upgradeMenu") {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        this.handleUpgradeMenuClick(x, y);
+        return;
+      }
     };
 
     // Set canvas size
@@ -658,8 +649,23 @@ export class TinySouls {
       passive: false,
     });
 
-    // Click event listener for intro screen
+    // Click event listener
     this.canvas.addEventListener("click", this.clickHandler);
+
+    // Mouse move handler for hover feedback on upgrade menu
+    this.mousemoveHandler = (e: MouseEvent) => {
+      if (this.gameStatus === "upgradeMenu") {
+        const rect = this.canvas.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        this.setUpgradeMenuTouchY(y);
+      } else {
+        this.setUpgradeMenuTouchY(null);
+      }
+    };
+    this.canvas.addEventListener("mousemove", this.mousemoveHandler);
+    this.canvas.addEventListener("mouseleave", () => {
+      this.setUpgradeMenuTouchY(null);
+    });
 
     // Initialize level
     this.initializeLevel();
@@ -2660,145 +2666,282 @@ export class TinySouls {
   }
 
   private drawUpgradeMenu(): void {
-    this.ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
+    this.ctx.fillStyle = "rgba(0, 0, 0, 1)";
     this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
     const centerX = this.displayWidth / 2;
-    const startY = this.displayHeight / 2 - 200;
 
-    // Title
-    const victoryStartY = this.getMobileValue(
-      this.displayHeight / 2 - 120,
-      startY
-    );
-    this.drawTextWithStroke(
-      "Victory!",
-      centerX,
-      victoryStartY,
-      COLORS.GOLD,
-      48
-    );
+    // Calculate layout to fit within canvas bounds on mobile
+    if (this.isMobile()) {
+      // Mobile layout - more compact, ensure everything fits
+      const totalContentHeight = 400; // Approximate total height needed
+      const topPadding = 20;
+      const bottomPadding = 20;
+      const availableHeight = this.displayHeight - topPadding - bottomPadding;
+      const startY = topPadding + (availableHeight - totalContentHeight) / 2;
 
-    // NG+ level display
-    const ngPlusY = this.getMobileValue(victoryStartY + 40, victoryStartY + 60);
-    this.drawTextWithStroke(
-      `New Game+ ${this.upgrades.newGamePlusLevel + 1}`,
-      centerX,
-      ngPlusY,
-      COLORS.TEXT_LIGHT_BLUE,
-      32
-    );
+      // Title
+      const victoryStartY = Math.max(30, startY);
+      this.drawTextWithStroke(
+        "Victory!",
+        centerX,
+        victoryStartY,
+        COLORS.GOLD,
+        40
+      );
 
-    // Instructions
-    this.ctx.fillStyle = "#ffffff";
-    this.ctx.font = `${this.getFontSize(24)} sans-serif`;
-    const instructionsY = this.isMobile()
-      ? victoryStartY + 80
-      : victoryStartY + 120;
-    const instructionText = this.isMobile()
-      ? "Tap an upgrade:"
-      : "Choose an upgrade:";
-    this.ctx.fillText(instructionText, centerX, instructionsY);
+      // NG+ level display
+      const ngPlusY = victoryStartY + 35;
+      this.drawTextWithStroke(
+        `New Game+ ${this.upgrades.newGamePlusLevel + 1}`,
+        centerX,
+        ngPlusY,
+        COLORS.TEXT_LIGHT_BLUE,
+        26
+      );
 
-    // Upgrade options
-    const currentAttackDamage = this.getPlayerDamage();
-    const options = [
-      {
-        key: "1",
-        name: "Health",
-        desc: `+${GAME_CONSTANTS.UPGRADE_INCREMENT} Max Health (Current: ${this.player.maxHealth})`,
-        type: "health" as const,
-      },
-      {
-        key: "2",
-        name: "Stamina",
-        desc: `+${GAME_CONSTANTS.UPGRADE_INCREMENT} Max Stamina (Current: ${this.player.maxStamina})`,
-        type: "stamina" as const,
-      },
-      {
-        key: "3",
-        name: "Perfect Block",
-        desc: `-${
-          GAME_CONSTANTS.PERFECT_BLOCK.UPGRADE_REDUCTION
-        }ms Perfect Block Duration (Current: ${Math.round(
-          this.perfectBlock.duration
-        )}ms)`,
-        type: "perfectBlock" as const,
-      },
-      {
-        key: "4",
-        name: "Attack Damage",
-        desc: `+${GAME_CONSTANTS.DAMAGE.UPGRADE_INCREMENT} Attack Damage (Current: ${currentAttackDamage})`,
-        type: "attackDamage" as const,
-      },
-    ];
+      // Instructions
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.font = `${this.getFontSize(20)} sans-serif`;
+      this.ctx.textAlign = "center";
+      const instructionsY = ngPlusY + 30;
+      this.ctx.fillText("Tap an upgrade:", centerX, instructionsY);
 
-    const optionStartY = this.isMobile() ? instructionsY + 40 : startY + 180;
-    const optionSpacing = this.isMobile() ? 55 : 70;
-    const optionWidth = this.isMobile() ? this.displayWidth - 40 : 600;
-    const optionLeft = this.isMobile() ? 20 : centerX - 300;
+      // Upgrade options
+      const currentAttackDamage = this.getPlayerDamage();
+      const options = [
+        {
+          key: "1",
+          name: "Health",
+          desc: `+${GAME_CONSTANTS.UPGRADE_INCREMENT} Max Health (Current: ${this.player.maxHealth})`,
+          type: "health" as const,
+        },
+        {
+          key: "2",
+          name: "Stamina",
+          desc: `+${GAME_CONSTANTS.UPGRADE_INCREMENT} Max Stamina (Current: ${this.player.maxStamina})`,
+          type: "stamina" as const,
+        },
+        {
+          key: "3",
+          name: "Perfect Block",
+          desc: `-${
+            GAME_CONSTANTS.PERFECT_BLOCK.UPGRADE_REDUCTION
+          }ms Perfect Block Duration (Current: ${Math.round(
+            this.perfectBlock.duration
+          )}ms)`,
+          type: "perfectBlock" as const,
+        },
+        {
+          key: "4",
+          name: "Attack Damage",
+          desc: `+${GAME_CONSTANTS.DAMAGE.UPGRADE_INCREMENT} Attack Damage (Current: ${currentAttackDamage})`,
+          type: "attackDamage" as const,
+        },
+      ];
 
-    options.forEach((option, index) => {
-      const y = optionStartY + index * optionSpacing;
-      const isSelected = this.upgrades.selected === option.type;
+      const optionStartY = instructionsY + 30;
+      const optionSpacing = 45; // Reduced from 55
+      const leftPadding = 15; // Increased padding from left edge
+      const rightPadding = 15; // Padding from right edge
+      const optionWidth = this.displayWidth - leftPadding - rightPadding;
+      const optionLeft = leftPadding;
+      const optionRight = optionLeft + optionWidth;
 
-      // Check if this option is being touched (for visual feedback)
-      const isTouched =
-        this.upgradeMenuTouchY !== null &&
-        this.upgradeMenuTouchY >= y - 35 &&
-        this.upgradeMenuTouchY <= y + 25;
+      // Set text alignment to left for option text
+      this.ctx.textAlign = "left";
 
-      // Highlight selected or touched option
-      if (isSelected || isTouched) {
-        this.ctx.fillStyle = isTouched
-          ? "rgba(139, 184, 232, 0.5)"
-          : "rgba(139, 184, 232, 0.3)";
-        this.ctx.fillRect(optionLeft, y - 30, optionWidth, 50);
-      }
+      options.forEach((option, index) => {
+        const y = optionStartY + index * optionSpacing;
+        const isSelected = this.upgrades.selected === option.type;
 
-      // Key indicator (hide on mobile or make smaller)
-      if (!this.isMobile()) {
-        this.ctx.fillStyle = "#FFD700";
-        this.ctx.font = `bold ${this.getFontSize(28)} sans-serif`;
-        this.ctx.fillText(`[${option.key}]`, optionLeft + 20, y);
-      }
+        // Check if this option is being touched (for visual feedback)
+        const isTouched =
+          this.upgradeMenuTouchY !== null &&
+          this.upgradeMenuTouchY >= y - 30 &&
+          this.upgradeMenuTouchY <= y + 20;
 
-      // Option name
-      this.ctx.fillStyle = isSelected ? "#8BB8E8" : "#ffffff";
-      this.ctx.font = `bold ${this.getFontSize(24)} sans-serif`;
-      const nameX = this.isMobile() ? optionLeft + 10 : optionLeft + 120;
-      this.ctx.fillText(option.name, nameX, y);
+        // Highlight selected or touched option
+        if (isSelected || isTouched) {
+          this.ctx.fillStyle = isTouched
+            ? "rgba(139, 184, 232, 0.5)"
+            : "rgba(139, 184, 232, 0.3)";
+          this.ctx.fillRect(optionLeft, y - 30, optionWidth, 50);
+        }
 
-      // Description
-      this.ctx.fillStyle = "#cccccc";
-      this.ctx.font = `${this.getFontSize(18)} sans-serif`;
-      const descX = this.isMobile() ? optionLeft + 10 : centerX + 50;
-      const descY = this.isMobile() ? y + 20 : y;
-      this.ctx.fillText(option.desc, descX, descY);
-    });
+        // Option name - ensure it fits within bounds
+        this.ctx.fillStyle = isSelected ? "#8BB8E8" : "#ffffff";
+        this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
+        const nameX = optionLeft + 10; // 10px padding from option left edge
+        this.ctx.fillText(option.name, nameX, y);
 
-    // Current upgrade counts
-    this.ctx.fillStyle = COLORS.TEXT_DARK_GRAY;
-    this.ctx.font = `${this.getFontSize(16)} sans-serif`;
-    const upgradeCountsY = this.isMobile()
-      ? optionStartY + 4 * optionSpacing + 30
-      : startY + 450;
-    const upgradeText = this.isMobile()
-      ? `Upgrades: H(${this.upgrades.health}) S(${this.upgrades.stamina}) PB(${this.upgrades.perfectBlock}) AD(${this.upgrades.attackDamage})`
-      : `Upgrades: Health (${this.upgrades.health}) | Stamina (${this.upgrades.stamina}) | Perfect Block (${this.upgrades.perfectBlock}) | Attack Damage (${this.upgrades.attackDamage})`;
-    this.ctx.fillText(upgradeText, centerX, upgradeCountsY);
+        // Description - ensure it fits within bounds and doesn't overflow
+        this.ctx.fillStyle = "#cccccc";
+        this.ctx.font = `${this.getFontSize(14)} sans-serif`;
+        const descX = optionLeft + 10; // 10px padding from option left edge
+        const maxDescWidth = optionRight - descX - 10; // Leave 10px padding on right
 
-    // Enemy difficulty multiplier
-    const nextMultiplier = this.getEnemyMultiplier(
-      this.upgrades.newGamePlusLevel + 1
-    );
-    this.ctx.fillStyle = "#FF6B6B";
-    this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
-    this.ctx.fillText(
-      `Enemy Difficulty: x${nextMultiplier.toFixed(1)}`,
-      centerX,
-      upgradeCountsY + (this.isMobile() ? 25 : 40)
-    );
+        // Measure text and truncate if needed
+        const metrics = this.ctx.measureText(option.desc);
+        let descText = option.desc;
+        if (metrics.width > maxDescWidth) {
+          // Truncate text to fit
+          let truncated = option.desc;
+          while (
+            this.ctx.measureText(truncated + "...").width > maxDescWidth &&
+            truncated.length > 0
+          ) {
+            truncated = truncated.slice(0, -1);
+          }
+          descText = truncated + "...";
+        }
+
+        this.ctx.fillText(descText, descX, y + 18);
+      });
+
+      // Current upgrade counts
+      this.ctx.textAlign = "center"; // Reset to center for centered text
+      this.ctx.fillStyle = COLORS.TEXT_DARK_GRAY;
+      this.ctx.font = `${this.getFontSize(14)} sans-serif`;
+      const upgradeCountsY = optionStartY + 4 * optionSpacing + 20;
+      const upgradeText = `Upgrades: H(${this.upgrades.health}) S(${this.upgrades.stamina}) PB(${this.upgrades.perfectBlock}) AD(${this.upgrades.attackDamage})`;
+      this.ctx.fillText(upgradeText, centerX, upgradeCountsY);
+
+      // Enemy difficulty multiplier
+      const nextMultiplier = this.getEnemyMultiplier(
+        this.upgrades.newGamePlusLevel + 1
+      );
+      this.ctx.fillStyle = "#FF6B6B";
+      this.ctx.font = `bold ${this.getFontSize(18)} sans-serif`;
+      const difficultyY = Math.min(
+        upgradeCountsY + 20,
+        this.displayHeight - 15
+      );
+      this.ctx.fillText(
+        `Enemy Difficulty: x${nextMultiplier.toFixed(1)}`,
+        centerX,
+        difficultyY
+      );
+    } else {
+      // Desktop layout - ensure everything fits within canvas bounds
+      const totalContentHeight = 550; // Approximate total height needed
+      const topPadding = 30;
+      const bottomPadding = 30;
+      const availableHeight = this.displayHeight - topPadding - bottomPadding;
+      const startY = topPadding + (availableHeight - totalContentHeight) / 2;
+      const victoryStartY = Math.max(40, startY);
+
+      this.drawTextWithStroke(
+        "Victory!",
+        centerX,
+        victoryStartY,
+        COLORS.GOLD,
+        48
+      );
+
+      const ngPlusY = victoryStartY + 60;
+      this.drawTextWithStroke(
+        `New Game+ ${this.upgrades.newGamePlusLevel + 1}`,
+        centerX,
+        ngPlusY,
+        COLORS.TEXT_LIGHT_BLUE,
+        32
+      );
+
+      this.ctx.fillStyle = "#ffffff";
+      this.ctx.font = `${this.getFontSize(24)} sans-serif`;
+      this.ctx.textAlign = "center";
+      const instructionsY = victoryStartY + 120;
+      this.ctx.fillText("Click an upgrade:", centerX, instructionsY);
+
+      const currentAttackDamage = this.getPlayerDamage();
+      const options = [
+        {
+          name: "Health",
+          desc: `+${GAME_CONSTANTS.UPGRADE_INCREMENT} Max Health (Current: ${this.player.maxHealth})`,
+          type: "health" as const,
+        },
+        {
+          name: "Stamina",
+          desc: `+${GAME_CONSTANTS.UPGRADE_INCREMENT} Max Stamina (Current: ${this.player.maxStamina})`,
+          type: "stamina" as const,
+        },
+        {
+          name: "Perfect Block",
+          desc: `-${
+            GAME_CONSTANTS.PERFECT_BLOCK.UPGRADE_REDUCTION
+          }ms Perfect Block Duration (Current: ${Math.round(
+            this.perfectBlock.duration
+          )}ms)`,
+          type: "perfectBlock" as const,
+        },
+        {
+          name: "Attack Damage",
+          desc: `+${GAME_CONSTANTS.DAMAGE.UPGRADE_INCREMENT} Attack Damage (Current: ${currentAttackDamage})`,
+          type: "attackDamage" as const,
+        },
+      ];
+
+      const optionStartY = instructionsY + 40;
+      const optionSpacing = 70;
+      const optionWidth = 600;
+      const optionLeft = centerX - 300;
+      const optionRight = optionLeft + optionWidth;
+
+      // Set text alignment to left for option text
+      this.ctx.textAlign = "left";
+
+      options.forEach((option, index) => {
+        const y = optionStartY + index * optionSpacing;
+        const isSelected = this.upgrades.selected === option.type;
+
+        const isTouched =
+          this.upgradeMenuTouchY !== null &&
+          this.upgradeMenuTouchY >= y - 35 &&
+          this.upgradeMenuTouchY <= y + 25;
+
+        if (isSelected || isTouched) {
+          this.ctx.fillStyle = isTouched
+            ? "rgba(139, 184, 232, 0.5)"
+            : "rgba(139, 184, 232, 0.3)";
+          this.ctx.fillRect(optionLeft, y - 30, optionWidth, 50);
+        }
+
+        // Option name
+        this.ctx.fillStyle = isSelected ? "#8BB8E8" : "#ffffff";
+        this.ctx.font = `bold ${this.getFontSize(24)} sans-serif`;
+        this.ctx.fillText(option.name, optionLeft + 20, y);
+
+        // Description
+        this.ctx.fillStyle = "#cccccc";
+        this.ctx.font = `${this.getFontSize(18)} sans-serif`;
+        this.ctx.fillText(option.desc, centerX + 50, y);
+      });
+
+      // Current upgrade counts
+      this.ctx.textAlign = "center"; // Reset to center for centered text
+      this.ctx.fillStyle = COLORS.TEXT_DARK_GRAY;
+      this.ctx.font = `${this.getFontSize(16)} sans-serif`;
+      const upgradeCountsY = optionStartY + 4 * optionSpacing + 30;
+      const upgradeText = `Upgrades: Health (${this.upgrades.health}) | Stamina (${this.upgrades.stamina}) | Perfect Block (${this.upgrades.perfectBlock}) | Attack Damage (${this.upgrades.attackDamage})`;
+      this.ctx.fillText(upgradeText, centerX, upgradeCountsY);
+
+      // Enemy difficulty multiplier
+      const nextMultiplier = this.getEnemyMultiplier(
+        this.upgrades.newGamePlusLevel + 1
+      );
+      this.ctx.fillStyle = "#FF6B6B";
+      this.ctx.font = `bold ${this.getFontSize(20)} sans-serif`;
+      const difficultyY = Math.min(
+        upgradeCountsY + 30,
+        this.displayHeight - 20
+      );
+      this.ctx.fillText(
+        `Enemy Difficulty: x${nextMultiplier.toFixed(1)}`,
+        centerX,
+        difficultyY
+      );
+    }
   }
 
   private drawHealthBar(
@@ -3562,41 +3705,86 @@ export class TinySouls {
 
   private handleUpgradeMenuTouch(x: number, y: number): void {
     const centerX = this.displayWidth / 2;
-    const startY = this.displayHeight / 2 - 200;
 
-    // Calculate layout values matching drawUpgradeMenu()
-    const victoryStartY = this.isMobile()
-      ? this.displayHeight / 2 - 120
-      : startY;
-    const instructionsY = this.isMobile()
-      ? victoryStartY + 80
-      : victoryStartY + 120;
-    const optionStartY = this.isMobile() ? instructionsY + 40 : startY + 180;
-    const optionSpacing = this.isMobile() ? 55 : 70;
-    const optionWidth = this.isMobile() ? this.displayWidth - 40 : 600;
-    const optionLeft = this.isMobile() ? 20 : centerX - 300;
-    const optionRight = optionLeft + optionWidth;
+    if (this.isMobile()) {
+      // Mobile layout - match drawUpgradeMenu() calculations
+      const totalContentHeight = 400;
+      const topPadding = 20;
+      const bottomPadding = 20;
+      const availableHeight = this.displayHeight - topPadding - bottomPadding;
+      const startY = topPadding + (availableHeight - totalContentHeight) / 2;
+      const victoryStartY = Math.max(30, startY);
+      const ngPlusY = victoryStartY + 35;
+      const instructionsY = ngPlusY + 30;
+      const optionStartY = instructionsY + 30;
+      const optionSpacing = 45;
+      const leftPadding = 15;
+      const rightPadding = 15;
+      const optionWidth = this.displayWidth - leftPadding - rightPadding;
+      const optionLeft = leftPadding;
+      const optionRight = optionLeft + optionWidth;
 
-    // Check which upgrade option was touched (larger touch area for mobile)
-    for (let i = 0; i < 4; i++) {
-      const optionY = optionStartY + i * optionSpacing;
-      const optionTop = optionY - 35; // Increased touch area
-      const optionBottom = optionY + 25;
+      // Check which upgrade option was touched
+      for (let i = 0; i < 4; i++) {
+        const optionY = optionStartY + i * optionSpacing;
+        const optionTop = optionY - 30; // Match visual highlight area
+        const optionBottom = optionY + 20;
 
-      if (
-        y >= optionTop &&
-        y <= optionBottom &&
-        x >= optionLeft &&
-        x <= optionRight
-      ) {
-        const upgradeTypes: Array<
-          "health" | "stamina" | "perfectBlock" | "attackDamage"
-        > = ["health", "stamina", "perfectBlock", "attackDamage"];
-        this.upgrades.selected = upgradeTypes[i];
-        this.applyUpgrade(upgradeTypes[i]);
-        return;
+        if (
+          y >= optionTop &&
+          y <= optionBottom &&
+          x >= optionLeft &&
+          x <= optionRight
+        ) {
+          const upgradeTypes: Array<
+            "health" | "stamina" | "perfectBlock" | "attackDamage"
+          > = ["health", "stamina", "perfectBlock", "attackDamage"];
+          this.upgrades.selected = upgradeTypes[i];
+          this.applyUpgrade(upgradeTypes[i]);
+          return;
+        }
+      }
+    } else {
+      // Desktop layout - match drawUpgradeMenu() calculations
+      const totalContentHeight = 550;
+      const topPadding = 30;
+      const bottomPadding = 30;
+      const availableHeight = this.displayHeight - topPadding - bottomPadding;
+      const startY = topPadding + (availableHeight - totalContentHeight) / 2;
+      const victoryStartY = Math.max(40, startY);
+      const instructionsY = victoryStartY + 120;
+      const optionStartY = instructionsY + 40;
+      const optionSpacing = 70;
+      const optionWidth = 600;
+      const optionLeft = centerX - 300;
+      const optionRight = optionLeft + optionWidth;
+
+      // Check which upgrade option was touched
+      for (let i = 0; i < 4; i++) {
+        const optionY = optionStartY + i * optionSpacing;
+        const optionTop = optionY - 35;
+        const optionBottom = optionY + 25;
+
+        if (
+          y >= optionTop &&
+          y <= optionBottom &&
+          x >= optionLeft &&
+          x <= optionRight
+        ) {
+          const upgradeTypes: Array<
+            "health" | "stamina" | "perfectBlock" | "attackDamage"
+          > = ["health", "stamina", "perfectBlock", "attackDamage"];
+          this.upgrades.selected = upgradeTypes[i];
+          this.applyUpgrade(upgradeTypes[i]);
+          return;
+        }
       }
     }
+  }
+
+  private handleUpgradeMenuClick(x: number, y: number): void {
+    // Use the same logic as touch handling
+    this.handleUpgradeMenuTouch(x, y);
   }
 
   public setUpgradeMenuTouchY(y: number | null): void {
@@ -3612,5 +3800,6 @@ export class TinySouls {
     this.canvas.removeEventListener("touchend", this.touchendHandler);
     this.canvas.removeEventListener("touchcancel", this.touchcancelHandler);
     this.canvas.removeEventListener("click", this.clickHandler);
+    this.canvas.removeEventListener("mousemove", this.mousemoveHandler);
   }
 }
