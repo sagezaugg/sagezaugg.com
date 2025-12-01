@@ -579,19 +579,7 @@ export class TinySouls {
       if (this.gameStatus === "levelComplete") {
         if (e.code === "Space") {
           e.preventDefault();
-          this.currentLevel++;
-          const missingHealth = this.player.maxHealth - this.player.health;
-          const healAmount =
-            missingHealth * GAME_CONSTANTS.LEVEL.HEALTH_REGEN_RATIO;
-          this.player.health = Math.min(
-            this.player.maxHealth,
-            this.player.health + healAmount
-          );
-          // Reset stamina to max when level changes
-          this.player.stamina = this.player.maxStamina;
-          this.initializeLevel();
-          this.gameStatus = "playing";
-          this.levelCompleteTimer = 0;
+          this.continueFromLevelComplete();
         }
         return;
       }
@@ -641,6 +629,13 @@ export class TinySouls {
       if (this.gameStatus === "intro") {
         e.preventDefault();
         this.gameStatus = "playing";
+        return;
+      }
+      // Handle level complete screen - any click continues
+      if (this.gameStatus === "levelComplete") {
+        e.preventDefault();
+        this.continueFromLevelComplete();
+        return;
       }
     };
 
@@ -983,6 +978,21 @@ export class TinySouls {
     }
     this.initializeLevel();
     this.updateSpearPositions();
+  }
+
+  private continueFromLevelComplete(): void {
+    this.currentLevel++;
+    const missingHealth = this.player.maxHealth - this.player.health;
+    const healAmount = missingHealth * GAME_CONSTANTS.LEVEL.HEALTH_REGEN_RATIO;
+    this.player.health = Math.min(
+      this.player.maxHealth,
+      this.player.health + healAmount
+    );
+    // Reset stamina to max when level changes
+    this.player.stamina = this.player.maxStamina;
+    this.initializeLevel();
+    this.gameStatus = "playing";
+    this.levelCompleteTimer = 0;
   }
 
   private initializeLevel(): void {
@@ -2476,6 +2486,7 @@ export class TinySouls {
     currentY += this.isMobile() ? 35 : 60;
 
     // Description
+    this.ctx.textAlign = "center";
     this.ctx.fillStyle = "#8BB8E8"; // Light blue
     this.ctx.font = `${this.getFontSize(this.isMobile() ? 14 : 18)} sans-serif`;
     const description = this.isMobile()
@@ -2508,6 +2519,7 @@ export class TinySouls {
     }
 
     // Controls section
+    this.ctx.textAlign = "center";
     this.ctx.fillStyle = "#D4AF37"; // Gold
     this.ctx.font = `bold ${this.getFontSize(this.isMobile() ? 20 : 24)} serif`;
     this.ctx.fillText("Controls:", centerX, currentY);
@@ -2515,7 +2527,6 @@ export class TinySouls {
 
     this.ctx.fillStyle = "#8BB8E8"; // Light blue
     this.ctx.font = `${this.getFontSize(this.isMobile() ? 14 : 16)} sans-serif`;
-    this.ctx.textAlign = "center";
 
     // Show mobile controls for mobile, PC controls for desktop
     const controls = this.isMobile()
@@ -2623,17 +2634,16 @@ export class TinySouls {
       );
     }
 
-    // Press space to continue message
+    // Press space/tap to continue message
     const continueY = this.displayHeight / 2 + (this.isMobile() ? 50 : 80);
+    const continueText = this.isMobile()
+      ? "Tap to Continue"
+      : "Press Space to Continue";
     if (this.currentLevel < GAME_CONSTANTS.LEVEL.MAX_LEVEL) {
       this.ctx.fillStyle = COLORS.TEXT_WHITE;
       this.ctx.font = `${this.getFontSize(24)} sans-serif`;
       this.ctx.textAlign = "center";
-      this.ctx.fillText(
-        "Press Space to Continue",
-        this.displayWidth / 2,
-        continueY
-      );
+      this.ctx.fillText(continueText, this.displayWidth / 2, continueY);
     } else {
       this.ctx.fillStyle = COLORS.GOLD;
       this.ctx.font = `bold ${this.getFontSize(28)} sans-serif`;
@@ -2645,11 +2655,7 @@ export class TinySouls {
       );
       this.ctx.fillStyle = COLORS.TEXT_WHITE;
       this.ctx.font = `${this.getFontSize(24)} sans-serif`;
-      this.ctx.fillText(
-        "Press Space to Continue",
-        this.displayWidth / 2,
-        continueY + 30
-      );
+      this.ctx.fillText(continueText, this.displayWidth / 2, continueY + 30);
     }
   }
 
@@ -3439,12 +3445,12 @@ export class TinySouls {
     // Preserve NG+ level and upgrades - don't reset them
     // Only reset current playthrough state
     this.resetGameState(true);
-    this.gameStatus = "playing";
+    this.gameStatus = "intro";
     this.keys.clear();
     this.activeTouches.clear();
     this.isAttackButtonPressed = false;
     this.isBlockButtonPressed = false;
-    this.initializeLevel();
+    // Don't initialize level - return to title screen instead
     this.updateSpearPositions();
     this.start();
   }
@@ -3461,6 +3467,13 @@ export class TinySouls {
       if (this.gameStatus === "intro") {
         e.preventDefault();
         this.gameStatus = "playing";
+        return;
+      }
+
+      // Handle level complete screen - any touch continues
+      if (this.gameStatus === "levelComplete") {
+        e.preventDefault();
+        this.continueFromLevelComplete();
         return;
       }
 
