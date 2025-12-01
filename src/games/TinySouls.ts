@@ -98,10 +98,14 @@ const GAME_CONSTANTS = {
     MAX_LEVEL: 5,
   },
   DEATH_SCREEN: {
+    EXPLOSION_DURATION: 2000, // Duration of explosion animation before showing "YOU DIED"
     FADE_IN_DURATION: 1000,
     HOLD_DURATION: 1500,
     FADE_OUT_DURATION: 1000,
-    TOTAL_DURATION: 3500, // fade in + hold + fade out
+    TOTAL_DURATION: 4500, // explosion + fade in + hold + fade out
+  },
+  ENEMY_DEATH: {
+    EXPLOSION_DURATION: 2000, // Duration of explosion animation before showing victory screen
   },
   SPEAR: {
     MOBILE_TRAVEL_DISTANCE: 150,
@@ -148,6 +152,10 @@ const GAME_CONSTANTS = {
     HIT_FRICTION: 0.98,
     BLOCK_FRICTION: 0.95,
     TRAIL_FRICTION: 0.9,
+    DEATH_EXPLOSION_COUNT: 40,
+    DEATH_EXPLOSION_LIFE: 2000,
+    DEATH_EXPLOSION_SPEED: 3,
+    DEATH_EXPLOSION_FRICTION: 0.98,
   },
   UI: {
     MOBILE_BREAKPOINT: 768,
@@ -237,7 +245,8 @@ type GameStatus =
   | "playerWon"
   | "enemyWon"
   | "upgradeMenu"
-  | "deathScreen";
+  | "deathScreen"
+  | "enemyDeath";
 type UpgradeType = "health" | "stamina" | "perfectBlock" | "attackDamage";
 
 interface Particle {
@@ -338,6 +347,8 @@ interface ParticleSystems {
   block: Particle[];
   perfectBlock: SimpleParticle[];
   attackTrail: Particle[];
+  deathExplosion: Particle[];
+  enemyDeathExplosion: Particle[];
 }
 
 interface GameUI {
@@ -390,6 +401,7 @@ export class TinySouls {
   private currentLevel: number = 1;
   private levelCompleteTimer: number = 0;
   private deathScreenTimer: number = 0;
+  private enemyDeathTimer: number = 0;
   private gameStatus: GameStatus = "intro";
 
   // Grouped state objects
@@ -460,6 +472,8 @@ export class TinySouls {
     block: [],
     perfectBlock: [],
     attackTrail: [],
+    deathExplosion: [],
+    enemyDeathExplosion: [],
   };
 
   private ui: GameUI = {
@@ -558,6 +572,26 @@ export class TinySouls {
           e.preventDefault();
           this.upgrades.selected = upgradeType;
           this.applyUpgrade(upgradeType);
+        }
+        return;
+      }
+
+      if (this.gameStatus === "levelComplete") {
+        if (e.code === "Space") {
+          e.preventDefault();
+          this.currentLevel++;
+          const missingHealth = this.player.maxHealth - this.player.health;
+          const healAmount =
+            missingHealth * GAME_CONSTANTS.LEVEL.HEALTH_REGEN_RATIO;
+          this.player.health = Math.min(
+            this.player.maxHealth,
+            this.player.health + healAmount
+          );
+          // Reset stamina to max when level changes
+          this.player.stamina = this.player.maxStamina;
+          this.initializeLevel();
+          this.gameStatus = "playing";
+          this.levelCompleteTimer = 0;
         }
         return;
       }
@@ -889,6 +923,8 @@ export class TinySouls {
     this.particles.hit = [];
     this.particles.block = [];
     this.particles.attackTrail = [];
+    this.particles.deathExplosion = [];
+    this.particles.enemyDeathExplosion = [];
 
     // Reset UI
     this.ui.damageNumbers = [];
@@ -1250,6 +1286,89 @@ export class TinySouls {
     this.particles.hit.push(...particles);
   }
 
+  private createDeathExplosion(): void {
+    const centerX = this.player.position.x + this.player.size.width / 2;
+    const centerY = this.player.position.y + this.player.size.height / 2;
+    const count = GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_COUNT;
+    const life = GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_LIFE;
+    const speed = GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_SPEED;
+
+    // Clear any existing death explosion particles
+    this.particles.deathExplosion = [];
+
+    // Create explosion particles with varied colors (blue/cyan to represent the player)
+    const colors = [
+      "#8BB8E8",
+      "#00FFFF",
+      "#0080FF",
+      "#4A90E2",
+      "#87CEEB",
+      "#B0E0E6",
+    ];
+
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.8;
+      const particleSpeed = speed * (0.7 + Math.random() * 0.6); // Vary speed
+      const color = colors[Math.floor(Math.random() * colors.length)];
+
+      this.particles.deathExplosion.push({
+        x: centerX + (Math.random() - 0.5) * 10,
+        y: centerY + (Math.random() - 0.5) * 10,
+        vx: Math.cos(angle) * particleSpeed,
+        vy: Math.sin(angle) * particleSpeed,
+        life,
+        maxLife: life,
+        color,
+        size: 4 + Math.random() * 6, // Varied particle sizes (larger for visibility)
+      });
+    }
+  }
+
+  private createEnemyDeathExplosion(): void {
+    const config = this.cachedLevelConfig!;
+    const centerX = this.enemy.position.x + this.enemy.size.width / 2;
+    const centerY = this.enemy.position.y + this.enemy.size.height / 2;
+    const count = GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_COUNT;
+    const life = GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_LIFE;
+    const speed = GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_SPEED;
+
+    // Clear any existing enemy death explosion particles
+    this.particles.enemyDeathExplosion = [];
+
+    // Create explosion particles with enemy's color theme
+    // Use the enemy color and create variations
+    const enemyColorRgb = this.hexToRgb(config.enemyColor);
+    const colors = [
+      config.enemyColor,
+      `rgb(${Math.min(255, enemyColorRgb.r + 30)}, ${Math.min(
+        255,
+        enemyColorRgb.g + 30
+      )}, ${Math.min(255, enemyColorRgb.b + 30)})`,
+      `rgb(${Math.max(0, enemyColorRgb.r - 30)}, ${Math.max(
+        0,
+        enemyColorRgb.g - 30
+      )}, ${Math.max(0, enemyColorRgb.b - 30)})`,
+      `rgba(${enemyColorRgb.r}, ${enemyColorRgb.g}, ${enemyColorRgb.b}, 0.8)`,
+    ];
+
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.8;
+      const particleSpeed = speed * (0.7 + Math.random() * 0.6); // Vary speed
+      const color = colors[Math.floor(Math.random() * colors.length)];
+
+      this.particles.enemyDeathExplosion.push({
+        x: centerX + (Math.random() - 0.5) * 10,
+        y: centerY + (Math.random() - 0.5) * 10,
+        vx: Math.cos(angle) * particleSpeed,
+        vy: Math.sin(angle) * particleSpeed,
+        life,
+        maxLife: life,
+        color,
+        size: 4 + Math.random() * 6, // Varied particle sizes (larger for visibility)
+      });
+    }
+  }
+
   private createBlockParticles(x: number, y: number): void {
     const count = GAME_CONSTANTS.PARTICLES.BLOCK_COUNT;
     const life = GAME_CONSTANTS.PARTICLES.BLOCK_LIFE;
@@ -1320,6 +1439,8 @@ export class TinySouls {
     if (this.player.health <= 0 && this.gameStatus === "playing") {
       this.gameStatus = "deathScreen";
       this.deathScreenTimer = 0;
+      // Create death explosion particles
+      this.createDeathExplosion();
     }
   }
 
@@ -1502,21 +1623,16 @@ export class TinySouls {
       duration: 200,
     });
 
-    if (this.enemy.health <= 0) {
+    if (this.enemy.health <= 0 && this.gameStatus === "playing") {
+      // Create enemy death explosion and delay victory screen
+      this.gameStatus = "enemyDeath";
+      this.enemyDeathTimer = 0;
+      this.createEnemyDeathExplosion();
+
+      // Calculate score bonuses (will be applied after explosion)
       const levelBonus =
         this.currentLevel * GAME_CONSTANTS.SCORE.LEVEL_BONUS_MULTIPLIER;
       this.score.value += Math.floor(levelBonus * this.score.multiplier);
-
-      if (this.currentLevel >= GAME_CONSTANTS.LEVEL.MAX_LEVEL) {
-        this.gameStatus = "upgradeMenu";
-        this.score.value += Math.floor(
-          GAME_CONSTANTS.SCORE.VICTORY_BONUS * this.score.multiplier
-        );
-        this.upgrades.selected = null;
-      } else {
-        this.gameStatus = "levelComplete";
-        this.levelCompleteTimer = GAME_CONSTANTS.LEVEL.COMPLETE_TIMER;
-      }
     }
   }
 
@@ -1631,27 +1747,22 @@ export class TinySouls {
       deltaTime,
       GAME_CONSTANTS.PARTICLES.TRAIL_FRICTION
     );
+
+    this.particles.deathExplosion = this.updateParticles(
+      this.particles.deathExplosion,
+      deltaTime,
+      GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_FRICTION
+    );
+
+    this.particles.enemyDeathExplosion = this.updateParticles(
+      this.particles.enemyDeathExplosion,
+      deltaTime,
+      GAME_CONSTANTS.PARTICLES.DEATH_EXPLOSION_FRICTION
+    );
   }
 
   private updateLevelProgression(deltaTime: number): void {
-    if (this.gameStatus === "levelComplete") {
-      this.levelCompleteTimer -= deltaTime;
-      if (this.levelCompleteTimer <= 0) {
-        this.currentLevel++;
-        const missingHealth = this.player.maxHealth - this.player.health;
-        const healAmount =
-          missingHealth * GAME_CONSTANTS.LEVEL.HEALTH_REGEN_RATIO;
-        this.player.health = Math.min(
-          this.player.maxHealth,
-          this.player.health + healAmount
-        );
-        // Reset stamina to max when level changes
-        this.player.stamina = this.player.maxStamina;
-        this.initializeLevel();
-        this.gameStatus = "playing";
-        this.levelCompleteTimer = 0;
-      }
-    }
+    // Level complete screen now waits for space key press (handled in keydownHandler)
   }
 
   private update(deltaTime: number): void {
@@ -1700,6 +1811,26 @@ export class TinySouls {
       this.deathScreenTimer += deltaTime;
       if (this.deathScreenTimer >= GAME_CONSTANTS.DEATH_SCREEN.TOTAL_DURATION) {
         this.gameStatus = "enemyWon";
+      }
+    }
+
+    // Update enemy death timer
+    if (this.gameStatus === "enemyDeath") {
+      this.enemyDeathTimer += deltaTime;
+      if (
+        this.enemyDeathTimer >= GAME_CONSTANTS.ENEMY_DEATH.EXPLOSION_DURATION
+      ) {
+        // Transition to victory screen after explosion
+        if (this.currentLevel >= GAME_CONSTANTS.LEVEL.MAX_LEVEL) {
+          this.gameStatus = "upgradeMenu";
+          this.score.value += Math.floor(
+            GAME_CONSTANTS.SCORE.VICTORY_BONUS * this.score.multiplier
+          );
+          this.upgrades.selected = null;
+        } else {
+          this.gameStatus = "levelComplete";
+          this.levelCompleteTimer = 0; // No auto-transition, wait for space key
+        }
       }
     }
 
@@ -1976,6 +2107,7 @@ export class TinySouls {
     this.drawSimpleParticles(this.perfectBlock.particles);
     this.drawParticles(this.particles.hit);
     this.drawParticles(this.particles.block);
+    // Note: death explosion particles are drawn after death screen overlay
 
     // Draw attack trail particles with reduced alpha
     this.particles.attackTrail.forEach((particle) => {
@@ -2202,61 +2334,69 @@ export class TinySouls {
         }
       }
 
-      // Draw player
-      this.drawCharacter(
-        this.player.position.x,
-        this.player.position.y,
-        this.player.size.width,
-        this.player.size.height,
-        COLORS.PLAYER,
-        this.player.animation.state,
-        false
-      );
+      // Draw player (hide during entire death screen)
+      const isDead = this.gameStatus === "deathScreen";
 
-      // Draw player spear (always visible, floating)
-      this.drawSpear(
-        this.player.spear.x,
-        this.player.spear.y,
-        this.player.spear.progress,
-        COLORS.PLAYER,
-        false
-      );
+      if (!isDead) {
+        this.drawCharacter(
+          this.player.position.x,
+          this.player.position.y,
+          this.player.size.width,
+          this.player.size.height,
+          COLORS.PLAYER,
+          this.player.animation.state,
+          false
+        );
 
-      // Draw enemy
-      const isStunned = this.enemy.stunTimer > 0;
-      const flashAlpha = isStunned
-        ? Math.sin(this.cachedCurrentTime / 100) * 0.5 + 0.5
-        : 1;
-      const enemyColor = config.enemyColor;
-      const enemyColorRgb = this.hexToRgb(enemyColor);
-
-      // Use animation state, but override with stunned if needed
-      let enemyAnimState = this.enemy.animation.state;
-      if (isStunned) {
-        enemyAnimState = "hit";
+        // Draw player spear (always visible, floating)
+        this.drawSpear(
+          this.player.spear.x,
+          this.player.spear.y,
+          this.player.spear.progress,
+          COLORS.PLAYER,
+          false
+        );
       }
 
-      this.drawCharacter(
-        this.enemy.position.x,
-        this.enemy.position.y,
-        this.enemy.size.width,
-        this.enemy.size.height,
-        isStunned
-          ? `rgba(${enemyColorRgb.r}, ${enemyColorRgb.g}, ${enemyColorRgb.b}, ${flashAlpha})`
-          : enemyColor,
-        enemyAnimState,
-        true // isEnemy = true
-      );
+      // Draw enemy (hide during enemy death explosion)
+      const isEnemyDead = this.gameStatus === "enemyDeath";
 
-      // Draw enemy spear (always visible, floating)
-      if (!isStunned) {
-        this.drawSpear(
-          this.enemy.spear.x,
-          this.enemy.spear.y,
-          this.enemy.spear.progress,
-          enemyColor,
-          true
+      if (!isEnemyDead) {
+        const isStunned = this.enemy.stunTimer > 0;
+        const flashAlpha = isStunned
+          ? Math.sin(this.cachedCurrentTime / 100) * 0.5 + 0.5
+          : 1;
+        const enemyColor = config.enemyColor;
+        const enemyColorRgb = this.hexToRgb(enemyColor);
+
+        // Use animation state, but override with stunned if needed
+        let enemyAnimState = this.enemy.animation.state;
+        if (isStunned) {
+          enemyAnimState = "hit";
+        }
+
+        this.drawCharacter(
+          this.enemy.position.x,
+          this.enemy.position.y,
+          this.enemy.size.width,
+          this.enemy.size.height,
+          isStunned
+            ? `rgba(${enemyColorRgb.r}, ${enemyColorRgb.g}, ${enemyColorRgb.b}, ${flashAlpha})`
+            : enemyColor,
+          enemyAnimState,
+          true // isEnemy = true
         );
+
+        // Draw enemy spear (always visible, floating)
+        if (!isStunned) {
+          this.drawSpear(
+            this.enemy.spear.x,
+            this.enemy.spear.y,
+            this.enemy.spear.progress,
+            enemyColor,
+            true
+          );
+        }
       }
 
       // Draw perfect block effect
@@ -2283,6 +2423,11 @@ export class TinySouls {
       this.drawUpgradeMenu();
     } else if (this.gameStatus === "deathScreen") {
       this.drawDeathScreen();
+      // Draw death explosion particles on top of death screen overlay
+      this.drawParticles(this.particles.deathExplosion);
+    } else if (this.gameStatus === "enemyDeath") {
+      // Draw enemy death explosion particles
+      this.drawParticles(this.particles.enemyDeathExplosion);
     } else if (this.gameStatus === "playerWon") {
       this.drawGameOver("Victory!", "#8BB8E8");
     } else if (this.gameStatus === "enemyWon") {
@@ -2432,7 +2577,8 @@ export class TinySouls {
   }
 
   private drawLevelComplete(): void {
-    this.ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+    // Fully opaque background
+    this.ctx.fillStyle = "rgba(0, 0, 0, 1)";
     this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
     const config = this.cachedLevelConfig!;
@@ -2477,21 +2623,32 @@ export class TinySouls {
       );
     }
 
+    // Press space to continue message
+    const continueY = this.displayHeight / 2 + (this.isMobile() ? 50 : 80);
     if (this.currentLevel < GAME_CONSTANTS.LEVEL.MAX_LEVEL) {
       this.ctx.fillStyle = COLORS.TEXT_WHITE;
       this.ctx.font = `${this.getFontSize(24)} sans-serif`;
+      this.ctx.textAlign = "center";
       this.ctx.fillText(
-        "Preparing next level...",
+        "Press Space to Continue",
         this.displayWidth / 2,
-        this.displayHeight / 2 + (this.isMobile() ? 50 : 80)
+        continueY
       );
     } else {
       this.ctx.fillStyle = COLORS.GOLD;
       this.ctx.font = `bold ${this.getFontSize(28)} sans-serif`;
+      this.ctx.textAlign = "center";
       this.ctx.fillText(
         "All Levels Complete!",
         this.displayWidth / 2,
-        this.displayHeight / 2 + (this.isMobile() ? 50 : 80)
+        continueY - 30
+      );
+      this.ctx.fillStyle = COLORS.TEXT_WHITE;
+      this.ctx.font = `${this.getFontSize(24)} sans-serif`;
+      this.ctx.fillText(
+        "Press Space to Continue",
+        this.displayWidth / 2,
+        continueY + 30
       );
     }
   }
@@ -2949,18 +3106,31 @@ export class TinySouls {
   }
 
   private drawDeathScreen(): void {
+    const explosionDuration = GAME_CONSTANTS.DEATH_SCREEN.EXPLOSION_DURATION;
     const fadeInDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_IN_DURATION;
     const holdDuration = GAME_CONSTANTS.DEATH_SCREEN.HOLD_DURATION;
     const fadeOutDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_OUT_DURATION;
 
+    // During explosion phase, only show particles (no overlay or text)
+    if (this.deathScreenTimer < explosionDuration) {
+      // Draw a subtle darkening overlay that gradually increases
+      const explosionProgress = this.deathScreenTimer / explosionDuration;
+      const overlayAlpha = explosionProgress * 0.3; // Subtle darkening during explosion
+      this.ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
+      this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+      return; // Don't show "YOU DIED" text during explosion
+    }
+
+    // After explosion, show the "YOU DIED" screen
+    const textTimer = this.deathScreenTimer - explosionDuration;
     let overlayAlpha = 0;
     let textAlpha = 0;
 
-    if (this.deathScreenTimer < fadeInDuration) {
+    if (textTimer < fadeInDuration) {
       // Fade in phase - both overlay and text fade in
-      overlayAlpha = this.deathScreenTimer / fadeInDuration;
+      overlayAlpha = textTimer / fadeInDuration;
       textAlpha = overlayAlpha;
-    } else if (this.deathScreenTimer < fadeInDuration + holdDuration) {
+    } else if (textTimer < fadeInDuration + holdDuration) {
       // Hold phase - both stay at full opacity
       overlayAlpha = 1;
       textAlpha = 1;
@@ -2968,13 +3138,12 @@ export class TinySouls {
       // Fade out phase - only text fades out, overlay stays visible
       overlayAlpha = 1; // Keep overlay at full opacity
       const fadeOutProgress =
-        (this.deathScreenTimer - fadeInDuration - holdDuration) /
-        fadeOutDuration;
+        (textTimer - fadeInDuration - holdDuration) / fadeOutDuration;
       textAlpha = 1 - fadeOutProgress; // Only text fades out
     }
 
-    // Draw dark overlay (stays visible after fade-in)
-    this.ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha * 0.9})`;
+    // Draw dark overlay (stays visible after fade-in) - fully opaque
+    this.ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
     this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
     // Draw "YOU DIED" text in red (fades out)
@@ -2997,7 +3166,7 @@ export class TinySouls {
   }
 
   private drawGameOver(text: string, color: string): void {
-    this.ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+    this.ctx.fillStyle = "rgba(0, 0, 0, 1)"; // Fully opaque background
     this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
     // Title
