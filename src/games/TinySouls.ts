@@ -49,6 +49,7 @@ const LEVEL_CONFIGS: LevelConfig[] = [
 ];
 
 const GAME_CONSTANTS = {
+  UPGRADE_INCREMENT: 20,
   STAMINA: {
     REGEN_RATE: 25,
     ATTACK_COST: 30,
@@ -57,13 +58,13 @@ const GAME_CONSTANTS = {
   },
   HEALTH: {
     BASE_MAX: 100,
-    UPGRADE_INCREMENT: 20,
   },
   ANIMATION: {
     PLAYER_SPEAR_DURATION: 400,
     ENEMY_ATTACK_RATIO: 0.4,
     HIT_DURATION: 300,
     DAMAGE_CONNECT_POINT: 0.6,
+    DAMAGE_CONNECT_THRESHOLD: 0.01,
   },
   PERFECT_BLOCK: {
     WINDOW_START: 0.85,
@@ -101,6 +102,9 @@ const GAME_CONSTANTS = {
     MOBILE_TIP_LENGTH: 12,
     DESKTOP_TIP_LENGTH: 15,
     OFFSET_FROM_CHARACTER: 20,
+    COLOR_TRANSITION_START: 0.6,
+    COLOR_TRANSITION_RANGE: 0.4,
+    COLOR_ORANGE_TO_RED_THRESHOLD: 0.5,
   },
   CHARACTER: {
     WIDTH: 60,
@@ -492,6 +496,9 @@ export class TinySouls {
   // Cached values for performance
   private rgbCache: Map<string, { r: number; g: number; b: number }> =
     new Map();
+  private cachedCurrentTime: number = 0;
+  private cachedLevelConfig: LevelConfig | null = null;
+  private cachedIsMobile: boolean = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -747,6 +754,40 @@ export class TinySouls {
     );
   }
 
+  private getPlayerDamage(): number {
+    return (
+      this.upgrades.basePlayerDamage +
+      this.upgrades.attackDamage * GAME_CONSTANTS.DAMAGE.UPGRADE_INCREMENT
+    );
+  }
+
+  private formatUpgradeText(): string {
+    const upgradeText = [
+      this.upgrades.health > 0
+        ? `Health: +${this.upgrades.health * GAME_CONSTANTS.UPGRADE_INCREMENT}`
+        : null,
+      this.upgrades.stamina > 0
+        ? `Stamina: +${
+            this.upgrades.stamina * GAME_CONSTANTS.UPGRADE_INCREMENT
+          }`
+        : null,
+      this.upgrades.perfectBlock > 0
+        ? `Perfect Block: -${
+            this.upgrades.perfectBlock *
+            GAME_CONSTANTS.PERFECT_BLOCK.UPGRADE_REDUCTION
+          }ms`
+        : null,
+      this.upgrades.attackDamage > 0
+        ? `Attack Damage: +${
+            this.upgrades.attackDamage * GAME_CONSTANTS.DAMAGE.UPGRADE_INCREMENT
+          }`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(this.isMobile() ? " | " : " | ");
+    return upgradeText;
+  }
+
   private getCurrentLevelConfig(): LevelConfig {
     const levelIndex = Math.min(
       this.currentLevel - 1,
@@ -771,10 +812,10 @@ export class TinySouls {
     if (!preserveUpgrades) {
       this.player.maxHealth =
         this.upgrades.baseMaxHealth +
-        this.upgrades.health * GAME_CONSTANTS.HEALTH.UPGRADE_INCREMENT;
+        this.upgrades.health * GAME_CONSTANTS.UPGRADE_INCREMENT;
       this.player.maxStamina =
         this.upgrades.baseMaxStamina +
-        this.upgrades.stamina * GAME_CONSTANTS.HEALTH.UPGRADE_INCREMENT;
+        this.upgrades.stamina * GAME_CONSTANTS.UPGRADE_INCREMENT;
     }
     this.player.health = this.player.maxHealth;
     this.player.stamina = this.player.maxStamina;
@@ -844,7 +885,7 @@ export class TinySouls {
   }
 
   private applyUpgrade(upgradeType: UpgradeType): void {
-    const increment = GAME_CONSTANTS.HEALTH.UPGRADE_INCREMENT;
+    const increment = GAME_CONSTANTS.UPGRADE_INCREMENT;
 
     if (upgradeType === "health") {
       this.upgrades.health++;
@@ -1393,14 +1434,13 @@ export class TinySouls {
       this.updatePlayerSpearPosition();
 
       const connectPoint = GAME_CONSTANTS.ANIMATION.DAMAGE_CONNECT_POINT;
+      const connectThreshold =
+        GAME_CONSTANTS.ANIMATION.DAMAGE_CONNECT_THRESHOLD;
       if (
         this.player.spear.progress >= connectPoint &&
-        this.player.spear.progress < connectPoint + 0.01
+        this.player.spear.progress < connectPoint + connectThreshold
       ) {
-        const damage =
-          this.upgrades.basePlayerDamage +
-          this.upgrades.attackDamage * GAME_CONSTANTS.DAMAGE.UPGRADE_INCREMENT;
-        this.dealDamageToEnemy(damage);
+        this.dealDamageToEnemy(this.getPlayerDamage());
       }
 
       if (this.player.spear.progress >= 1) {
@@ -1516,8 +1556,10 @@ export class TinySouls {
     // Update screen shake
     const shake = this.ui.screenShake;
     if (shake.intensity > 0) {
-      shake.offsetX = (Math.random() - 0.5) * shake.intensity;
-      shake.offsetY = (Math.random() - 0.5) * shake.intensity;
+      const angle = Math.random() * Math.PI * 2;
+      const magnitude = shake.intensity;
+      shake.offsetX = Math.cos(angle) * magnitude;
+      shake.offsetY = Math.sin(angle) * magnitude;
       shake.intensity *= GAME_CONSTANTS.SCREEN_SHAKE.DECAY;
       if (shake.intensity < GAME_CONSTANTS.SCREEN_SHAKE.MIN_INTENSITY) {
         shake.intensity = 0;
@@ -1590,13 +1632,17 @@ export class TinySouls {
     let spearColor = color;
     if (isEnemy && progress > 0) {
       // Use enemy's base color during wind-up, then transition to warning colors
-      if (progress < 0.6) {
+      const transitionStart = GAME_CONSTANTS.SPEAR.COLOR_TRANSITION_START;
+      if (progress < transitionStart) {
         // Wind-up: use enemy's base color
         spearColor = color;
       } else {
         // Strike: transition from enemy color -> orange -> red
-        const strikeProgress = (progress - 0.6) / 0.4;
-        if (strikeProgress < 0.5) {
+        const transitionRange = GAME_CONSTANTS.SPEAR.COLOR_TRANSITION_RANGE;
+        const strikeProgress = (progress - transitionStart) / transitionRange;
+        const orangeToRedThreshold =
+          GAME_CONSTANTS.SPEAR.COLOR_ORANGE_TO_RED_THRESHOLD;
+        if (strikeProgress < orangeToRedThreshold) {
           spearColor = "#FF8C00"; // Orange
         } else {
           spearColor = "#FF4500"; // Red
@@ -1805,7 +1851,7 @@ export class TinySouls {
 
     if (inWindow) {
       // Pulsing effect
-      const pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
+      const pulse = Math.sin(this.cachedCurrentTime / 100) * 0.3 + 0.7;
       this.ctx.globalAlpha = pulse;
       this.ctx.fillRect(zoneX, indicatorY, zoneWidth, indicatorHeight);
       this.ctx.globalAlpha = 1;
@@ -1827,6 +1873,11 @@ export class TinySouls {
   }
 
   private render(): void {
+    // Cache expensive operations for this frame
+    this.cachedCurrentTime = Date.now();
+    this.cachedLevelConfig = this.getCurrentLevelConfig();
+    this.cachedIsMobile = this.isMobile();
+
     // Apply camera offset for screen shake
     this.ctx.save();
     this.ctx.translate(
@@ -1884,7 +1935,7 @@ export class TinySouls {
       }
 
       // Draw health bars
-      const config = this.getCurrentLevelConfig();
+      const config = this.cachedLevelConfig!;
 
       if (this.isMobile()) {
         // Portrait mode: stack health bars vertically, centered
@@ -1981,7 +2032,9 @@ export class TinySouls {
 
       // Draw enemy
       const isStunned = this.enemy.stunTimer > 0;
-      const flashAlpha = isStunned ? Math.sin(Date.now() / 100) * 0.5 + 0.5 : 1;
+      const flashAlpha = isStunned
+        ? Math.sin(this.cachedCurrentTime / 100) * 0.5 + 0.5
+        : 1;
       const enemyColor = config.enemyColor;
       const enemyColorRgb = this.hexToRgb(enemyColor);
 
@@ -2039,7 +2092,7 @@ export class TinySouls {
     } else if (this.gameStatus === "playerWon") {
       this.drawGameOver("Victory!", "#8BB8E8");
     } else if (this.gameStatus === "enemyWon") {
-      const config = this.getCurrentLevelConfig();
+      const config = this.cachedLevelConfig!;
       this.drawGameOver(`Defeated by ${config.enemyName}!`, config.enemyColor);
     }
 
@@ -2188,7 +2241,7 @@ export class TinySouls {
     this.ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
     this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
-    const config = this.getCurrentLevelConfig();
+    const config = this.cachedLevelConfig!;
 
     // Level complete title
     const titleY = this.getMobileValue(
@@ -2291,20 +2344,18 @@ export class TinySouls {
     this.ctx.fillText(instructionText, centerX, instructionsY);
 
     // Upgrade options
-    const currentAttackDamage =
-      this.upgrades.basePlayerDamage +
-      this.upgrades.attackDamage * GAME_CONSTANTS.DAMAGE.UPGRADE_INCREMENT;
+    const currentAttackDamage = this.getPlayerDamage();
     const options = [
       {
         key: "1",
         name: "Health",
-        desc: `+${GAME_CONSTANTS.HEALTH.UPGRADE_INCREMENT} Max Health (Current: ${this.player.maxHealth})`,
+        desc: `+${GAME_CONSTANTS.UPGRADE_INCREMENT} Max Health (Current: ${this.player.maxHealth})`,
         type: "health" as const,
       },
       {
         key: "2",
         name: "Stamina",
-        desc: `+${GAME_CONSTANTS.HEALTH.UPGRADE_INCREMENT} Max Stamina (Current: ${this.player.maxStamina})`,
+        desc: `+${GAME_CONSTANTS.UPGRADE_INCREMENT} Max Stamina (Current: ${this.player.maxStamina})`,
         type: "stamina" as const,
       },
       {
@@ -2441,7 +2492,7 @@ export class TinySouls {
 
     // Low health pulsing effect
     if (percentage < 0.3) {
-      const pulse = Math.sin(Date.now() / 300) * 0.2 + 0.8;
+      const pulse = Math.sin(this.cachedCurrentTime / 300) * 0.2 + 0.8;
       this.ctx.fillStyle = `rgba(255, 255, 255, ${pulse * 0.2})`;
       this.ctx.fillRect(x + 2, y + 2, (width - 4) * percentage, height - 4);
     }
@@ -2503,7 +2554,7 @@ export class TinySouls {
 
     // Low stamina pulsing effect
     if (percentage < 0.3) {
-      const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+      const pulse = Math.sin(this.cachedCurrentTime / 200) * 0.3 + 0.7;
       this.ctx.fillStyle = `rgba(255, 0, 0, ${pulse * 0.3})`;
       this.ctx.fillRect(x + 2, y + 2, (width - 4) * percentage, height - 4);
     }
@@ -2574,7 +2625,7 @@ export class TinySouls {
       case "idle":
       default:
         // Subtle idle animation (breathing)
-        const idleScale = 1 + Math.sin(Date.now() / 1000) * 0.02;
+        const idleScale = 1 + Math.sin(this.cachedCurrentTime / 1000) * 0.02;
         scaleX = idleScale;
         scaleY = idleScale;
         break;
@@ -2615,7 +2666,7 @@ export class TinySouls {
       this.ctx.fillRect(shieldX, y - height / 2, 10, height);
     } else if (animationState === "hit") {
       // Flash effect
-      const flashAlpha = Math.sin(Date.now() / 50) * 0.5 + 0.5;
+      const flashAlpha = Math.sin(this.cachedCurrentTime / 50) * 0.5 + 0.5;
       this.ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.5})`;
       this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
     }
@@ -2657,7 +2708,7 @@ export class TinySouls {
     if (type === "player") {
       this.ctx.fillStyle = `rgba(139, 184, 232, ${alpha})`;
     } else {
-      const config = this.getCurrentLevelConfig();
+      const config = this.cachedLevelConfig!;
       const enemyColorRgb = this.hexToRgb(config.enemyColor);
       this.ctx.fillStyle = `rgba(${enemyColorRgb.r}, ${enemyColorRgb.g}, ${enemyColorRgb.b}, ${alpha})`;
     }
@@ -2679,7 +2730,7 @@ export class TinySouls {
         this.ctx.fillStyle = "#8BB8E8";
         this.ctx.strokeStyle = "#4A6FA5";
       } else {
-        const config = this.getCurrentLevelConfig();
+        const config = this.cachedLevelConfig!;
         this.ctx.fillStyle = config.enemyColor;
         const enemyColorRgb = this.hexToRgb(config.enemyColor);
         this.ctx.strokeStyle = `rgb(${Math.max(
@@ -2751,32 +2802,7 @@ export class TinySouls {
       this.ctx.fillText("Upgrades:", this.displayWidth / 2, upgradeLabelY);
       this.ctx.fillStyle = COLORS.TEXT_WHITE;
       this.ctx.font = `${this.getFontSize(18)} sans-serif`;
-      const upgradeText = [
-        this.upgrades.health > 0
-          ? `Health: +${
-              this.upgrades.health * GAME_CONSTANTS.HEALTH.UPGRADE_INCREMENT
-            }`
-          : null,
-        this.upgrades.stamina > 0
-          ? `Stamina: +${
-              this.upgrades.stamina * GAME_CONSTANTS.HEALTH.UPGRADE_INCREMENT
-            }`
-          : null,
-        this.upgrades.perfectBlock > 0
-          ? `Perfect Block: -${
-              this.upgrades.perfectBlock *
-              GAME_CONSTANTS.PERFECT_BLOCK.UPGRADE_REDUCTION
-            }ms`
-          : null,
-        this.upgrades.attackDamage > 0
-          ? `Attack Damage: +${
-              this.upgrades.attackDamage *
-              GAME_CONSTANTS.DAMAGE.UPGRADE_INCREMENT
-            }`
-          : null,
-      ]
-        .filter(Boolean)
-        .join(this.isMobile() ? " | " : " | ");
+      const upgradeText = this.formatUpgradeText();
       this.ctx.fillText(
         upgradeText,
         this.displayWidth / 2,
