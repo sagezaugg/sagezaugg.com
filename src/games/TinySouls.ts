@@ -3800,7 +3800,6 @@ export class TinySouls {
       const optionSpacing = 70;
       const optionWidth = 600;
       const optionLeft = centerX - 300;
-      const optionRight = optionLeft + optionWidth;
 
       // Set text alignment to left for option text
       this.ctx.textAlign = "left";
