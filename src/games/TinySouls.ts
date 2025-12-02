@@ -4536,7 +4536,7 @@ export class TinySouls {
             if (alpha > 0) {
               // Blend enemy color with existing pixel color
               // Use a weighted average for tinting
-              const blendFactor = 0.5;
+              const blendFactor = 0.2;
               data[i] = Math.min(
                 255,
                 data[i] * (1 - blendFactor) + enemyColorRgb.r * blendFactor
