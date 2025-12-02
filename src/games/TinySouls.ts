@@ -94,6 +94,23 @@ const GAME_CONSTANTS = {
     VICTORY_BONUS: 5000,
     MAX_MULTIPLIER: 3.0,
   },
+  GOLD: {
+    BASE_PER_LEVEL: 10,
+    VICTORY_BONUS_MULTIPLIER: 0,
+    NG_PLUS_BONUS_BASE: 50,
+  },
+  UPGRADE_COSTS: {
+    HEALTH: 100,
+    STAMINA: 100,
+    PERFECT_BLOCK: 150,
+    ATTACK_DAMAGE: 120,
+    STAMINA_REGEN: 200,
+    ATTACK_SPEED: 180,
+    BLOCK_EFFICIENCY: 150,
+    PERFECT_BLOCK_WINDOW: 250,
+    GOLD_FIND: 300,
+    STARTING_HEALTH: 100,
+  },
   LEVEL: {
     COMPLETE_TIMER: 2000,
     HEALTH_REGEN_RATIO: 0.5,
@@ -136,12 +153,12 @@ const GAME_CONSTANTS = {
     COLOR_ORANGE_TO_RED_THRESHOLD: 0.5,
   },
   CHARACTER: {
-    WIDTH: 60,
-    HEIGHT: 80,
+    WIDTH: 90,
+    HEIGHT: 120,
     MOBILE_PLAYER_Y_RATIO: 0.4,
     MOBILE_ENEMY_Y_RATIO: 0.7,
-    DESKTOP_X_RATIO: 0.2,
-    DESKTOP_ENEMY_X_RATIO: 0.8,
+    DESKTOP_X_RATIO: 0.23,
+    DESKTOP_ENEMY_X_RATIO: 0.77,
   },
   SCREEN_SHAKE: {
     DECAY: 0.9,
@@ -264,8 +281,20 @@ type GameStatus =
   | "deathScreen"
   | "enemyDeath"
   | "enemyVanquished"
-  | "level5Victory";
+  | "level5Victory"
+  | "upgradesShop";
 type UpgradeType = "health" | "stamina" | "perfectBlock" | "attackDamage";
+type PermanentUpgradeType =
+  | "health"
+  | "stamina"
+  | "perfectBlock"
+  | "attackDamage"
+  | "staminaRegen"
+  | "attackSpeed"
+  | "blockEfficiency"
+  | "perfectBlockWindow"
+  | "goldFind"
+  | "startingHealth";
 
 interface Particle {
   x: number;
@@ -381,15 +410,27 @@ interface GameUI {
 
 interface UpgradeState {
   newGamePlusLevel: number;
+  gold: number;
   health: number;
   stamina: number;
   perfectBlock: number;
   attackDamage: number;
+  staminaRegen: number;
+  attackSpeed: number;
+  blockEfficiency: number;
+  perfectBlockWindow: number;
+  goldFind: number;
+  startingHealth: number;
   selected: UpgradeType | null;
   baseMaxHealth: number;
   baseMaxStamina: number;
   basePerfectBlockDuration: number;
   basePlayerDamage: number;
+  baseStaminaRegenRate: number;
+  baseAttackCooldown: number;
+  baseBlockReduction: number;
+  basePerfectBlockWindowStart: number;
+  basePerfectBlockWindowEnd: number;
 }
 
 interface GameStats {
@@ -419,10 +460,13 @@ export class TinySouls {
   private currentLevel: number = 1;
   private levelCompleteTimer: number = 0;
   private deathScreenTimer: number = 0;
+  private deathScreenWaitingForInput: boolean = false;
   private enemyDeathTimer: number = 0;
   private enemyVanquishedTimer: number = 0;
   private level5VictoryTimer: number = 0;
   private gameStatus: GameStatus = "startScreen";
+  private lastGoldEarned: number = 0;
+  private lastNgPlusGoldEarned: number = 0;
 
   // Grouped state objects
   private player: PlayerState = {
@@ -508,15 +552,27 @@ export class TinySouls {
 
   private upgrades: UpgradeState = {
     newGamePlusLevel: 0,
+    gold: 0,
     health: 0,
     stamina: 0,
     perfectBlock: 0,
     attackDamage: 0,
+    staminaRegen: 0,
+    attackSpeed: 0,
+    blockEfficiency: 0,
+    perfectBlockWindow: 0,
+    goldFind: 0,
+    startingHealth: 0,
     selected: null,
     baseMaxHealth: GAME_CONSTANTS.HEALTH.BASE_MAX,
     baseMaxStamina: GAME_CONSTANTS.STAMINA.BASE_MAX,
     basePerfectBlockDuration: GAME_CONSTANTS.PERFECT_BLOCK.BASE_DURATION,
     basePlayerDamage: GAME_CONSTANTS.DAMAGE.BASE_PLAYER,
+    baseStaminaRegenRate: GAME_CONSTANTS.STAMINA.REGEN_RATE,
+    baseAttackCooldown: GAME_CONSTANTS.COOLDOWN.ATTACK,
+    baseBlockReduction: GAME_CONSTANTS.DAMAGE.BLOCK_REDUCTION,
+    basePerfectBlockWindowStart: GAME_CONSTANTS.PERFECT_BLOCK.WINDOW_START,
+    basePerfectBlockWindowEnd: GAME_CONSTANTS.PERFECT_BLOCK.WINDOW_END,
   };
 
   private score: { value: number; multiplier: number } = {
@@ -539,6 +595,7 @@ export class TinySouls {
   private isBlockButtonPressed: boolean = false;
   private upgradeMenuTouchY: number | null = null;
   private wasSpaceHeld: boolean = false;
+  private upgradesShopScrollStartY: number | null = null;
 
   // Event handlers for cleanup
   private resizeHandler: () => void;
@@ -547,8 +604,10 @@ export class TinySouls {
   private touchstartHandler: (e: TouchEvent) => void;
   private touchendHandler: (e: TouchEvent) => void;
   private touchcancelHandler: (e: TouchEvent) => void;
+  private touchmoveHandler: (e: TouchEvent) => void;
   private clickHandler: (e: MouseEvent) => void;
   private mousemoveHandler: (e: MouseEvent) => void;
+  private wheelHandler: (e: WheelEvent) => void;
 
   // Cached values for performance
   private rgbCache: Map<string, { r: number; g: number; b: number }> =
@@ -562,6 +621,14 @@ export class TinySouls {
 
   // Logo and intro screen state
   private logoImage: HTMLImageElement | null = null;
+  private backgroundImage: HTMLImageElement | null = null;
+
+  // Player sprite images
+  private playerIdleImage: HTMLImageElement | null = null;
+  private playerAttackImage: HTMLImageElement | null = null;
+  private playerBlockImage: HTMLImageElement | null = null;
+  private playerHitImage: HTMLImageElement | null = null;
+
   private logoFadeProgress: number = 0;
   private logoFadeDuration: number = 1500;
   private logoFadeStartTime: number = 0;
@@ -575,12 +642,25 @@ export class TinySouls {
   private buttonPressState: {
     start: boolean;
     controls: boolean;
+    upgrades: boolean;
     back: boolean;
   } = {
     start: false,
     controls: false,
+    upgrades: false,
     back: false,
   };
+  private upgradesShopScrollOffset: number = 0;
+
+  // Fog effect for title screen
+  private fogParticles: Array<{
+    x: number;
+    y: number;
+    radius: number;
+    speed: number;
+    opacity: number;
+    baseOpacity: number;
+  }> = [];
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -664,6 +744,9 @@ export class TinySouls {
       e.preventDefault();
       this.handleTouchEnd(e);
     };
+    this.touchmoveHandler = (e: TouchEvent) => {
+      this.handleTouchMove(e);
+    };
     this.clickHandler = (e: MouseEvent) => {
       const rect = this.canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -694,6 +777,21 @@ export class TinySouls {
         }
       }
 
+      // Handle death screen - click to return to title screen
+      if (
+        this.gameStatus === "deathScreen" &&
+        this.deathScreenWaitingForInput
+      ) {
+        e.preventDefault();
+        const oldStatus = this.gameStatus;
+        // Save game data before returning to intro
+        this.saveGameData();
+        // Return to intro screen so player can access upgrades menu
+        this.gameStatus = "intro";
+        this.deathScreenWaitingForInput = false;
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
+        return;
+      }
       // Handle level complete screen - any click continues
       if (this.gameStatus === "levelComplete") {
         e.preventDefault();
@@ -705,6 +803,12 @@ export class TinySouls {
         this.handleUpgradeMenuClick(x, y);
         return;
       }
+      // Handle upgrades shop - click to purchase upgrades
+      if (this.gameStatus === "upgradesShop") {
+        e.preventDefault();
+        this.handleUpgradesShopClick(x, y);
+        return;
+      }
     };
 
     // Set canvas size
@@ -713,6 +817,10 @@ export class TinySouls {
 
     // Load logo image
     this.loadLogo();
+    // Load background image
+    this.loadBackground();
+    // Load player sprites
+    this.loadPlayerSprites();
 
     // Keyboard event listeners
     window.addEventListener("keydown", this.keydownHandler);
@@ -728,18 +836,39 @@ export class TinySouls {
     this.canvas.addEventListener("touchcancel", this.touchcancelHandler, {
       passive: false,
     });
+    this.canvas.addEventListener("touchmove", this.touchmoveHandler, {
+      passive: false,
+    });
 
     // Click event listener
     this.canvas.addEventListener("click", this.clickHandler);
 
-    // Mouse move handler for hover feedback on upgrade menu
+    // Mouse move handler for hover feedback on upgrade menu and button press states
     this.mousemoveHandler = (e: MouseEvent) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
       if (this.gameStatus === "upgradeMenu") {
-        const rect = this.canvas.getBoundingClientRect();
-        const y = e.clientY - rect.top;
         this.setUpgradeMenuTouchY(y);
       } else {
         this.setUpgradeMenuTouchY(null);
+      }
+
+      // Handle button press states for intro screen
+      if (this.gameStatus === "intro") {
+        this.updateIntroButtonPressStates(x, y);
+      } else {
+        this.buttonPressState.start = false;
+        this.buttonPressState.controls = false;
+        this.buttonPressState.upgrades = false;
+      }
+
+      // Handle button press state for upgrades shop
+      if (this.gameStatus === "upgradesShop") {
+        this.updateUpgradesShopButtonPressState(x, y);
+      } else {
+        this.buttonPressState.back = false;
       }
     };
     this.canvas.addEventListener("mousemove", this.mousemoveHandler);
@@ -747,8 +876,130 @@ export class TinySouls {
       this.setUpgradeMenuTouchY(null);
     });
 
+    // Wheel event handler for scrolling in upgrades shop
+    this.wheelHandler = (e: WheelEvent) => {
+      if (this.gameStatus === "upgradesShop") {
+        e.preventDefault();
+        const scrollSpeed = 3;
+        const maxVisible = this.isMobile() ? 8 : 10;
+        const maxScroll = Math.max(0, 10 - maxVisible);
+        this.upgradesShopScrollOffset = Math.max(
+          0,
+          Math.min(
+            maxScroll,
+            this.upgradesShopScrollOffset -
+              (e.deltaY > 0 ? scrollSpeed : -scrollSpeed)
+          )
+        );
+      }
+    };
+    this.canvas.addEventListener("wheel", this.wheelHandler, {
+      passive: false,
+    });
+
     // Initialize level
     this.initializeLevel();
+
+    // Load saved game data
+    this.loadGameData();
+  }
+
+  // ============================================================================
+  // SAVE/LOAD SYSTEM
+  // ============================================================================
+
+  private saveGameData(): void {
+    try {
+      const saveData = {
+        gold: this.upgrades.gold,
+        upgrades: {
+          health: this.upgrades.health,
+          stamina: this.upgrades.stamina,
+          perfectBlock: this.upgrades.perfectBlock,
+          attackDamage: this.upgrades.attackDamage,
+          staminaRegen: this.upgrades.staminaRegen,
+          attackSpeed: this.upgrades.attackSpeed,
+          blockEfficiency: this.upgrades.blockEfficiency,
+          perfectBlockWindow: this.upgrades.perfectBlockWindow,
+          goldFind: this.upgrades.goldFind,
+          startingHealth: this.upgrades.startingHealth,
+        },
+        newGamePlusLevel: this.upgrades.newGamePlusLevel,
+      };
+      localStorage.setItem("tinySouls_save", JSON.stringify(saveData));
+    } catch (error) {
+      console.warn("Failed to save game data:", error);
+    }
+  }
+
+  private loadGameData(): void {
+    try {
+      const savedData = localStorage.getItem("tinySouls_save");
+      if (savedData) {
+        const data = JSON.parse(savedData);
+        if (data.gold !== undefined) {
+          this.upgrades.gold = data.gold;
+        }
+        if (data.newGamePlusLevel !== undefined) {
+          this.upgrades.newGamePlusLevel = data.newGamePlusLevel;
+        }
+        if (data.upgrades) {
+          this.upgrades.health = data.upgrades.health || 0;
+          this.upgrades.stamina = data.upgrades.stamina || 0;
+          this.upgrades.perfectBlock = data.upgrades.perfectBlock || 0;
+          this.upgrades.attackDamage = data.upgrades.attackDamage || 0;
+          this.upgrades.staminaRegen = data.upgrades.staminaRegen || 0;
+          this.upgrades.attackSpeed = data.upgrades.attackSpeed || 0;
+          this.upgrades.blockEfficiency = data.upgrades.blockEfficiency || 0;
+          this.upgrades.perfectBlockWindow =
+            data.upgrades.perfectBlockWindow || 0;
+          this.upgrades.goldFind = data.upgrades.goldFind || 0;
+          this.upgrades.startingHealth = data.upgrades.startingHealth || 0;
+        }
+        // Apply loaded upgrades to player stats
+        this.applyAllPermanentUpgrades();
+      }
+    } catch (error) {
+      console.warn("Failed to load game data:", error);
+    }
+  }
+
+  private applyAllPermanentUpgrades(): void {
+    // Apply health upgrade
+    this.player.maxHealth =
+      this.upgrades.baseMaxHealth +
+      this.upgrades.health * GAME_CONSTANTS.UPGRADE_INCREMENT +
+      this.upgrades.startingHealth * 10;
+    this.player.health = Math.min(this.player.health, this.player.maxHealth);
+
+    // Apply stamina upgrade
+    this.player.maxStamina =
+      this.upgrades.baseMaxStamina +
+      this.upgrades.stamina * GAME_CONSTANTS.UPGRADE_INCREMENT;
+    this.player.stamina = Math.min(this.player.stamina, this.player.maxStamina);
+
+    // Apply perfect block duration
+    this.perfectBlock.duration = Math.max(
+      GAME_CONSTANTS.PERFECT_BLOCK.MIN_DURATION,
+      this.upgrades.basePerfectBlockDuration -
+        this.upgrades.perfectBlock *
+          GAME_CONSTANTS.PERFECT_BLOCK.UPGRADE_REDUCTION
+    );
+
+    // Perfect block window upgrades are applied when checking perfect blocks
+    // (handled in checkPerfectBlockOnPress)
+  }
+
+  private awardGold(): void {
+    const baseGold = 10 * this.currentLevel;
+    const ngPlusMultiplier = Math.pow(1.5, this.upgrades.newGamePlusLevel);
+    const goldFindMultiplier = 1 + this.upgrades.goldFind * 0.1;
+    const totalGold = Math.floor(
+      baseGold * ngPlusMultiplier * goldFindMultiplier
+    );
+    this.lastGoldEarned = totalGold;
+    this.upgrades.gold += totalGold;
+    this.saveGameData();
   }
 
   // ============================================================================
@@ -775,6 +1026,17 @@ export class TinySouls {
         this.buttonFadeProgress = 0;
         this.buttonFadeStartTime = 0;
       }
+      // Initialize fog particles for title screen
+      this.initializeFog();
+    }
+
+    // Reinitialize fog when returning to intro from other screens
+    if (
+      newStatus === "intro" &&
+      oldStatus !== "startScreen" &&
+      oldStatus !== "intro"
+    ) {
+      this.initializeFog();
     }
 
     // Start combat music when entering playing state at 50% volume
@@ -785,6 +1047,11 @@ export class TinySouls {
     // Stop combat music when leaving playing state
     if (oldStatus === "playing" && newStatus !== "playing") {
       this.audioManager.stopMusic();
+    }
+
+    // Reset scroll offset when entering upgrades shop
+    if (newStatus === "upgradesShop" && oldStatus !== "upgradesShop") {
+      this.upgradesShopScrollOffset = 0;
     }
 
     // Play death screen sound
@@ -811,6 +1078,78 @@ export class TinySouls {
     if (newStatus === "level5Victory" && oldStatus !== "level5Victory") {
       this.audioManager.playSound("you-win.mp3");
     }
+  }
+
+  private initializeFog(): void {
+    this.fogParticles = [];
+    const particleCount = this.isMobile() ? 35 : 55;
+
+    for (let i = 0; i < particleCount; i++) {
+      this.fogParticles.push({
+        x: Math.random() * this.displayWidth,
+        y: Math.random() * this.displayHeight,
+        radius:
+          this.getMobileValue(80, 120) +
+          Math.random() * this.getMobileValue(40, 80),
+        speed: 0.02 + Math.random() * 0.03,
+        opacity: 0.15 + Math.random() * 0.15,
+        baseOpacity: 0.15 + Math.random() * 0.15,
+      });
+    }
+  }
+
+  private updateFog(deltaTime: number): void {
+    const time = this.cachedCurrentTime;
+
+    for (let i = 0; i < this.fogParticles.length; i++) {
+      const particle = this.fogParticles[i];
+
+      // Move fog particles horizontally with slight vertical drift
+      particle.x += particle.speed * deltaTime;
+      particle.y += Math.sin(time / 2000 + i) * 0.01 * deltaTime;
+
+      // Wrap around horizontally
+      if (particle.x > this.displayWidth + particle.radius) {
+        particle.x = -particle.radius;
+        particle.y = Math.random() * this.displayHeight;
+      }
+
+      // Subtle pulsing opacity effect
+      particle.opacity =
+        particle.baseOpacity + Math.sin(time / 3000 + i) * 0.05;
+    }
+  }
+
+  private drawFog(): void {
+    this.ctx.save();
+
+    for (const particle of this.fogParticles) {
+      // Create radial gradient for fog particle
+      const gradient = this.ctx.createRadialGradient(
+        particle.x,
+        particle.y,
+        0,
+        particle.x,
+        particle.y,
+        particle.radius
+      );
+
+      // Use colors that match the game's aesthetic (teal/blue mist)
+      const fogColor = `rgba(139, 184, 232, ${particle.opacity})`; // Light blue with opacity
+      gradient.addColorStop(0, fogColor);
+      gradient.addColorStop(
+        0.5,
+        `rgba(139, 184, 232, ${particle.opacity * 0.5})`
+      );
+      gradient.addColorStop(1, `rgba(139, 184, 232, 0)`);
+
+      this.ctx.fillStyle = gradient;
+      this.ctx.beginPath();
+      this.ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+      this.ctx.fill();
+    }
+
+    this.ctx.restore();
   }
 
   private getMobileValue<T>(mobile: T, desktop: T): T {
@@ -1009,6 +1348,8 @@ export class TinySouls {
     this.deathScreenTimer = 0;
     this.enemyVanquishedTimer = 0;
     this.level5VictoryTimer = 0;
+    this.lastGoldEarned = 0;
+    this.lastNgPlusGoldEarned = 0;
 
     // Reset player state
     if (!preserveUpgrades) {
@@ -1168,6 +1509,64 @@ export class TinySouls {
     img.src = "/assets/games/tiny-souls-logo.png";
   }
 
+  private loadBackground(): void {
+    const img = new Image();
+    img.onload = () => {
+      this.backgroundImage = img;
+    };
+    img.onerror = () => {
+      console.warn("Failed to load background image");
+      this.backgroundImage = null;
+    };
+    img.src = "/assets/games/tiny-souls/images/background.png";
+  }
+
+  private loadPlayerSprites(): void {
+    // Load idle sprite
+    const idleImg = new Image();
+    idleImg.onload = () => {
+      this.playerIdleImage = idleImg;
+    };
+    idleImg.onerror = () => {
+      console.warn("Failed to load player idle sprite");
+      this.playerIdleImage = null;
+    };
+    idleImg.src = "/assets/games/tiny-souls/images/player.png";
+
+    // Load attack sprite
+    const attackImg = new Image();
+    attackImg.onload = () => {
+      this.playerAttackImage = attackImg;
+    };
+    attackImg.onerror = () => {
+      console.warn("Failed to load player attack sprite");
+      this.playerAttackImage = null;
+    };
+    attackImg.src = "/assets/games/tiny-souls/images/player_attack.png";
+
+    // Load block sprite
+    const blockImg = new Image();
+    blockImg.onload = () => {
+      this.playerBlockImage = blockImg;
+    };
+    blockImg.onerror = () => {
+      console.warn("Failed to load player block sprite");
+      this.playerBlockImage = null;
+    };
+    blockImg.src = "/assets/games/tiny-souls/images/player_block.png";
+
+    // Load hit sprite
+    const hitImg = new Image();
+    hitImg.onload = () => {
+      this.playerHitImage = hitImg;
+    };
+    hitImg.onerror = () => {
+      console.warn("Failed to load player hit sprite");
+      this.playerHitImage = null;
+    };
+    hitImg.src = "/assets/games/tiny-souls/images/player_hit.png";
+  }
+
   private initializeLevel(): void {
     const config = this.getCurrentLevelConfig();
     this.enemy.health = config.enemyHealth;
@@ -1184,6 +1583,8 @@ export class TinySouls {
     this.enemy.spear.targetDistance = 0;
     this.perfectBlock.attempted = false;
     this.perfectBlock.wasCtrlHeld = false;
+    // Apply all permanent upgrades when initializing level
+    this.applyAllPermanentUpgrades();
     this.updateSpearPositions();
   }
 
@@ -1288,6 +1689,11 @@ export class TinySouls {
           displayHeight * GAME_CONSTANTS.CHARACTER.MOBILE_PLAYER_Y_RATIO;
         this.enemy.position.y =
           displayHeight * GAME_CONSTANTS.CHARACTER.MOBILE_ENEMY_Y_RATIO;
+        // Reset to original size for mobile
+        this.player.size.width = GAME_CONSTANTS.CHARACTER.WIDTH;
+        this.player.size.height = GAME_CONSTANTS.CHARACTER.HEIGHT;
+        this.enemy.size.width = GAME_CONSTANTS.CHARACTER.WIDTH;
+        this.enemy.size.height = GAME_CONSTANTS.CHARACTER.HEIGHT;
       } else {
         this.player.position.x = Math.min(
           150,
@@ -1297,10 +1703,22 @@ export class TinySouls {
           displayWidth - 150,
           displayWidth * GAME_CONSTANTS.CHARACTER.DESKTOP_ENEMY_X_RATIO
         );
-        this.player.position.y = displayHeight * 0.5;
-        this.enemy.position.y = displayHeight * 0.5;
+        // Position between 2/3 and 3/4 (midpoint)
+        const desktopYRatio = (2 / 3 + 3 / 4) / 2;
+        this.player.position.y = displayHeight * desktopYRatio;
+        this.enemy.position.y = displayHeight * desktopYRatio;
+        // Make sprites 56.25% larger for desktop (1.25 * 1.25 = 1.5625)
+        this.player.size.width = GAME_CONSTANTS.CHARACTER.WIDTH * 1.5625;
+        this.player.size.height = GAME_CONSTANTS.CHARACTER.HEIGHT * 1.5625;
+        this.enemy.size.width = GAME_CONSTANTS.CHARACTER.WIDTH * 1.5625;
+        this.enemy.size.height = GAME_CONSTANTS.CHARACTER.HEIGHT * 1.5625;
       }
       this.updateSpearPositions();
+
+      // Reinitialize fog if on intro screen (to match new dimensions)
+      if (this.gameStatus === "intro") {
+        this.initializeFog();
+      }
     }
   }
 
@@ -1337,7 +1755,13 @@ export class TinySouls {
     this.player.spear.progress = 0.01;
     this.player.spear.timer = 0;
     this.player.spear.damageDealt = false;
-    this.player.attackCooldown = GAME_CONSTANTS.COOLDOWN.ATTACK;
+    // Apply attack speed upgrade (reduces cooldown by 10% per level)
+    const attackSpeedMultiplier = Math.max(
+      0.1,
+      1 - this.upgrades.attackSpeed * 0.1
+    );
+    this.player.attackCooldown =
+      this.upgrades.baseAttackCooldown * attackSpeedMultiplier;
 
     // Play attack sound
     this.audioManager.playSound("attack.mp3");
@@ -1380,8 +1804,9 @@ export class TinySouls {
 
     const attackProgress =
       this.enemy.attackDuration / this.enemy.attackTotalDuration;
-    const windowStart = GAME_CONSTANTS.PERFECT_BLOCK.WINDOW_START;
-    const windowEnd = GAME_CONSTANTS.PERFECT_BLOCK.WINDOW_END;
+    const perfectBlockWindow = this.getPerfectBlockWindow();
+    const windowStart = perfectBlockWindow.start;
+    const windowEnd = perfectBlockWindow.end;
 
     if (attackProgress >= windowStart && attackProgress <= windowEnd) {
       this.perfectBlock.attempted = true;
@@ -1621,18 +2046,14 @@ export class TinySouls {
         this.player.position.y,
         enemyColor
       );
-      this.ui.attackEffects.push({
-        x: this.player.position.x,
-        y: this.player.position.y,
-        type: "enemy",
-        duration: 200,
-      });
+      // Note: Attack effect removed - hit flash on sprite provides visual feedback
     }
 
     if (this.player.health <= 0 && this.gameStatus === "playing") {
       const oldStatus = this.gameStatus;
       this.gameStatus = "deathScreen";
       this.deathScreenTimer = 0;
+      this.deathScreenWaitingForInput = false;
       this.handleGameStatusChange(oldStatus, this.gameStatus);
       // Create death explosion particles
       this.createDeathExplosion();
@@ -1688,7 +2109,11 @@ export class TinySouls {
 
   private processEnemyAttackBlock(): void {
     const config = this.getCurrentLevelConfig();
-    const damage = config.enemyDamage * GAME_CONSTANTS.DAMAGE.BLOCK_REDUCTION;
+    // Apply block efficiency upgrade (reduces damage by additional 5% per level)
+    const baseReduction = GAME_CONSTANTS.DAMAGE.BLOCK_REDUCTION;
+    const efficiencyBonus = this.upgrades.blockEfficiency * 0.05;
+    const totalReduction = Math.min(0.95, baseReduction - efficiencyBonus);
+    const damage = config.enemyDamage * totalReduction;
     // Play attack block sound
     this.audioManager.playSound("attack-block.mp3");
     this.dealDamageToPlayer(damage, true, config.enemyColor);
@@ -1818,14 +2243,11 @@ export class TinySouls {
       });
     }
 
-    this.ui.attackEffects.push({
-      x: this.enemy.position.x,
-      y: this.enemy.position.y,
-      type: "player",
-      duration: 200,
-    });
+    // Note: Attack effect removed - hit flash on sprite provides visual feedback
 
     if (this.enemy.health <= 0 && this.gameStatus === "playing") {
+      // Award gold for defeating enemy
+      this.awardGold();
       // Create enemy death explosion and delay victory screen
       const oldStatus = this.gameStatus;
       this.gameStatus = "enemyDeath";
@@ -1970,6 +2392,11 @@ export class TinySouls {
   }
 
   private update(deltaTime: number): void {
+    // Update fog particles for intro screen
+    if (this.gameStatus === "intro") {
+      this.updateFog(deltaTime);
+    }
+
     // Update logo fade progress
     if (
       this.gameStatus === "intro" &&
@@ -2016,6 +2443,11 @@ export class TinySouls {
           this.buttonFadeProgress = 0;
           this.buttonFadeStartTime = 0;
         }
+        // Initialize level when transitioning to playing
+        if (this.gameStatus === "playing") {
+          this.resetGameState(true); // Preserve upgrades
+          this.initializeLevel();
+        }
       }
     }
 
@@ -2044,9 +2476,10 @@ export class TinySouls {
         this.player.animation.state = "idle";
       }
     } else if (this.player.stamina < this.player.maxStamina) {
-      // Stamina regeneration when not blocking
-      const regenAmount =
-        (GAME_CONSTANTS.STAMINA.REGEN_RATE * deltaTime) / 1000;
+      // Stamina regeneration when not blocking (with upgrade bonus)
+      const regenRate =
+        this.upgrades.baseStaminaRegenRate + this.upgrades.staminaRegen * 5;
+      const regenAmount = (regenRate * deltaTime) / 1000;
       this.player.stamina = Math.min(
         this.player.maxStamina,
         this.player.stamina + regenAmount
@@ -2062,11 +2495,22 @@ export class TinySouls {
     // Update death screen timer
     if (this.gameStatus === "deathScreen") {
       this.deathScreenTimer += deltaTime;
-      if (this.deathScreenTimer >= GAME_CONSTANTS.DEATH_SCREEN.TOTAL_DURATION) {
-        const oldStatus = this.gameStatus;
-        this.gameStatus = "enemyWon";
-        this.handleGameStatusChange(oldStatus, this.gameStatus);
+      // After showing stats, wait for player input instead of auto-transitioning
+      const explosionDuration = GAME_CONSTANTS.DEATH_SCREEN.EXPLOSION_DURATION;
+      const fadeInDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_IN_DURATION;
+      const holdDuration = GAME_CONSTANTS.DEATH_SCREEN.HOLD_DURATION;
+      const moveUpDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_OUT_DURATION;
+      const statsShownDuration =
+        explosionDuration + fadeInDuration + holdDuration + moveUpDuration;
+
+      if (
+        this.deathScreenTimer >= statsShownDuration &&
+        !this.deathScreenWaitingForInput
+      ) {
+        // Stats are now shown, wait for player input
+        this.deathScreenWaitingForInput = true;
       }
+      // Don't auto-transition - wait for click input
     }
 
     // Update enemy death timer
@@ -2114,6 +2558,16 @@ export class TinySouls {
         this.score.value += Math.floor(
           GAME_CONSTANTS.SCORE.VICTORY_BONUS * this.score.multiplier
         );
+        // Award bonus gold for completing NG+ cycle
+        const ngPlusBonus =
+          GAME_CONSTANTS.GOLD.NG_PLUS_BONUS_BASE *
+          (this.upgrades.newGamePlusLevel + 1);
+        const goldFindMultiplier = 1 + this.upgrades.goldFind * 0.1;
+        this.lastNgPlusGoldEarned = Math.floor(
+          ngPlusBonus * goldFindMultiplier
+        );
+        this.upgrades.gold += this.lastNgPlusGoldEarned;
+        this.saveGameData();
         this.upgrades.selected = null;
         this.handleGameStatusChange(oldStatus, this.gameStatus);
       }
@@ -2423,6 +2877,22 @@ export class TinySouls {
     this.ctx.restore();
   }
 
+  private getPerfectBlockWindow(): { start: number; end: number } {
+    // Apply perfect block window upgrade (+2% per level)
+    const windowSizeIncrease = this.upgrades.perfectBlockWindow * 0.02;
+    const baseWindowSize =
+      GAME_CONSTANTS.PERFECT_BLOCK.WINDOW_END -
+      GAME_CONSTANTS.PERFECT_BLOCK.WINDOW_START;
+    const newWindowSize = Math.min(0.2, baseWindowSize + windowSizeIncrease);
+    const windowCenter =
+      (GAME_CONSTANTS.PERFECT_BLOCK.WINDOW_START +
+        GAME_CONSTANTS.PERFECT_BLOCK.WINDOW_END) /
+      2;
+    const windowStart = Math.max(0.7, windowCenter - newWindowSize / 2);
+    const windowEnd = Math.min(1.0, windowCenter + newWindowSize / 2);
+    return { start: windowStart, end: windowEnd };
+  }
+
   private drawPerfectBlockIndicator(): void {
     if (!this.enemy.isAttacking || this.enemy.stunTimer > 0) {
       return;
@@ -2430,8 +2900,9 @@ export class TinySouls {
 
     const attackProgress =
       this.enemy.attackDuration / this.enemy.attackTotalDuration;
-    const perfectBlockWindowStart = GAME_CONSTANTS.PERFECT_BLOCK.WINDOW_START;
-    const perfectBlockWindowEnd = GAME_CONSTANTS.PERFECT_BLOCK.WINDOW_END;
+    const perfectBlockWindow = this.getPerfectBlockWindow();
+    const perfectBlockWindowStart = perfectBlockWindow.start;
+    const perfectBlockWindowEnd = perfectBlockWindow.end;
 
     // Draw indicator showing enemy spear position
     const indicatorY = this.isMobile()
@@ -2494,14 +2965,30 @@ export class TinySouls {
       this.ui.screenShake.offsetY
     );
 
-    // Clear canvas
-    this.ctx.fillStyle = COLORS.BACKGROUND;
-    this.ctx.fillRect(
-      -this.ui.screenShake.offsetX,
-      -this.ui.screenShake.offsetY,
-      this.displayWidth,
-      this.displayHeight
-    );
+    // Clear canvas with background image or solid color
+    if (
+      this.backgroundImage &&
+      this.gameStatus !== "startScreen" &&
+      this.gameStatus !== "intro"
+    ) {
+      // Draw background image scaled to fit canvas
+      this.ctx.drawImage(
+        this.backgroundImage,
+        -this.ui.screenShake.offsetX,
+        -this.ui.screenShake.offsetY,
+        this.displayWidth,
+        this.displayHeight
+      );
+    } else {
+      // Fallback to solid color
+      this.ctx.fillStyle = COLORS.BACKGROUND;
+      this.ctx.fillRect(
+        -this.ui.screenShake.offsetX,
+        -this.ui.screenShake.offsetY,
+        this.displayWidth,
+        this.displayHeight
+      );
+    }
 
     // Skip game rendering during start screen and intro
     if (this.gameStatus !== "startScreen" && this.gameStatus !== "intro") {
@@ -2516,6 +3003,19 @@ export class TinySouls {
       const levelY = this.isMobile() ? 25 : 35;
       this.ctx.fillText(levelText, this.displayWidth / 2, levelY);
 
+      // Draw gold display under level/NG+ text (only during gameplay)
+      if (this.gameStatus === "playing") {
+        this.ctx.fillStyle = COLORS.GOLD;
+        this.ctx.font = `bold ${this.getFontSize(18)} sans-serif`;
+        this.ctx.textAlign = "center";
+        const goldY = levelY + (this.isMobile() ? 22 : 28);
+        this.ctx.fillText(
+          `Gold: ${this.upgrades.gold.toLocaleString()}`,
+          this.displayWidth / 2,
+          goldY
+        );
+      }
+
       // Draw score display (only during gameplay)
       if (this.gameStatus === "playing") {
         this.ctx.fillStyle = COLORS.GOLD;
@@ -2524,7 +3024,7 @@ export class TinySouls {
         const scoreX = this.isMobile()
           ? this.displayWidth - 10
           : this.displayWidth - 20;
-        const scoreY = this.isMobile() ? 25 : 35;
+        let scoreY = this.isMobile() ? 25 : 35;
         this.ctx.fillText(
           `Score: ${this.score.value.toLocaleString()}`,
           scoreX,
@@ -2713,6 +3213,8 @@ export class TinySouls {
       this.drawLevelComplete();
     } else if (this.gameStatus === "upgradeMenu") {
       this.drawUpgradeMenu();
+    } else if (this.gameStatus === "upgradesShop") {
+      this.drawUpgradesShop();
     } else if (this.gameStatus === "deathScreen") {
       this.drawDeathScreen();
       // Draw death explosion particles on top of death screen overlay
@@ -2733,11 +3235,6 @@ export class TinySouls {
     } else if (this.gameStatus === "enemyWon") {
       const config = this.cachedLevelConfig!;
       this.drawGameOver(`Defeated by ${config.enemyName}!`, config.enemyColor);
-    }
-
-    // Draw controls hint
-    if (this.gameStatus === "playing") {
-      this.drawControlsHint();
     }
 
     // Draw mobile controls (on top of everything)
@@ -2779,6 +3276,12 @@ export class TinySouls {
     this.ctx.fillStyle = COLORS.BLACK;
     this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
+    // Draw fog effect
+    this.ctx.save();
+    this.ctx.globalAlpha = overallOpacity;
+    this.drawFog();
+    this.ctx.restore();
+
     const centerX = this.displayWidth / 2;
     const centerY = this.displayHeight / 2;
 
@@ -2800,18 +3303,19 @@ export class TinySouls {
 
     // Only draw buttons after logo has finished fading in
     if (this.logoFadeProgress >= 1 && this.buttonFadeProgress > 0) {
-      const buttonWidth = this.getMobileValue(120, 150);
+      const buttonWidth = this.getMobileValue(100, 130);
       const buttonHeight = this.getMobileValue(44, 50);
-      const buttonSpacing = this.getMobileValue(20, 30);
+      const buttonSpacing = this.getMobileValue(15, 20);
       const verticalSpacing = this.getMobileValue(50, 70); // Space between logo bottom and buttons
       const buttonY = logoBottomY + verticalSpacing;
 
-      // Center the gap between buttons under the logo
-      // Gap center should be at centerX, so:
-      // Start button right edge = centerX - buttonSpacing/2
-      // Controls button left edge = centerX + buttonSpacing/2
-      const startButtonX = centerX - buttonSpacing / 2 - buttonWidth;
-      const controlsButtonX = centerX + buttonSpacing / 2;
+      // Center three buttons under the logo
+      // Total width = 3 buttons + 2 gaps
+      const totalWidth = 3 * buttonWidth + 2 * buttonSpacing;
+      const startX = centerX - totalWidth / 2;
+      const startButtonX = startX;
+      const controlsButtonX = startX + buttonWidth + buttonSpacing;
+      const upgradesButtonX = startX + 2 * (buttonWidth + buttonSpacing);
 
       this.ctx.save();
       // Apply both button fade-in and fade-out opacity
@@ -2827,7 +3331,7 @@ export class TinySouls {
         this.buttonPressState.start
       );
 
-      // Controls button (right)
+      // Controls button (middle)
       this.drawButton(
         controlsButtonX,
         buttonY,
@@ -2835,6 +3339,16 @@ export class TinySouls {
         buttonHeight,
         "Controls",
         this.buttonPressState.controls
+      );
+
+      // Upgrades button (right)
+      this.drawButton(
+        upgradesButtonX,
+        buttonY,
+        buttonWidth,
+        buttonHeight,
+        "Upgrades",
+        this.buttonPressState.upgrades
       );
 
       this.ctx.restore();
@@ -3343,6 +3857,437 @@ export class TinySouls {
     }
   }
 
+  private drawUpgradesShop(): void {
+    // Black background
+    this.ctx.fillStyle = COLORS.BLACK;
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+
+    const centerX = this.displayWidth / 2;
+    let currentY = this.isMobile() ? 30 : 40;
+
+    // Title
+    this.drawTextWithStroke(
+      "Upgrades Shop",
+      centerX,
+      currentY,
+      COLORS.GOLD,
+      this.getMobileValue(36, 44)
+    );
+    currentY += this.isMobile() ? 40 : 50;
+
+    // Gold display
+    this.ctx.fillStyle = COLORS.GOLD;
+    this.ctx.font = `bold ${this.getFontSize(
+      this.isMobile() ? 24 : 28
+    )} sans-serif`;
+    this.ctx.textAlign = "center";
+    this.ctx.fillText(
+      `Gold: ${this.upgrades.gold.toLocaleString()}`,
+      centerX,
+      currentY
+    );
+    currentY += this.isMobile() ? 40 : 50;
+
+    // Upgrade options
+    const upgrades: Array<{
+      type: PermanentUpgradeType;
+      name: string;
+      desc: string;
+      baseCost: number;
+      getCurrentLevel: () => number;
+    }> = [
+      {
+        type: "health",
+        name: "Max Health",
+        desc: `+${GAME_CONSTANTS.UPGRADE_INCREMENT} Max Health`,
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.HEALTH,
+        getCurrentLevel: () => this.upgrades.health,
+      },
+      {
+        type: "stamina",
+        name: "Max Stamina",
+        desc: `+${GAME_CONSTANTS.UPGRADE_INCREMENT} Max Stamina`,
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.STAMINA,
+        getCurrentLevel: () => this.upgrades.stamina,
+      },
+      {
+        type: "perfectBlock",
+        name: "Perfect Block Duration",
+        desc: `-${GAME_CONSTANTS.PERFECT_BLOCK.UPGRADE_REDUCTION}ms Duration`,
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.PERFECT_BLOCK,
+        getCurrentLevel: () => this.upgrades.perfectBlock,
+      },
+      {
+        type: "attackDamage",
+        name: "Attack Damage",
+        desc: `+${GAME_CONSTANTS.DAMAGE.UPGRADE_INCREMENT} Damage`,
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.ATTACK_DAMAGE,
+        getCurrentLevel: () => this.upgrades.attackDamage,
+      },
+      {
+        type: "staminaRegen",
+        name: "Stamina Regeneration",
+        desc: `+5 Stamina/sec`,
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.STAMINA_REGEN,
+        getCurrentLevel: () => this.upgrades.staminaRegen,
+      },
+      {
+        type: "attackSpeed",
+        name: "Attack Speed",
+        desc: `-10% Attack Cooldown`,
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.ATTACK_SPEED,
+        getCurrentLevel: () => this.upgrades.attackSpeed,
+      },
+      {
+        type: "blockEfficiency",
+        name: "Block Efficiency",
+        desc: `+5% Damage Reduction`,
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.BLOCK_EFFICIENCY,
+        getCurrentLevel: () => this.upgrades.blockEfficiency,
+      },
+      {
+        type: "perfectBlockWindow",
+        name: "Perfect Block Window",
+        desc: `+2% Window Size`,
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.PERFECT_BLOCK_WINDOW,
+        getCurrentLevel: () => this.upgrades.perfectBlockWindow,
+      },
+      {
+        type: "goldFind",
+        name: "Gold Find",
+        desc: `+10% Gold Earned`,
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.GOLD_FIND,
+        getCurrentLevel: () => this.upgrades.goldFind,
+      },
+      {
+        type: "startingHealth",
+        name: "Starting Health",
+        desc: `+10 Starting Health`,
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.STARTING_HEALTH,
+        getCurrentLevel: () => this.upgrades.startingHealth,
+      },
+    ];
+
+    const optionSpacing = this.isMobile() ? 35 : 40;
+    const optionStartY = currentY;
+    const maxVisible = this.isMobile() ? 8 : 10;
+    const maxScroll = Math.max(0, upgrades.length - maxVisible);
+    const scrollOffset = Math.min(this.upgradesShopScrollOffset, maxScroll);
+
+    upgrades
+      .slice(scrollOffset, scrollOffset + maxVisible)
+      .forEach((upgrade, index) => {
+        const y = optionStartY + index * optionSpacing;
+        const currentLevel = upgrade.getCurrentLevel();
+        const cost = upgrade.baseCost * (currentLevel + 1);
+        const canAfford = this.upgrades.gold >= cost;
+
+        // Highlight affordable upgrades
+        this.ctx.fillStyle = canAfford ? "#2a2a2a" : "#1a1a1a";
+        const optionWidth = this.displayWidth - (this.isMobile() ? 40 : 80);
+        const optionX = (this.displayWidth - optionWidth) / 2;
+        this.ctx.fillRect(optionX, y - 15, optionWidth, optionSpacing - 5);
+
+        // Upgrade name and level
+        this.ctx.fillStyle = canAfford
+          ? COLORS.TEXT_LIGHT_BLUE
+          : COLORS.TEXT_DARK_GRAY;
+        this.ctx.font = `bold ${this.getFontSize(
+          this.isMobile() ? 14 : 16
+        )} sans-serif`;
+        this.ctx.textAlign = "left";
+        this.ctx.fillText(
+          `${upgrade.name} (Lv ${currentLevel})`,
+          optionX + 10,
+          y
+        );
+
+        // Description
+        this.ctx.fillStyle = "#cccccc";
+        this.ctx.font = `${this.getFontSize(
+          this.isMobile() ? 12 : 14
+        )} sans-serif`;
+        this.ctx.fillText(
+          upgrade.desc,
+          optionX + 10,
+          y + (this.isMobile() ? 15 : 18)
+        );
+
+        // Cost
+        this.ctx.fillStyle = canAfford ? COLORS.GOLD : "#666666";
+        this.ctx.font = `bold ${this.getFontSize(
+          this.isMobile() ? 14 : 16
+        )} sans-serif`;
+        this.ctx.textAlign = "right";
+        this.ctx.fillText(
+          `${cost.toLocaleString()} Gold`,
+          optionX + optionWidth - 10,
+          y + (this.isMobile() ? 8 : 10)
+        );
+      });
+
+    // Draw scroll indicator if there are more upgrades to scroll
+    if (maxScroll > 0) {
+      const scrollBarWidth = 8;
+      const scrollBarX = this.displayWidth - 20;
+      const scrollBarY = currentY + 20;
+      const scrollBarTrackHeight = maxVisible * optionSpacing - 20;
+
+      // Scroll track
+      this.ctx.fillStyle = "#333333";
+      this.ctx.fillRect(
+        scrollBarX,
+        scrollBarY,
+        scrollBarWidth,
+        scrollBarTrackHeight
+      );
+
+      // Scroll thumb
+      const thumbHeight = (scrollBarTrackHeight * maxVisible) / upgrades.length;
+      const thumbY =
+        scrollBarY +
+        (scrollBarTrackHeight - thumbHeight) *
+          (this.upgradesShopScrollOffset / maxScroll);
+      this.ctx.fillStyle = "#888888";
+      this.ctx.fillRect(scrollBarX, thumbY, scrollBarWidth, thumbHeight);
+    }
+
+    // Back button
+    const buttonWidth = this.getMobileValue(120, 150);
+    const buttonHeight = this.getMobileValue(44, 50);
+    const buttonY = this.displayHeight - (this.isMobile() ? 80 : 100);
+    const buttonX = centerX - buttonWidth / 2;
+    this.drawButton(
+      buttonX,
+      buttonY,
+      buttonWidth,
+      buttonHeight,
+      "Back",
+      this.buttonPressState.back
+    );
+  }
+
+  private handleUpgradesShopClick(x: number, y: number): boolean {
+    // Don't handle clicks if already fading out
+    if (this.fadeOutStartTime > 0) {
+      return false;
+    }
+
+    const centerX = this.displayWidth / 2;
+    const buttonWidth = this.getMobileValue(120, 150);
+    const buttonHeight = this.getMobileValue(44, 50);
+    const buttonY = this.displayHeight - (this.isMobile() ? 80 : 100);
+    const buttonX = centerX - buttonWidth / 2;
+
+    // Check back button first (before checking upgrades)
+    if (
+      this.isPointInRectButton(
+        x,
+        y,
+        buttonX,
+        buttonY,
+        buttonWidth,
+        buttonHeight
+      )
+    ) {
+      // Play button click sound
+      this.audioManager.playSound("button-click.mp3");
+      // Start fade-out, then transition back to intro
+      this.startFadeOut("intro");
+      return true;
+    }
+
+    let currentY = this.isMobile() ? 30 : 40;
+
+    // Title and gold display height
+    currentY += this.isMobile() ? 80 : 100;
+
+    const upgrades: Array<{
+      type: PermanentUpgradeType;
+      baseCost: number;
+      getCurrentLevel: () => number;
+    }> = [
+      {
+        type: "health",
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.HEALTH,
+        getCurrentLevel: () => this.upgrades.health,
+      },
+      {
+        type: "stamina",
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.STAMINA,
+        getCurrentLevel: () => this.upgrades.stamina,
+      },
+      {
+        type: "perfectBlock",
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.PERFECT_BLOCK,
+        getCurrentLevel: () => this.upgrades.perfectBlock,
+      },
+      {
+        type: "attackDamage",
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.ATTACK_DAMAGE,
+        getCurrentLevel: () => this.upgrades.attackDamage,
+      },
+      {
+        type: "staminaRegen",
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.STAMINA_REGEN,
+        getCurrentLevel: () => this.upgrades.staminaRegen,
+      },
+      {
+        type: "attackSpeed",
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.ATTACK_SPEED,
+        getCurrentLevel: () => this.upgrades.attackSpeed,
+      },
+      {
+        type: "blockEfficiency",
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.BLOCK_EFFICIENCY,
+        getCurrentLevel: () => this.upgrades.blockEfficiency,
+      },
+      {
+        type: "perfectBlockWindow",
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.PERFECT_BLOCK_WINDOW,
+        getCurrentLevel: () => this.upgrades.perfectBlockWindow,
+      },
+      {
+        type: "goldFind",
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.GOLD_FIND,
+        getCurrentLevel: () => this.upgrades.goldFind,
+      },
+      {
+        type: "startingHealth",
+        baseCost: GAME_CONSTANTS.UPGRADE_COSTS.STARTING_HEALTH,
+        getCurrentLevel: () => this.upgrades.startingHealth,
+      },
+    ];
+
+    const optionSpacing = this.isMobile() ? 35 : 40;
+    const optionStartY = currentY;
+    const maxVisible = this.isMobile() ? 8 : 10;
+    const maxScroll = Math.max(0, upgrades.length - maxVisible);
+    const scrollOffset = Math.min(this.upgradesShopScrollOffset, maxScroll);
+    const optionWidth = this.displayWidth - (this.isMobile() ? 40 : 80);
+    const optionX = (this.displayWidth - optionWidth) / 2;
+
+    // Check if clicked on an upgrade option (accounting for scroll)
+    const visibleUpgrades = upgrades.slice(
+      scrollOffset,
+      scrollOffset + maxVisible
+    );
+    for (let i = 0; i < visibleUpgrades.length; i++) {
+      const upgrade = visibleUpgrades[i];
+      const optionY = optionStartY + i * optionSpacing;
+      // Make sure click is within the specific upgrade option bounds
+      const isUpgradeClick =
+        x >= optionX &&
+        x <= optionX + optionWidth &&
+        y >= optionY - 15 &&
+        y <= optionY + optionSpacing - 20;
+
+      if (isUpgradeClick) {
+        const currentLevel = upgrade.getCurrentLevel();
+        const cost = upgrade.baseCost * (currentLevel + 1);
+        if (this.upgrades.gold >= cost) {
+          this.purchaseUpgrade(upgrade.type);
+          this.audioManager.playSound("button-click.mp3");
+        }
+        break;
+      }
+    }
+
+    return false;
+  }
+
+  private purchaseUpgrade(upgradeType: PermanentUpgradeType): void {
+    let baseCost: number;
+    let currentLevel: number;
+
+    switch (upgradeType) {
+      case "health":
+        baseCost = GAME_CONSTANTS.UPGRADE_COSTS.HEALTH;
+        currentLevel = this.upgrades.health;
+        break;
+      case "stamina":
+        baseCost = GAME_CONSTANTS.UPGRADE_COSTS.STAMINA;
+        currentLevel = this.upgrades.stamina;
+        break;
+      case "perfectBlock":
+        baseCost = GAME_CONSTANTS.UPGRADE_COSTS.PERFECT_BLOCK;
+        currentLevel = this.upgrades.perfectBlock;
+        break;
+      case "attackDamage":
+        baseCost = GAME_CONSTANTS.UPGRADE_COSTS.ATTACK_DAMAGE;
+        currentLevel = this.upgrades.attackDamage;
+        break;
+      case "staminaRegen":
+        baseCost = GAME_CONSTANTS.UPGRADE_COSTS.STAMINA_REGEN;
+        currentLevel = this.upgrades.staminaRegen;
+        break;
+      case "attackSpeed":
+        baseCost = GAME_CONSTANTS.UPGRADE_COSTS.ATTACK_SPEED;
+        currentLevel = this.upgrades.attackSpeed;
+        break;
+      case "blockEfficiency":
+        baseCost = GAME_CONSTANTS.UPGRADE_COSTS.BLOCK_EFFICIENCY;
+        currentLevel = this.upgrades.blockEfficiency;
+        break;
+      case "perfectBlockWindow":
+        baseCost = GAME_CONSTANTS.UPGRADE_COSTS.PERFECT_BLOCK_WINDOW;
+        currentLevel = this.upgrades.perfectBlockWindow;
+        break;
+      case "goldFind":
+        baseCost = GAME_CONSTANTS.UPGRADE_COSTS.GOLD_FIND;
+        currentLevel = this.upgrades.goldFind;
+        break;
+      case "startingHealth":
+        baseCost = GAME_CONSTANTS.UPGRADE_COSTS.STARTING_HEALTH;
+        currentLevel = this.upgrades.startingHealth;
+        break;
+    }
+
+    const cost = baseCost * (currentLevel + 1);
+    if (this.upgrades.gold >= cost) {
+      this.upgrades.gold -= cost;
+      this.applyPermanentUpgrade(upgradeType);
+      this.saveGameData();
+    }
+  }
+
+  private applyPermanentUpgrade(upgradeType: PermanentUpgradeType): void {
+    switch (upgradeType) {
+      case "health":
+        this.upgrades.health++;
+        break;
+      case "stamina":
+        this.upgrades.stamina++;
+        break;
+      case "perfectBlock":
+        this.upgrades.perfectBlock++;
+        break;
+      case "attackDamage":
+        this.upgrades.attackDamage++;
+        break;
+      case "staminaRegen":
+        this.upgrades.staminaRegen++;
+        break;
+      case "attackSpeed":
+        this.upgrades.attackSpeed++;
+        break;
+      case "blockEfficiency":
+        this.upgrades.blockEfficiency++;
+        break;
+      case "perfectBlockWindow":
+        this.upgrades.perfectBlockWindow++;
+        break;
+      case "goldFind":
+        this.upgrades.goldFind++;
+        break;
+      case "startingHealth":
+        this.upgrades.startingHealth++;
+        break;
+    }
+    // Reapply all upgrades to update stats
+    this.applyAllPermanentUpgrades();
+  }
+
   private drawHealthBar(
     x: number,
     y: number,
@@ -3496,6 +4441,23 @@ export class TinySouls {
   ): void {
     this.ctx.save();
 
+    // Select the appropriate sprite based on animation state
+    let spriteImage: HTMLImageElement | null = null;
+    switch (animationState) {
+      case "idle":
+        spriteImage = this.playerIdleImage;
+        break;
+      case "attack":
+        spriteImage = this.playerAttackImage;
+        break;
+      case "block":
+        spriteImage = this.playerBlockImage;
+        break;
+      case "hit":
+        spriteImage = this.playerHitImage;
+        break;
+    }
+
     // Animation-based transformations
     let scaleX = 1;
     let scaleY = 1;
@@ -3505,9 +4467,7 @@ export class TinySouls {
 
     switch (animationState) {
       case "attack":
-        // Lean forward slightly, scale up
-        scaleX = 1.1;
-        scaleY = 0.95;
+        // Lean forward slightly
         // Enemy attacks toward player (left), player attacks toward enemy (right)
         offsetX = isEnemy ? -10 : 10;
         break;
@@ -3542,56 +4502,154 @@ export class TinySouls {
     this.ctx.scale(scaleX, scaleY);
     this.ctx.translate(-x + offsetX, -y + offsetY);
 
-    // Character body
-    this.ctx.fillStyle = color;
-    this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
+    // Draw sprite if available, otherwise fall back to rectangle drawing
+    if (spriteImage) {
+      const spriteX = x - width / 2;
+      const spriteY = y - height / 2;
 
-    // Character outline
-    this.ctx.strokeStyle = "#ffffff";
-    this.ctx.lineWidth = 2;
-    this.ctx.strokeRect(x - width / 2, y - height / 2, width, height);
+      if (isEnemy) {
+        // For enemies, apply color filter only to non-transparent pixels
+        const enemyColorRgb = this.hexToRgb(color);
 
-    // Animation-specific visual effects
-    if (animationState === "attack") {
-      // Glow effect during attack
-      this.ctx.shadowBlur = 20;
-      this.ctx.shadowColor = color;
-      this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
-      this.ctx.shadowBlur = 0;
-    } else if (animationState === "block") {
-      // Shield effect - position based on enemy/player
-      this.ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-      const shieldX = isEnemy ? x + width / 2 - 5 : x - width / 2 - 5;
-      this.ctx.fillRect(shieldX, y - height / 2, 10, height);
-    } else if (animationState === "hit") {
-      // Flash effect
-      const flashAlpha = Math.sin(this.cachedCurrentTime / 50) * 0.5 + 0.5;
-      this.ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.5})`;
-      this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
-    }
+        // Use an offscreen canvas to properly apply tint
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const tempCtx = tempCanvas.getContext("2d", {
+          willReadFrequently: false,
+        });
 
-    // Simple face
-    this.ctx.fillStyle = "#000000";
-    // Eyes - adjust for enemy flip
-    let eyeOffsetX = 0;
-    if (animationState === "attack") {
-      eyeOffsetX = isEnemy ? -3 : 3; // Eyes look forward during attack
-    } else if (animationState === "hit") {
-      eyeOffsetX = isEnemy ? 2 : -2; // Eyes look back during hit
-    }
-    this.ctx.fillRect(x - 15 + eyeOffsetX, y - 20, 8, 8);
-    this.ctx.fillRect(x + 7 + eyeOffsetX, y - 20, 8, 8);
+        if (tempCtx) {
+          // Draw sprite to temp canvas
+          tempCtx.drawImage(spriteImage, 0, 0, width, height);
 
-    // Mouth - different expressions based on state
-    if (animationState === "attack") {
-      // Open mouth (wider)
-      this.ctx.fillRect(x - 10, y + 10, 20, 6);
-    } else if (animationState === "hit") {
-      // Surprised mouth (smaller)
-      this.ctx.fillRect(x - 6, y + 12, 12, 4);
+          // Get image data to work with pixels directly
+          const imageData = tempCtx.getImageData(0, 0, width, height);
+          const data = imageData.data;
+
+          // Apply color tint to non-transparent pixels only
+          for (let i = 0; i < data.length; i += 4) {
+            const alpha = data[i + 3];
+            if (alpha > 0) {
+              // Blend enemy color with existing pixel color
+              // Use a weighted average for tinting
+              const blendFactor = 0.2;
+              data[i] = Math.min(
+                255,
+                data[i] * (1 - blendFactor) + enemyColorRgb.r * blendFactor
+              );
+              data[i + 1] = Math.min(
+                255,
+                data[i + 1] * (1 - blendFactor) + enemyColorRgb.g * blendFactor
+              );
+              data[i + 2] = Math.min(
+                255,
+                data[i + 2] * (1 - blendFactor) + enemyColorRgb.b * blendFactor
+              );
+            }
+          }
+
+          // Put the modified image data back
+          tempCtx.putImageData(imageData, 0, 0);
+
+          // Draw the tinted sprite to main canvas
+          this.ctx.drawImage(tempCanvas, spriteX, spriteY);
+        } else {
+          // Fallback if temp canvas fails
+          this.ctx.drawImage(spriteImage, spriteX, spriteY, width, height);
+        }
+      } else {
+        // Draw sprite normally for player
+        this.ctx.drawImage(spriteImage, spriteX, spriteY, width, height);
+      }
+
+      // Animation-specific visual effects as overlays (masked to sprite shape)
+      if (animationState === "block") {
+        // Shield effect - masked to sprite shape, positioned based on enemy/player
+        const effectCanvas = document.createElement("canvas");
+        effectCanvas.width = width;
+        effectCanvas.height = height;
+        const effectCtx = effectCanvas.getContext("2d");
+        if (effectCtx) {
+          // Draw shield effect
+          effectCtx.fillStyle = "rgba(255, 255, 255, 0.3)";
+          const shieldX = isEnemy ? width / 2 - 5 : -width / 2 - 5;
+          effectCtx.fillRect(shieldX, 0, 10, height);
+          // Use destination-in to mask effect to sprite's alpha channel
+          effectCtx.globalCompositeOperation = "destination-in";
+          effectCtx.drawImage(spriteImage, 0, 0, width, height);
+          // Draw the masked effect to main canvas with screen blend
+          this.ctx.globalCompositeOperation = "screen";
+          this.ctx.drawImage(effectCanvas, spriteX, spriteY);
+          this.ctx.globalCompositeOperation = "source-over";
+        }
+      } else if (animationState === "hit") {
+        // Flash effect - masked to sprite (like perfect block stun effect)
+        const flashAlpha = Math.sin(this.cachedCurrentTime / 50) * 0.5 + 0.5;
+        const effectCanvas = document.createElement("canvas");
+        effectCanvas.width = width;
+        effectCanvas.height = height;
+        const effectCtx = effectCanvas.getContext("2d");
+        if (effectCtx) {
+          // Draw white flash effect
+          effectCtx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.5})`;
+          effectCtx.fillRect(0, 0, width, height);
+          // Use destination-in to mask effect to sprite's alpha channel
+          effectCtx.globalCompositeOperation = "destination-in";
+          effectCtx.drawImage(spriteImage, 0, 0, width, height);
+          // Draw the masked effect to main canvas with screen blend
+          this.ctx.globalCompositeOperation = "screen";
+          this.ctx.drawImage(effectCanvas, spriteX, spriteY);
+          this.ctx.globalCompositeOperation = "source-over";
+        }
+      }
     } else {
-      // Normal mouth
-      this.ctx.fillRect(x - 8, y + 10, 16, 4);
+      // Fallback to original rectangle drawing if sprites aren't loaded
+      // Character body
+      this.ctx.fillStyle = color;
+      this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
+
+      // Character outline
+      this.ctx.strokeStyle = "#ffffff";
+      this.ctx.lineWidth = 2;
+      this.ctx.strokeRect(x - width / 2, y - height / 2, width, height);
+
+      // Animation-specific visual effects
+      if (animationState === "block") {
+        // Shield effect - position based on enemy/player
+        this.ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+        const shieldX = isEnemy ? x + width / 2 - 5 : x - width / 2 - 5;
+        this.ctx.fillRect(shieldX, y - height / 2, 10, height);
+      } else if (animationState === "hit") {
+        // Flash effect
+        const flashAlpha = Math.sin(this.cachedCurrentTime / 50) * 0.5 + 0.5;
+        this.ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.5})`;
+        this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
+      }
+
+      // Simple face
+      this.ctx.fillStyle = "#000000";
+      // Eyes - adjust for enemy flip
+      let eyeOffsetX = 0;
+      if (animationState === "attack") {
+        eyeOffsetX = isEnemy ? -3 : 3; // Eyes look forward during attack
+      } else if (animationState === "hit") {
+        eyeOffsetX = isEnemy ? 2 : -2; // Eyes look back during hit
+      }
+      this.ctx.fillRect(x - 15 + eyeOffsetX, y - 20, 8, 8);
+      this.ctx.fillRect(x + 7 + eyeOffsetX, y - 20, 8, 8);
+
+      // Mouth - different expressions based on state
+      if (animationState === "attack") {
+        // Open mouth (wider)
+        this.ctx.fillRect(x - 10, y + 10, 20, 6);
+      } else if (animationState === "hit") {
+        // Surprised mouth (smaller)
+        this.ctx.fillRect(x - 6, y + 12, 12, 4);
+      } else {
+        // Normal mouth
+        this.ctx.fillRect(x - 8, y + 10, 16, 4);
+      }
     }
 
     this.ctx.restore();
@@ -3811,6 +4869,27 @@ export class TinySouls {
 
     this.ctx.fillText(text, this.displayWidth / 2, textY);
 
+    // Draw gold earned below the "ENEMY VANQUISHED" text
+    if (this.lastGoldEarned > 0) {
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(255, 215, 0, 1)`; // Gold yellow
+      const goldFontSize = this.isMobile() ? 24 : 32;
+      this.ctx.font = `bold ${this.getFontSize(goldFontSize)} serif`;
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
+      this.ctx.shadowBlur = 15;
+      this.ctx.shadowOffsetX = 0;
+      this.ctx.shadowOffsetY = 0;
+      const goldY = textY + (this.isMobile() ? 50 : 70);
+      this.ctx.fillText(
+        `Gold Earned: +${this.lastGoldEarned}`,
+        this.displayWidth / 2,
+        goldY
+      );
+      this.ctx.restore();
+    }
+
     this.ctx.restore();
   }
 
@@ -3874,6 +4953,27 @@ export class TinySouls {
     this.ctx.shadowOffsetY = 0;
 
     this.ctx.fillText("YOU WIN", this.displayWidth / 2, textY);
+
+    // Draw gold earned below the "YOU WIN" text (from defeating level 5 enemy)
+    if (this.lastGoldEarned > 0) {
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(255, 215, 0, 1)`; // Gold yellow
+      const goldFontSize = this.isMobile() ? 24 : 32;
+      this.ctx.font = `bold ${this.getFontSize(goldFontSize)} serif`;
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
+      this.ctx.shadowBlur = 15;
+      this.ctx.shadowOffsetX = 0;
+      this.ctx.shadowOffsetY = 0;
+      const goldY = textY + (this.isMobile() ? 50 : 70);
+      this.ctx.fillText(
+        `Gold Earned: +${this.lastGoldEarned}`,
+        this.displayWidth / 2,
+        goldY
+      );
+      this.ctx.restore();
+    }
 
     this.ctx.restore();
   }
@@ -4053,7 +5153,7 @@ export class TinySouls {
       upgradeBottomY = upgradeLabelY + (this.isMobile() ? 50 : 60);
     }
 
-    // Restart hint (below upgrades or stats, ensure it's visible)
+    // Restart hint or click to return text (below upgrades or stats, ensure it's visible)
     this.ctx.fillStyle = "#cccccc";
     this.ctx.font = `${this.getFontSize(this.isMobile() ? 18 : 20)} sans-serif`;
     this.ctx.textAlign = "center";
@@ -4061,10 +5161,24 @@ export class TinySouls {
     // Ensure restart hint is visible on screen
     const maxY = this.displayHeight - (this.isMobile() ? 100 : 120);
     const finalRestartY = Math.min(restartHintY, maxY);
-    const restartText = this.isMobile()
-      ? "Tap Restart button"
-      : "Press R to restart";
-    this.ctx.fillText(restartText, this.displayWidth / 2, finalRestartY);
+
+    // Show "Click to return to title screen" if on death screen and waiting for input
+    if (this.gameStatus === "deathScreen" && this.deathScreenWaitingForInput) {
+      // Add pulsing effect for the click text
+      const pulse = Math.sin(this.cachedCurrentTime / 500) * 0.3 + 0.7;
+      this.ctx.save();
+      this.ctx.globalAlpha = pulse;
+      const clickText = this.isMobile()
+        ? "Tap to return to title screen"
+        : "Click to return to title screen";
+      this.ctx.fillText(clickText, this.displayWidth / 2, finalRestartY);
+      this.ctx.restore();
+    } else {
+      const restartText = this.isMobile()
+        ? "Tap Restart button"
+        : "Press R to restart";
+      this.ctx.fillText(restartText, this.displayWidth / 2, finalRestartY);
+    }
   }
 
   private drawControlsHint(): void {
@@ -4233,9 +5347,9 @@ export class TinySouls {
 
     const centerX = this.displayWidth / 2;
     const centerY = this.displayHeight / 2;
-    const buttonWidth = this.getMobileValue(120, 150);
+    const buttonWidth = this.getMobileValue(100, 130);
     const buttonHeight = this.getMobileValue(44, 50);
-    const buttonSpacing = this.getMobileValue(20, 30);
+    const buttonSpacing = this.getMobileValue(15, 20);
 
     // Calculate logo bottom position (same as in drawIntro)
     let logoBottomY = centerY;
@@ -4250,9 +5364,12 @@ export class TinySouls {
     const verticalSpacing = this.getMobileValue(50, 70);
     const buttonY = logoBottomY + verticalSpacing;
 
-    // Center the gap between buttons under the logo (same as in drawIntro)
-    const startButtonX = centerX - buttonSpacing / 2 - buttonWidth;
-    const controlsButtonX = centerX + buttonSpacing / 2;
+    // Center three buttons under the logo (same as in drawIntro)
+    const totalWidth = 3 * buttonWidth + 2 * buttonSpacing;
+    const startX = centerX - totalWidth / 2;
+    const startButtonX = startX;
+    const controlsButtonX = startX + buttonWidth + buttonSpacing;
+    const upgradesButtonX = startX + 2 * (buttonWidth + buttonSpacing);
 
     if (
       this.isPointInRectButton(
@@ -4266,8 +5383,6 @@ export class TinySouls {
     ) {
       // Play button click sound
       this.audioManager.playSound("button-click.mp3");
-      // Stop intro music when starting the game
-      this.audioManager.stopMusic();
       // Start fade-out, then transition to playing
       this.startFadeOut("playing");
       return true;
@@ -4290,7 +5405,103 @@ export class TinySouls {
       return true;
     }
 
+    if (
+      this.isPointInRectButton(
+        x,
+        y,
+        upgradesButtonX,
+        buttonY,
+        buttonWidth,
+        buttonHeight
+      )
+    ) {
+      // Play button click sound
+      this.audioManager.playSound("button-click.mp3");
+      // Start fade-out, then transition to upgrades shop
+      this.startFadeOut("upgradesShop");
+      return true;
+    }
+
     return false;
+  }
+
+  private updateIntroButtonPressStates(x: number, y: number): void {
+    if (
+      this.logoFadeProgress < 1 ||
+      this.buttonFadeProgress < 1 ||
+      this.fadeOutStartTime > 0
+    ) {
+      this.buttonPressState.start = false;
+      this.buttonPressState.controls = false;
+      this.buttonPressState.upgrades = false;
+      return;
+    }
+
+    const centerX = this.displayWidth / 2;
+    const centerY = this.displayHeight / 2;
+    const buttonWidth = this.getMobileValue(100, 130);
+    const buttonHeight = this.getMobileValue(44, 50);
+    const buttonSpacing = this.getMobileValue(15, 20);
+
+    let logoBottomY = centerY;
+    if (this.logoImage) {
+      const logoWidth = this.getMobileValue(200, 300);
+      const logoHeight =
+        (this.logoImage.height / this.logoImage.width) * logoWidth;
+      const logoY = centerY - logoHeight / 2 - (this.isMobile() ? 60 : 80);
+      logoBottomY = logoY + logoHeight;
+    }
+
+    const verticalSpacing = this.getMobileValue(50, 70);
+    const buttonY = logoBottomY + verticalSpacing;
+
+    const totalWidth = 3 * buttonWidth + 2 * buttonSpacing;
+    const startX = centerX - totalWidth / 2;
+    const startButtonX = startX;
+    const controlsButtonX = startX + buttonWidth + buttonSpacing;
+    const upgradesButtonX = startX + 2 * (buttonWidth + buttonSpacing);
+
+    this.buttonPressState.start = this.isPointInRectButton(
+      x,
+      y,
+      startButtonX,
+      buttonY,
+      buttonWidth,
+      buttonHeight
+    );
+    this.buttonPressState.controls = this.isPointInRectButton(
+      x,
+      y,
+      controlsButtonX,
+      buttonY,
+      buttonWidth,
+      buttonHeight
+    );
+    this.buttonPressState.upgrades = this.isPointInRectButton(
+      x,
+      y,
+      upgradesButtonX,
+      buttonY,
+      buttonWidth,
+      buttonHeight
+    );
+  }
+
+  private updateUpgradesShopButtonPressState(x: number, y: number): void {
+    const centerX = this.displayWidth / 2;
+    const buttonWidth = this.getMobileValue(120, 150);
+    const buttonHeight = this.getMobileValue(44, 50);
+    const buttonY = this.displayHeight - (this.isMobile() ? 60 : 80);
+    const buttonX = centerX - buttonWidth / 2;
+
+    this.buttonPressState.back = this.isPointInRectButton(
+      x,
+      y,
+      buttonX,
+      buttonY,
+      buttonWidth,
+      buttonHeight
+    );
   }
 
   // Start fade-out animation
@@ -4358,6 +5569,10 @@ export class TinySouls {
     if (this.gameStatus === "intro" && this.logoFadeStartTime === 0) {
       this.logoFadeStartTime = performance.now();
       this.logoFadeProgress = 0;
+    }
+    // Initialize fog if on intro screen
+    if (this.gameStatus === "intro" && this.fogParticles.length === 0) {
+      this.initializeFog();
     }
     this.animationFrameId = requestAnimationFrame(this.gameLoop);
   }
@@ -4429,6 +5644,89 @@ export class TinySouls {
           return;
         }
         continue;
+      }
+
+      // Handle upgrades shop - back button and scroll tracking
+      if (this.gameStatus === "upgradesShop") {
+        e.preventDefault();
+        const centerX = this.displayWidth / 2;
+        const buttonWidth = this.getMobileValue(120, 150);
+        const buttonHeight = this.getMobileValue(44, 50);
+        const buttonY = this.displayHeight - (this.isMobile() ? 80 : 100);
+        const buttonX = centerX - buttonWidth / 2;
+
+        // Check if touch is on back button
+        if (
+          this.isPointInRectButton(
+            x,
+            y,
+            buttonX,
+            buttonY,
+            buttonWidth,
+            buttonHeight
+          )
+        ) {
+          if (this.handleUpgradesShopClick(x, y)) {
+            return;
+          }
+        } else {
+          // Check if touch is in upgrade area - if so, handle click on touch end
+          // Otherwise, track scroll start position
+          let currentY = this.isMobile() ? 30 : 40;
+          currentY += this.isMobile() ? 80 : 100; // Title and gold display height
+          const optionSpacing = this.isMobile() ? 35 : 40;
+          const optionStartY = currentY;
+          const maxVisible = this.isMobile() ? 8 : 10;
+          const upgradesCount = 10;
+          const maxScroll = Math.max(0, upgradesCount - maxVisible);
+          const scrollOffset = Math.min(
+            this.upgradesShopScrollOffset,
+            maxScroll
+          );
+          const optionWidth = this.displayWidth - (this.isMobile() ? 40 : 80);
+          const optionX = (this.displayWidth - optionWidth) / 2;
+
+          let isOnUpgrade = false;
+          // Check if touch is in visible upgrade area
+          const visibleUpgradesCount = Math.min(
+            maxVisible,
+            upgradesCount - scrollOffset
+          );
+          for (let i = 0; i < visibleUpgradesCount; i++) {
+            const optionY = optionStartY + i * optionSpacing;
+            if (
+              x >= optionX &&
+              x <= optionX + optionWidth &&
+              y >= optionY - 15 &&
+              y <= optionY + optionSpacing - 20
+            ) {
+              isOnUpgrade = true;
+              break;
+            }
+          }
+
+          // Only track scroll if not on upgrade area
+          if (!isOnUpgrade) {
+            this.upgradesShopScrollStartY = touch.clientY;
+          }
+        }
+        continue;
+      }
+
+      // Handle death screen - touch to return to title screen
+      if (
+        this.gameStatus === "deathScreen" &&
+        this.deathScreenWaitingForInput
+      ) {
+        e.preventDefault();
+        const oldStatus = this.gameStatus;
+        // Save game data before returning to intro
+        this.saveGameData();
+        // Return to intro screen so player can access upgrades menu
+        this.gameStatus = "intro";
+        this.deathScreenWaitingForInput = false;
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
+        return;
       }
 
       // Handle level complete screen - any touch continues
@@ -4505,6 +5803,35 @@ export class TinySouls {
       this.setUpgradeMenuTouchY(null);
     }
 
+    // Handle upgrades shop - process clicks if scroll didn't happen
+    if (this.gameStatus === "upgradesShop") {
+      const rect = this.canvas.getBoundingClientRect();
+
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+
+        // If we were tracking scroll, check if it was actually a scroll or a click
+        if (this.upgradesShopScrollStartY !== null) {
+          const scrollDelta = Math.abs(
+            this.upgradesShopScrollStartY - touch.clientY
+          );
+          // If scroll delta is small, treat it as a click
+          if (scrollDelta < 10) {
+            // Process click (upgrade purchase)
+            this.handleUpgradesShopClick(x, y);
+          }
+        } else {
+          // No scroll tracking, process click normally
+          this.handleUpgradesShopClick(x, y);
+        }
+      }
+
+      // Clear scroll tracking
+      this.upgradesShopScrollStartY = null;
+    }
+
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
       const touchData = this.activeTouches.get(touch.identifier);
@@ -4518,6 +5845,39 @@ export class TinySouls {
       }
 
       this.activeTouches.delete(touch.identifier);
+    }
+  }
+
+  public handleTouchMove(e: TouchEvent): void {
+    // Handle scrolling in upgrades shop on mobile
+    if (
+      this.gameStatus === "upgradesShop" &&
+      this.upgradesShopScrollStartY !== null
+    ) {
+      e.preventDefault();
+
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        const currentY = touch.clientY;
+        const deltaY = this.upgradesShopScrollStartY - currentY;
+
+        // Update scroll offset (positive deltaY means scrolling up)
+        const scrollSpeed = 0.5; // Adjust sensitivity
+        const maxVisible = this.isMobile() ? 8 : 10;
+        const upgradesCount = 10; // Total number of upgrades
+        const maxScroll = Math.max(0, upgradesCount - maxVisible);
+
+        this.upgradesShopScrollOffset = Math.max(
+          0,
+          Math.min(
+            maxScroll,
+            this.upgradesShopScrollOffset + deltaY * scrollSpeed
+          )
+        );
+
+        // Update scroll start position for next move
+        this.upgradesShopScrollStartY = currentY;
+      }
     }
   }
 
@@ -4618,7 +5978,11 @@ export class TinySouls {
     this.canvas.removeEventListener("touchstart", this.touchstartHandler);
     this.canvas.removeEventListener("touchend", this.touchendHandler);
     this.canvas.removeEventListener("touchcancel", this.touchcancelHandler);
+    this.canvas.removeEventListener("touchmove", this.touchmoveHandler);
     this.canvas.removeEventListener("click", this.clickHandler);
     this.canvas.removeEventListener("mousemove", this.mousemoveHandler);
+    if (this.wheelHandler) {
+      this.canvas.removeEventListener("wheel", this.wheelHandler);
+    }
   }
 }
