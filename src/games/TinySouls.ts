@@ -1013,10 +1013,10 @@ export class TinySouls {
     oldStatus: GameStatus,
     newStatus: GameStatus
   ): void {
-    // Play intro sound when transitioning from startScreen to intro
+    // Play intro music when transitioning from startScreen to intro
     // (This happens after user interaction, so autoplay should work)
     if (newStatus === "intro" && oldStatus === "startScreen") {
-      this.audioManager.playSound("game-intro.mp3").catch(() => {
+      this.audioManager.playMusic("game-intro.mp3").catch(() => {
         // Silently handle if file doesn't exist or fails to play
       });
       // Initialize logo fade animation when transitioning to intro
@@ -2034,12 +2034,7 @@ export class TinySouls {
         this.player.position.y,
         enemyColor
       );
-      this.ui.attackEffects.push({
-        x: this.player.position.x,
-        y: this.player.position.y,
-        type: "enemy",
-        duration: 200,
-      });
+      // Note: Attack effect removed - hit flash on sprite provides visual feedback
     }
 
     if (this.player.health <= 0 && this.gameStatus === "playing") {
@@ -2236,12 +2231,7 @@ export class TinySouls {
       });
     }
 
-    this.ui.attackEffects.push({
-      x: this.enemy.position.x,
-      y: this.enemy.position.y,
-      type: "player",
-      duration: 200,
-    });
+    // Note: Attack effect removed - hit flash on sprite provides visual feedback
 
     if (this.enemy.health <= 0 && this.gameStatus === "playing") {
       // Award gold for defeating enemy
@@ -4564,31 +4554,45 @@ export class TinySouls {
         this.ctx.drawImage(spriteImage, spriteX, spriteY, width, height);
       }
 
-      // Animation-specific visual effects as overlays
-      if (animationState === "attack") {
-        // Glow effect during attack
-        const colorRgb = this.hexToRgb(color);
-        this.ctx.shadowBlur = 20;
-        this.ctx.shadowColor = color;
-        this.ctx.globalCompositeOperation = "screen";
-        this.ctx.fillStyle = `rgba(${colorRgb.r}, ${colorRgb.g}, ${colorRgb.b}, 0.3)`;
-        this.ctx.fillRect(spriteX, spriteY, width, height);
-        this.ctx.globalCompositeOperation = "source-over";
-        this.ctx.shadowBlur = 0;
-      } else if (animationState === "block") {
-        // Shield effect - position based on enemy/player
-        this.ctx.globalCompositeOperation = "screen";
-        this.ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-        const shieldX = isEnemy ? x + width / 2 - 5 : x - width / 2 - 5;
-        this.ctx.fillRect(shieldX, spriteY, 10, height);
-        this.ctx.globalCompositeOperation = "source-over";
+      // Animation-specific visual effects as overlays (masked to sprite shape)
+      if (animationState === "block") {
+        // Shield effect - masked to sprite shape, positioned based on enemy/player
+        const effectCanvas = document.createElement("canvas");
+        effectCanvas.width = width;
+        effectCanvas.height = height;
+        const effectCtx = effectCanvas.getContext("2d");
+        if (effectCtx) {
+          // Draw shield effect
+          effectCtx.fillStyle = "rgba(255, 255, 255, 0.3)";
+          const shieldX = isEnemy ? width / 2 - 5 : -width / 2 - 5;
+          effectCtx.fillRect(shieldX, 0, 10, height);
+          // Use destination-in to mask effect to sprite's alpha channel
+          effectCtx.globalCompositeOperation = "destination-in";
+          effectCtx.drawImage(spriteImage, 0, 0, width, height);
+          // Draw the masked effect to main canvas with screen blend
+          this.ctx.globalCompositeOperation = "screen";
+          this.ctx.drawImage(effectCanvas, spriteX, spriteY);
+          this.ctx.globalCompositeOperation = "source-over";
+        }
       } else if (animationState === "hit") {
-        // Flash effect
+        // Flash effect - masked to sprite (like perfect block stun effect)
         const flashAlpha = Math.sin(this.cachedCurrentTime / 50) * 0.5 + 0.5;
-        this.ctx.globalCompositeOperation = "screen";
-        this.ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.5})`;
-        this.ctx.fillRect(spriteX, spriteY, width, height);
-        this.ctx.globalCompositeOperation = "source-over";
+        const effectCanvas = document.createElement("canvas");
+        effectCanvas.width = width;
+        effectCanvas.height = height;
+        const effectCtx = effectCanvas.getContext("2d");
+        if (effectCtx) {
+          // Draw white flash effect
+          effectCtx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.5})`;
+          effectCtx.fillRect(0, 0, width, height);
+          // Use destination-in to mask effect to sprite's alpha channel
+          effectCtx.globalCompositeOperation = "destination-in";
+          effectCtx.drawImage(spriteImage, 0, 0, width, height);
+          // Draw the masked effect to main canvas with screen blend
+          this.ctx.globalCompositeOperation = "screen";
+          this.ctx.drawImage(effectCanvas, spriteX, spriteY);
+          this.ctx.globalCompositeOperation = "source-over";
+        }
       }
     } else {
       // Fallback to original rectangle drawing if sprites aren't loaded
@@ -4602,13 +4606,7 @@ export class TinySouls {
       this.ctx.strokeRect(x - width / 2, y - height / 2, width, height);
 
       // Animation-specific visual effects
-      if (animationState === "attack") {
-        // Glow effect during attack
-        this.ctx.shadowBlur = 20;
-        this.ctx.shadowColor = color;
-        this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
-        this.ctx.shadowBlur = 0;
-      } else if (animationState === "block") {
+      if (animationState === "block") {
         // Shield effect - position based on enemy/player
         this.ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
         const shieldX = isEnemy ? x + width / 2 - 5 : x - width / 2 - 5;
