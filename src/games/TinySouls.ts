@@ -621,6 +621,14 @@ export class TinySouls {
 
   // Logo and intro screen state
   private logoImage: HTMLImageElement | null = null;
+  private backgroundImage: HTMLImageElement | null = null;
+
+  // Player sprite images
+  private playerIdleImage: HTMLImageElement | null = null;
+  private playerAttackImage: HTMLImageElement | null = null;
+  private playerBlockImage: HTMLImageElement | null = null;
+  private playerHitImage: HTMLImageElement | null = null;
+
   private logoFadeProgress: number = 0;
   private logoFadeDuration: number = 1500;
   private logoFadeStartTime: number = 0;
@@ -770,7 +778,10 @@ export class TinySouls {
       }
 
       // Handle death screen - click to return to title screen
-      if (this.gameStatus === "deathScreen" && this.deathScreenWaitingForInput) {
+      if (
+        this.gameStatus === "deathScreen" &&
+        this.deathScreenWaitingForInput
+      ) {
         e.preventDefault();
         const oldStatus = this.gameStatus;
         // Save game data before returning to intro
@@ -806,6 +817,10 @@ export class TinySouls {
 
     // Load logo image
     this.loadLogo();
+    // Load background image
+    this.loadBackground();
+    // Load player sprites
+    this.loadPlayerSprites();
 
     // Keyboard event listeners
     window.addEventListener("keydown", this.keydownHandler);
@@ -872,12 +887,15 @@ export class TinySouls {
           0,
           Math.min(
             maxScroll,
-            this.upgradesShopScrollOffset - (e.deltaY > 0 ? scrollSpeed : -scrollSpeed)
+            this.upgradesShopScrollOffset -
+              (e.deltaY > 0 ? scrollSpeed : -scrollSpeed)
           )
         );
       }
     };
-    this.canvas.addEventListener("wheel", this.wheelHandler, { passive: false });
+    this.canvas.addEventListener("wheel", this.wheelHandler, {
+      passive: false,
+    });
 
     // Initialize level
     this.initializeLevel();
@@ -933,7 +951,8 @@ export class TinySouls {
           this.upgrades.staminaRegen = data.upgrades.staminaRegen || 0;
           this.upgrades.attackSpeed = data.upgrades.attackSpeed || 0;
           this.upgrades.blockEfficiency = data.upgrades.blockEfficiency || 0;
-          this.upgrades.perfectBlockWindow = data.upgrades.perfectBlockWindow || 0;
+          this.upgrades.perfectBlockWindow =
+            data.upgrades.perfectBlockWindow || 0;
           this.upgrades.goldFind = data.upgrades.goldFind || 0;
           this.upgrades.startingHealth = data.upgrades.startingHealth || 0;
         }
@@ -1010,9 +1029,13 @@ export class TinySouls {
       // Initialize fog particles for title screen
       this.initializeFog();
     }
-    
+
     // Reinitialize fog when returning to intro from other screens
-    if (newStatus === "intro" && oldStatus !== "startScreen" && oldStatus !== "intro") {
+    if (
+      newStatus === "intro" &&
+      oldStatus !== "startScreen" &&
+      oldStatus !== "intro"
+    ) {
       this.initializeFog();
     }
 
@@ -1060,12 +1083,14 @@ export class TinySouls {
   private initializeFog(): void {
     this.fogParticles = [];
     const particleCount = this.isMobile() ? 35 : 55;
-    
+
     for (let i = 0; i < particleCount; i++) {
       this.fogParticles.push({
         x: Math.random() * this.displayWidth,
         y: Math.random() * this.displayHeight,
-        radius: this.getMobileValue(80, 120) + Math.random() * this.getMobileValue(40, 80),
+        radius:
+          this.getMobileValue(80, 120) +
+          Math.random() * this.getMobileValue(40, 80),
         speed: 0.02 + Math.random() * 0.03,
         opacity: 0.15 + Math.random() * 0.15,
         baseOpacity: 0.15 + Math.random() * 0.15,
@@ -1075,28 +1100,29 @@ export class TinySouls {
 
   private updateFog(deltaTime: number): void {
     const time = this.cachedCurrentTime;
-    
+
     for (let i = 0; i < this.fogParticles.length; i++) {
       const particle = this.fogParticles[i];
-      
+
       // Move fog particles horizontally with slight vertical drift
       particle.x += particle.speed * deltaTime;
       particle.y += Math.sin(time / 2000 + i) * 0.01 * deltaTime;
-      
+
       // Wrap around horizontally
       if (particle.x > this.displayWidth + particle.radius) {
         particle.x = -particle.radius;
         particle.y = Math.random() * this.displayHeight;
       }
-      
+
       // Subtle pulsing opacity effect
-      particle.opacity = particle.baseOpacity + Math.sin(time / 3000 + i) * 0.05;
+      particle.opacity =
+        particle.baseOpacity + Math.sin(time / 3000 + i) * 0.05;
     }
   }
 
   private drawFog(): void {
     this.ctx.save();
-    
+
     for (const particle of this.fogParticles) {
       // Create radial gradient for fog particle
       const gradient = this.ctx.createRadialGradient(
@@ -1107,19 +1133,22 @@ export class TinySouls {
         particle.y,
         particle.radius
       );
-      
+
       // Use colors that match the game's aesthetic (teal/blue mist)
       const fogColor = `rgba(139, 184, 232, ${particle.opacity})`; // Light blue with opacity
       gradient.addColorStop(0, fogColor);
-      gradient.addColorStop(0.5, `rgba(139, 184, 232, ${particle.opacity * 0.5})`);
+      gradient.addColorStop(
+        0.5,
+        `rgba(139, 184, 232, ${particle.opacity * 0.5})`
+      );
       gradient.addColorStop(1, `rgba(139, 184, 232, 0)`);
-      
+
       this.ctx.fillStyle = gradient;
       this.ctx.beginPath();
       this.ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
       this.ctx.fill();
     }
-    
+
     this.ctx.restore();
   }
 
@@ -1480,6 +1509,64 @@ export class TinySouls {
     img.src = "/assets/games/tiny-souls-logo.png";
   }
 
+  private loadBackground(): void {
+    const img = new Image();
+    img.onload = () => {
+      this.backgroundImage = img;
+    };
+    img.onerror = () => {
+      console.warn("Failed to load background image");
+      this.backgroundImage = null;
+    };
+    img.src = "/assets/games/tiny-souls/images/background.png";
+  }
+
+  private loadPlayerSprites(): void {
+    // Load idle sprite
+    const idleImg = new Image();
+    idleImg.onload = () => {
+      this.playerIdleImage = idleImg;
+    };
+    idleImg.onerror = () => {
+      console.warn("Failed to load player idle sprite");
+      this.playerIdleImage = null;
+    };
+    idleImg.src = "/assets/games/tiny-souls/images/player.png";
+
+    // Load attack sprite
+    const attackImg = new Image();
+    attackImg.onload = () => {
+      this.playerAttackImage = attackImg;
+    };
+    attackImg.onerror = () => {
+      console.warn("Failed to load player attack sprite");
+      this.playerAttackImage = null;
+    };
+    attackImg.src = "/assets/games/tiny-souls/images/player_attack.png";
+
+    // Load block sprite
+    const blockImg = new Image();
+    blockImg.onload = () => {
+      this.playerBlockImage = blockImg;
+    };
+    blockImg.onerror = () => {
+      console.warn("Failed to load player block sprite");
+      this.playerBlockImage = null;
+    };
+    blockImg.src = "/assets/games/tiny-souls/images/player_block.png";
+
+    // Load hit sprite
+    const hitImg = new Image();
+    hitImg.onload = () => {
+      this.playerHitImage = hitImg;
+    };
+    hitImg.onerror = () => {
+      console.warn("Failed to load player hit sprite");
+      this.playerHitImage = null;
+    };
+    hitImg.src = "/assets/games/tiny-souls/images/player_hit.png";
+  }
+
   private initializeLevel(): void {
     const config = this.getCurrentLevelConfig();
     this.enemy.health = config.enemyHealth;
@@ -1615,7 +1702,7 @@ export class TinySouls {
         this.enemy.position.y = displayHeight * 0.5;
       }
       this.updateSpearPositions();
-      
+
       // Reinitialize fog if on intro screen (to match new dimensions)
       if (this.gameStatus === "intro") {
         this.initializeFog();
@@ -2307,7 +2394,7 @@ export class TinySouls {
     if (this.gameStatus === "intro") {
       this.updateFog(deltaTime);
     }
-    
+
     // Update logo fade progress
     if (
       this.gameStatus === "intro" &&
@@ -2389,8 +2476,7 @@ export class TinySouls {
     } else if (this.player.stamina < this.player.maxStamina) {
       // Stamina regeneration when not blocking (with upgrade bonus)
       const regenRate =
-        this.upgrades.baseStaminaRegenRate +
-        this.upgrades.staminaRegen * 5;
+        this.upgrades.baseStaminaRegenRate + this.upgrades.staminaRegen * 5;
       const regenAmount = (regenRate * deltaTime) / 1000;
       this.player.stamina = Math.min(
         this.player.maxStamina,
@@ -2412,9 +2498,13 @@ export class TinySouls {
       const fadeInDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_IN_DURATION;
       const holdDuration = GAME_CONSTANTS.DEATH_SCREEN.HOLD_DURATION;
       const moveUpDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_OUT_DURATION;
-      const statsShownDuration = explosionDuration + fadeInDuration + holdDuration + moveUpDuration;
-      
-      if (this.deathScreenTimer >= statsShownDuration && !this.deathScreenWaitingForInput) {
+      const statsShownDuration =
+        explosionDuration + fadeInDuration + holdDuration + moveUpDuration;
+
+      if (
+        this.deathScreenTimer >= statsShownDuration &&
+        !this.deathScreenWaitingForInput
+      ) {
         // Stats are now shown, wait for player input
         this.deathScreenWaitingForInput = true;
       }
@@ -2471,7 +2561,9 @@ export class TinySouls {
           GAME_CONSTANTS.GOLD.NG_PLUS_BONUS_BASE *
           (this.upgrades.newGamePlusLevel + 1);
         const goldFindMultiplier = 1 + this.upgrades.goldFind * 0.1;
-        this.lastNgPlusGoldEarned = Math.floor(ngPlusBonus * goldFindMultiplier);
+        this.lastNgPlusGoldEarned = Math.floor(
+          ngPlusBonus * goldFindMultiplier
+        );
         this.upgrades.gold += this.lastNgPlusGoldEarned;
         this.saveGameData();
         this.upgrades.selected = null;
@@ -2871,14 +2963,30 @@ export class TinySouls {
       this.ui.screenShake.offsetY
     );
 
-    // Clear canvas
-    this.ctx.fillStyle = COLORS.BACKGROUND;
-    this.ctx.fillRect(
-      -this.ui.screenShake.offsetX,
-      -this.ui.screenShake.offsetY,
-      this.displayWidth,
-      this.displayHeight
-    );
+    // Clear canvas with background image or solid color
+    if (
+      this.backgroundImage &&
+      this.gameStatus !== "startScreen" &&
+      this.gameStatus !== "intro"
+    ) {
+      // Draw background image scaled to fit canvas
+      this.ctx.drawImage(
+        this.backgroundImage,
+        -this.ui.screenShake.offsetX,
+        -this.ui.screenShake.offsetY,
+        this.displayWidth,
+        this.displayHeight
+      );
+    } else {
+      // Fallback to solid color
+      this.ctx.fillStyle = COLORS.BACKGROUND;
+      this.ctx.fillRect(
+        -this.ui.screenShake.offsetX,
+        -this.ui.screenShake.offsetY,
+        this.displayWidth,
+        this.displayHeight
+      );
+    }
 
     // Skip game rendering during start screen and intro
     if (this.gameStatus !== "startScreen" && this.gameStatus !== "intro") {
@@ -3773,9 +3881,15 @@ export class TinySouls {
 
     // Gold display
     this.ctx.fillStyle = COLORS.GOLD;
-    this.ctx.font = `bold ${this.getFontSize(this.isMobile() ? 24 : 28)} sans-serif`;
+    this.ctx.font = `bold ${this.getFontSize(
+      this.isMobile() ? 24 : 28
+    )} sans-serif`;
     this.ctx.textAlign = "center";
-    this.ctx.fillText(`Gold: ${this.upgrades.gold.toLocaleString()}`, centerX, currentY);
+    this.ctx.fillText(
+      `Gold: ${this.upgrades.gold.toLocaleString()}`,
+      centerX,
+      currentY
+    );
     currentY += this.isMobile() ? 40 : 50;
 
     // Upgrade options
@@ -3864,43 +3978,57 @@ export class TinySouls {
     const maxScroll = Math.max(0, upgrades.length - maxVisible);
     const scrollOffset = Math.min(this.upgradesShopScrollOffset, maxScroll);
 
-    upgrades.slice(scrollOffset, scrollOffset + maxVisible).forEach((upgrade, index) => {
-      const y = optionStartY + index * optionSpacing;
-      const currentLevel = upgrade.getCurrentLevel();
-      const cost = upgrade.baseCost * (currentLevel + 1);
-      const canAfford = this.upgrades.gold >= cost;
+    upgrades
+      .slice(scrollOffset, scrollOffset + maxVisible)
+      .forEach((upgrade, index) => {
+        const y = optionStartY + index * optionSpacing;
+        const currentLevel = upgrade.getCurrentLevel();
+        const cost = upgrade.baseCost * (currentLevel + 1);
+        const canAfford = this.upgrades.gold >= cost;
 
-      // Highlight affordable upgrades
-      this.ctx.fillStyle = canAfford ? "#2a2a2a" : "#1a1a1a";
-      const optionWidth = this.displayWidth - (this.isMobile() ? 40 : 80);
-      const optionX = (this.displayWidth - optionWidth) / 2;
-      this.ctx.fillRect(optionX, y - 15, optionWidth, optionSpacing - 5);
+        // Highlight affordable upgrades
+        this.ctx.fillStyle = canAfford ? "#2a2a2a" : "#1a1a1a";
+        const optionWidth = this.displayWidth - (this.isMobile() ? 40 : 80);
+        const optionX = (this.displayWidth - optionWidth) / 2;
+        this.ctx.fillRect(optionX, y - 15, optionWidth, optionSpacing - 5);
 
-      // Upgrade name and level
-      this.ctx.fillStyle = canAfford ? COLORS.TEXT_LIGHT_BLUE : COLORS.TEXT_DARK_GRAY;
-      this.ctx.font = `bold ${this.getFontSize(this.isMobile() ? 14 : 16)} sans-serif`;
-      this.ctx.textAlign = "left";
-      this.ctx.fillText(
-        `${upgrade.name} (Lv ${currentLevel})`,
-        optionX + 10,
-        y
-      );
+        // Upgrade name and level
+        this.ctx.fillStyle = canAfford
+          ? COLORS.TEXT_LIGHT_BLUE
+          : COLORS.TEXT_DARK_GRAY;
+        this.ctx.font = `bold ${this.getFontSize(
+          this.isMobile() ? 14 : 16
+        )} sans-serif`;
+        this.ctx.textAlign = "left";
+        this.ctx.fillText(
+          `${upgrade.name} (Lv ${currentLevel})`,
+          optionX + 10,
+          y
+        );
 
-      // Description
-      this.ctx.fillStyle = "#cccccc";
-      this.ctx.font = `${this.getFontSize(this.isMobile() ? 12 : 14)} sans-serif`;
-      this.ctx.fillText(upgrade.desc, optionX + 10, y + (this.isMobile() ? 15 : 18));
+        // Description
+        this.ctx.fillStyle = "#cccccc";
+        this.ctx.font = `${this.getFontSize(
+          this.isMobile() ? 12 : 14
+        )} sans-serif`;
+        this.ctx.fillText(
+          upgrade.desc,
+          optionX + 10,
+          y + (this.isMobile() ? 15 : 18)
+        );
 
-      // Cost
-      this.ctx.fillStyle = canAfford ? COLORS.GOLD : "#666666";
-      this.ctx.font = `bold ${this.getFontSize(this.isMobile() ? 14 : 16)} sans-serif`;
-      this.ctx.textAlign = "right";
-      this.ctx.fillText(
-        `${cost.toLocaleString()} Gold`,
-        optionX + optionWidth - 10,
-        y + (this.isMobile() ? 8 : 10)
-      );
-    });
+        // Cost
+        this.ctx.fillStyle = canAfford ? COLORS.GOLD : "#666666";
+        this.ctx.font = `bold ${this.getFontSize(
+          this.isMobile() ? 14 : 16
+        )} sans-serif`;
+        this.ctx.textAlign = "right";
+        this.ctx.fillText(
+          `${cost.toLocaleString()} Gold`,
+          optionX + optionWidth - 10,
+          y + (this.isMobile() ? 8 : 10)
+        );
+      });
 
     // Draw scroll indicator if there are more upgrades to scroll
     if (maxScroll > 0) {
@@ -3908,14 +4036,22 @@ export class TinySouls {
       const scrollBarX = this.displayWidth - 20;
       const scrollBarY = currentY + 20;
       const scrollBarTrackHeight = maxVisible * optionSpacing - 20;
-      
+
       // Scroll track
       this.ctx.fillStyle = "#333333";
-      this.ctx.fillRect(scrollBarX, scrollBarY, scrollBarWidth, scrollBarTrackHeight);
-      
+      this.ctx.fillRect(
+        scrollBarX,
+        scrollBarY,
+        scrollBarWidth,
+        scrollBarTrackHeight
+      );
+
       // Scroll thumb
       const thumbHeight = (scrollBarTrackHeight * maxVisible) / upgrades.length;
-      const thumbY = scrollBarY + (scrollBarTrackHeight - thumbHeight) * (this.upgradesShopScrollOffset / maxScroll);
+      const thumbY =
+        scrollBarY +
+        (scrollBarTrackHeight - thumbHeight) *
+          (this.upgradesShopScrollOffset / maxScroll);
       this.ctx.fillStyle = "#888888";
       this.ctx.fillRect(scrollBarX, thumbY, scrollBarWidth, thumbHeight);
     }
@@ -4036,7 +4172,10 @@ export class TinySouls {
     const optionX = (this.displayWidth - optionWidth) / 2;
 
     // Check if clicked on an upgrade option (accounting for scroll)
-    const visibleUpgrades = upgrades.slice(scrollOffset, scrollOffset + maxVisible);
+    const visibleUpgrades = upgrades.slice(
+      scrollOffset,
+      scrollOffset + maxVisible
+    );
     for (let i = 0; i < visibleUpgrades.length; i++) {
       const upgrade = visibleUpgrades[i];
       const optionY = optionStartY + i * optionSpacing;
@@ -4057,7 +4196,7 @@ export class TinySouls {
         break;
       }
     }
-    
+
     return false;
   }
 
@@ -4306,6 +4445,23 @@ export class TinySouls {
   ): void {
     this.ctx.save();
 
+    // Select the appropriate sprite based on animation state
+    let spriteImage: HTMLImageElement | null = null;
+    switch (animationState) {
+      case "idle":
+        spriteImage = this.playerIdleImage;
+        break;
+      case "attack":
+        spriteImage = this.playerAttackImage;
+        break;
+      case "block":
+        spriteImage = this.playerBlockImage;
+        break;
+      case "hit":
+        spriteImage = this.playerHitImage;
+        break;
+    }
+
     // Animation-based transformations
     let scaleX = 1;
     let scaleY = 1;
@@ -4352,56 +4508,146 @@ export class TinySouls {
     this.ctx.scale(scaleX, scaleY);
     this.ctx.translate(-x + offsetX, -y + offsetY);
 
-    // Character body
-    this.ctx.fillStyle = color;
-    this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
+    // Draw sprite if available, otherwise fall back to rectangle drawing
+    if (spriteImage) {
+      const spriteX = x - width / 2;
+      const spriteY = y - height / 2;
 
-    // Character outline
-    this.ctx.strokeStyle = "#ffffff";
-    this.ctx.lineWidth = 2;
-    this.ctx.strokeRect(x - width / 2, y - height / 2, width, height);
+      if (isEnemy) {
+        // For enemies, apply color filter only to non-transparent pixels
+        const enemyColorRgb = this.hexToRgb(color);
 
-    // Animation-specific visual effects
-    if (animationState === "attack") {
-      // Glow effect during attack
-      this.ctx.shadowBlur = 20;
-      this.ctx.shadowColor = color;
-      this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
-      this.ctx.shadowBlur = 0;
-    } else if (animationState === "block") {
-      // Shield effect - position based on enemy/player
-      this.ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-      const shieldX = isEnemy ? x + width / 2 - 5 : x - width / 2 - 5;
-      this.ctx.fillRect(shieldX, y - height / 2, 10, height);
-    } else if (animationState === "hit") {
-      // Flash effect
-      const flashAlpha = Math.sin(this.cachedCurrentTime / 50) * 0.5 + 0.5;
-      this.ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.5})`;
-      this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
-    }
+        // Use an offscreen canvas to properly apply tint
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const tempCtx = tempCanvas.getContext("2d", {
+          willReadFrequently: false,
+        });
 
-    // Simple face
-    this.ctx.fillStyle = "#000000";
-    // Eyes - adjust for enemy flip
-    let eyeOffsetX = 0;
-    if (animationState === "attack") {
-      eyeOffsetX = isEnemy ? -3 : 3; // Eyes look forward during attack
-    } else if (animationState === "hit") {
-      eyeOffsetX = isEnemy ? 2 : -2; // Eyes look back during hit
-    }
-    this.ctx.fillRect(x - 15 + eyeOffsetX, y - 20, 8, 8);
-    this.ctx.fillRect(x + 7 + eyeOffsetX, y - 20, 8, 8);
+        if (tempCtx) {
+          // Draw sprite to temp canvas
+          tempCtx.drawImage(spriteImage, 0, 0, width, height);
 
-    // Mouth - different expressions based on state
-    if (animationState === "attack") {
-      // Open mouth (wider)
-      this.ctx.fillRect(x - 10, y + 10, 20, 6);
-    } else if (animationState === "hit") {
-      // Surprised mouth (smaller)
-      this.ctx.fillRect(x - 6, y + 12, 12, 4);
+          // Get image data to work with pixels directly
+          const imageData = tempCtx.getImageData(0, 0, width, height);
+          const data = imageData.data;
+
+          // Apply color tint to non-transparent pixels only
+          for (let i = 0; i < data.length; i += 4) {
+            const alpha = data[i + 3];
+            if (alpha > 0) {
+              // Blend enemy color with existing pixel color
+              // Use a weighted average for tinting
+              const blendFactor = 0.5;
+              data[i] = Math.min(
+                255,
+                data[i] * (1 - blendFactor) + enemyColorRgb.r * blendFactor
+              );
+              data[i + 1] = Math.min(
+                255,
+                data[i + 1] * (1 - blendFactor) + enemyColorRgb.g * blendFactor
+              );
+              data[i + 2] = Math.min(
+                255,
+                data[i + 2] * (1 - blendFactor) + enemyColorRgb.b * blendFactor
+              );
+            }
+          }
+
+          // Put the modified image data back
+          tempCtx.putImageData(imageData, 0, 0);
+
+          // Draw the tinted sprite to main canvas
+          this.ctx.drawImage(tempCanvas, spriteX, spriteY);
+        } else {
+          // Fallback if temp canvas fails
+          this.ctx.drawImage(spriteImage, spriteX, spriteY, width, height);
+        }
+      } else {
+        // Draw sprite normally for player
+        this.ctx.drawImage(spriteImage, spriteX, spriteY, width, height);
+      }
+
+      // Animation-specific visual effects as overlays
+      if (animationState === "attack") {
+        // Glow effect during attack
+        const colorRgb = this.hexToRgb(color);
+        this.ctx.shadowBlur = 20;
+        this.ctx.shadowColor = color;
+        this.ctx.globalCompositeOperation = "screen";
+        this.ctx.fillStyle = `rgba(${colorRgb.r}, ${colorRgb.g}, ${colorRgb.b}, 0.3)`;
+        this.ctx.fillRect(spriteX, spriteY, width, height);
+        this.ctx.globalCompositeOperation = "source-over";
+        this.ctx.shadowBlur = 0;
+      } else if (animationState === "block") {
+        // Shield effect - position based on enemy/player
+        this.ctx.globalCompositeOperation = "screen";
+        this.ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+        const shieldX = isEnemy ? x + width / 2 - 5 : x - width / 2 - 5;
+        this.ctx.fillRect(shieldX, spriteY, 10, height);
+        this.ctx.globalCompositeOperation = "source-over";
+      } else if (animationState === "hit") {
+        // Flash effect
+        const flashAlpha = Math.sin(this.cachedCurrentTime / 50) * 0.5 + 0.5;
+        this.ctx.globalCompositeOperation = "screen";
+        this.ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.5})`;
+        this.ctx.fillRect(spriteX, spriteY, width, height);
+        this.ctx.globalCompositeOperation = "source-over";
+      }
     } else {
-      // Normal mouth
-      this.ctx.fillRect(x - 8, y + 10, 16, 4);
+      // Fallback to original rectangle drawing if sprites aren't loaded
+      // Character body
+      this.ctx.fillStyle = color;
+      this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
+
+      // Character outline
+      this.ctx.strokeStyle = "#ffffff";
+      this.ctx.lineWidth = 2;
+      this.ctx.strokeRect(x - width / 2, y - height / 2, width, height);
+
+      // Animation-specific visual effects
+      if (animationState === "attack") {
+        // Glow effect during attack
+        this.ctx.shadowBlur = 20;
+        this.ctx.shadowColor = color;
+        this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
+        this.ctx.shadowBlur = 0;
+      } else if (animationState === "block") {
+        // Shield effect - position based on enemy/player
+        this.ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+        const shieldX = isEnemy ? x + width / 2 - 5 : x - width / 2 - 5;
+        this.ctx.fillRect(shieldX, y - height / 2, 10, height);
+      } else if (animationState === "hit") {
+        // Flash effect
+        const flashAlpha = Math.sin(this.cachedCurrentTime / 50) * 0.5 + 0.5;
+        this.ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha * 0.5})`;
+        this.ctx.fillRect(x - width / 2, y - height / 2, width, height);
+      }
+
+      // Simple face
+      this.ctx.fillStyle = "#000000";
+      // Eyes - adjust for enemy flip
+      let eyeOffsetX = 0;
+      if (animationState === "attack") {
+        eyeOffsetX = isEnemy ? -3 : 3; // Eyes look forward during attack
+      } else if (animationState === "hit") {
+        eyeOffsetX = isEnemy ? 2 : -2; // Eyes look back during hit
+      }
+      this.ctx.fillRect(x - 15 + eyeOffsetX, y - 20, 8, 8);
+      this.ctx.fillRect(x + 7 + eyeOffsetX, y - 20, 8, 8);
+
+      // Mouth - different expressions based on state
+      if (animationState === "attack") {
+        // Open mouth (wider)
+        this.ctx.fillRect(x - 10, y + 10, 20, 6);
+      } else if (animationState === "hit") {
+        // Surprised mouth (smaller)
+        this.ctx.fillRect(x - 6, y + 12, 12, 4);
+      } else {
+        // Normal mouth
+        this.ctx.fillRect(x - 8, y + 10, 16, 4);
+      }
     }
 
     this.ctx.restore();
@@ -4634,7 +4880,11 @@ export class TinySouls {
       this.ctx.shadowOffsetX = 0;
       this.ctx.shadowOffsetY = 0;
       const goldY = textY + (this.isMobile() ? 50 : 70);
-      this.ctx.fillText(`Gold Earned: +${this.lastGoldEarned}`, this.displayWidth / 2, goldY);
+      this.ctx.fillText(
+        `Gold Earned: +${this.lastGoldEarned}`,
+        this.displayWidth / 2,
+        goldY
+      );
       this.ctx.restore();
     }
 
@@ -4715,7 +4965,11 @@ export class TinySouls {
       this.ctx.shadowOffsetX = 0;
       this.ctx.shadowOffsetY = 0;
       const goldY = textY + (this.isMobile() ? 50 : 70);
-      this.ctx.fillText(`Gold Earned: +${this.lastGoldEarned}`, this.displayWidth / 2, goldY);
+      this.ctx.fillText(
+        `Gold Earned: +${this.lastGoldEarned}`,
+        this.displayWidth / 2,
+        goldY
+      );
       this.ctx.restore();
     }
 
@@ -4905,7 +5159,7 @@ export class TinySouls {
     // Ensure restart hint is visible on screen
     const maxY = this.displayHeight - (this.isMobile() ? 100 : 120);
     const finalRestartY = Math.min(restartHintY, maxY);
-    
+
     // Show "Click to return to title screen" if on death screen and waiting for input
     if (this.gameStatus === "deathScreen" && this.deathScreenWaitingForInput) {
       // Add pulsing effect for the click text
@@ -5423,13 +5677,19 @@ export class TinySouls {
           const maxVisible = this.isMobile() ? 8 : 10;
           const upgradesCount = 10;
           const maxScroll = Math.max(0, upgradesCount - maxVisible);
-          const scrollOffset = Math.min(this.upgradesShopScrollOffset, maxScroll);
+          const scrollOffset = Math.min(
+            this.upgradesShopScrollOffset,
+            maxScroll
+          );
           const optionWidth = this.displayWidth - (this.isMobile() ? 40 : 80);
           const optionX = (this.displayWidth - optionWidth) / 2;
-          
+
           let isOnUpgrade = false;
           // Check if touch is in visible upgrade area
-          const visibleUpgradesCount = Math.min(maxVisible, upgradesCount - scrollOffset);
+          const visibleUpgradesCount = Math.min(
+            maxVisible,
+            upgradesCount - scrollOffset
+          );
           for (let i = 0; i < visibleUpgradesCount; i++) {
             const optionY = optionStartY + i * optionSpacing;
             if (
@@ -5442,7 +5702,7 @@ export class TinySouls {
               break;
             }
           }
-          
+
           // Only track scroll if not on upgrade area
           if (!isOnUpgrade) {
             this.upgradesShopScrollStartY = touch.clientY;
@@ -5452,7 +5712,10 @@ export class TinySouls {
       }
 
       // Handle death screen - touch to return to title screen
-      if (this.gameStatus === "deathScreen" && this.deathScreenWaitingForInput) {
+      if (
+        this.gameStatus === "deathScreen" &&
+        this.deathScreenWaitingForInput
+      ) {
         e.preventDefault();
         const oldStatus = this.gameStatus;
         // Save game data before returning to intro
@@ -5541,15 +5804,17 @@ export class TinySouls {
     // Handle upgrades shop - process clicks if scroll didn't happen
     if (this.gameStatus === "upgradesShop") {
       const rect = this.canvas.getBoundingClientRect();
-      
+
       for (let i = 0; i < e.changedTouches.length; i++) {
         const touch = e.changedTouches[i];
         const x = touch.clientX - rect.left;
         const y = touch.clientY - rect.top;
-        
+
         // If we were tracking scroll, check if it was actually a scroll or a click
         if (this.upgradesShopScrollStartY !== null) {
-          const scrollDelta = Math.abs(this.upgradesShopScrollStartY - touch.clientY);
+          const scrollDelta = Math.abs(
+            this.upgradesShopScrollStartY - touch.clientY
+          );
           // If scroll delta is small, treat it as a click
           if (scrollDelta < 10) {
             // Process click (upgrade purchase)
@@ -5560,7 +5825,7 @@ export class TinySouls {
           this.handleUpgradesShopClick(x, y);
         }
       }
-      
+
       // Clear scroll tracking
       this.upgradesShopScrollStartY = null;
     }
@@ -5583,20 +5848,23 @@ export class TinySouls {
 
   public handleTouchMove(e: TouchEvent): void {
     // Handle scrolling in upgrades shop on mobile
-    if (this.gameStatus === "upgradesShop" && this.upgradesShopScrollStartY !== null) {
+    if (
+      this.gameStatus === "upgradesShop" &&
+      this.upgradesShopScrollStartY !== null
+    ) {
       e.preventDefault();
-      
+
       if (e.touches.length > 0) {
         const touch = e.touches[0];
         const currentY = touch.clientY;
         const deltaY = this.upgradesShopScrollStartY - currentY;
-        
+
         // Update scroll offset (positive deltaY means scrolling up)
         const scrollSpeed = 0.5; // Adjust sensitivity
         const maxVisible = this.isMobile() ? 8 : 10;
         const upgradesCount = 10; // Total number of upgrades
         const maxScroll = Math.max(0, upgradesCount - maxVisible);
-        
+
         this.upgradesShopScrollOffset = Math.max(
           0,
           Math.min(
@@ -5604,7 +5872,7 @@ export class TinySouls {
             this.upgradesShopScrollOffset + deltaY * scrollSpeed
           )
         );
-        
+
         // Update scroll start position for next move
         this.upgradesShopScrollStartY = currentY;
       }
