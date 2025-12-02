@@ -153,8 +153,8 @@ const GAME_CONSTANTS = {
     COLOR_ORANGE_TO_RED_THRESHOLD: 0.5,
   },
   CHARACTER: {
-    WIDTH: 60,
-    HEIGHT: 80,
+    WIDTH: 90,
+    HEIGHT: 120,
     MOBILE_PLAYER_Y_RATIO: 0.4,
     MOBILE_ENEMY_Y_RATIO: 0.7,
     DESKTOP_X_RATIO: 0.2,
@@ -1698,8 +1698,8 @@ export class TinySouls {
           displayWidth - 150,
           displayWidth * GAME_CONSTANTS.CHARACTER.DESKTOP_ENEMY_X_RATIO
         );
-        this.player.position.y = displayHeight * 0.5;
-        this.enemy.position.y = displayHeight * 0.5;
+        this.player.position.y = displayHeight * (2 / 3);
+        this.enemy.position.y = displayHeight * (2 / 3);
       }
       this.updateSpearPositions();
 
@@ -3233,11 +3233,6 @@ export class TinySouls {
     } else if (this.gameStatus === "enemyWon") {
       const config = this.cachedLevelConfig!;
       this.drawGameOver(`Defeated by ${config.enemyName}!`, config.enemyColor);
-    }
-
-    // Draw controls hint
-    if (this.gameStatus === "playing") {
-      this.drawControlsHint();
     }
 
     // Draw mobile controls (on top of everything)
