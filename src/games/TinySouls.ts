@@ -157,8 +157,8 @@ const GAME_CONSTANTS = {
     HEIGHT: 120,
     MOBILE_PLAYER_Y_RATIO: 0.4,
     MOBILE_ENEMY_Y_RATIO: 0.7,
-    DESKTOP_X_RATIO: 0.2,
-    DESKTOP_ENEMY_X_RATIO: 0.8,
+    DESKTOP_X_RATIO: 0.23,
+    DESKTOP_ENEMY_X_RATIO: 0.77,
   },
   SCREEN_SHAKE: {
     DECAY: 0.9,
@@ -1689,6 +1689,11 @@ export class TinySouls {
           displayHeight * GAME_CONSTANTS.CHARACTER.MOBILE_PLAYER_Y_RATIO;
         this.enemy.position.y =
           displayHeight * GAME_CONSTANTS.CHARACTER.MOBILE_ENEMY_Y_RATIO;
+        // Reset to original size for mobile
+        this.player.size.width = GAME_CONSTANTS.CHARACTER.WIDTH;
+        this.player.size.height = GAME_CONSTANTS.CHARACTER.HEIGHT;
+        this.enemy.size.width = GAME_CONSTANTS.CHARACTER.WIDTH;
+        this.enemy.size.height = GAME_CONSTANTS.CHARACTER.HEIGHT;
       } else {
         this.player.position.x = Math.min(
           150,
@@ -1698,8 +1703,15 @@ export class TinySouls {
           displayWidth - 150,
           displayWidth * GAME_CONSTANTS.CHARACTER.DESKTOP_ENEMY_X_RATIO
         );
-        this.player.position.y = displayHeight * (2 / 3);
-        this.enemy.position.y = displayHeight * (2 / 3);
+        // Position between 2/3 and 3/4 (midpoint)
+        const desktopYRatio = (2 / 3 + 3 / 4) / 2;
+        this.player.position.y = displayHeight * desktopYRatio;
+        this.enemy.position.y = displayHeight * desktopYRatio;
+        // Make sprites 56.25% larger for desktop (1.25 * 1.25 = 1.5625)
+        this.player.size.width = GAME_CONSTANTS.CHARACTER.WIDTH * 1.5625;
+        this.player.size.height = GAME_CONSTANTS.CHARACTER.HEIGHT * 1.5625;
+        this.enemy.size.width = GAME_CONSTANTS.CHARACTER.WIDTH * 1.5625;
+        this.enemy.size.height = GAME_CONSTANTS.CHARACTER.HEIGHT * 1.5625;
       }
       this.updateSpearPositions();
 
