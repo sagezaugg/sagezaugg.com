@@ -4468,9 +4468,7 @@ export class TinySouls {
 
     switch (animationState) {
       case "attack":
-        // Lean forward slightly, scale up
-        scaleX = 1.1;
-        scaleY = 0.95;
+        // Lean forward slightly
         // Enemy attacks toward player (left), player attacks toward enemy (right)
         offsetX = isEnemy ? -10 : 10;
         break;
