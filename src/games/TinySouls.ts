@@ -95,9 +95,9 @@ const GAME_CONSTANTS = {
     MAX_MULTIPLIER: 3.0,
   },
   GOLD: {
-    BASE_PER_LEVEL: 50,
-    VICTORY_BONUS_MULTIPLIER: 100,
-    NG_PLUS_BONUS_BASE: 500,
+    BASE_PER_LEVEL: 10,
+    VICTORY_BONUS_MULTIPLIER: 0,
+    NG_PLUS_BONUS_BASE: 50,
   },
   UPGRADE_COSTS: {
     HEALTH: 100,
@@ -460,10 +460,13 @@ export class TinySouls {
   private currentLevel: number = 1;
   private levelCompleteTimer: number = 0;
   private deathScreenTimer: number = 0;
+  private deathScreenWaitingForInput: boolean = false;
   private enemyDeathTimer: number = 0;
   private enemyVanquishedTimer: number = 0;
   private level5VictoryTimer: number = 0;
   private gameStatus: GameStatus = "startScreen";
+  private lastGoldEarned: number = 0;
+  private lastNgPlusGoldEarned: number = 0;
 
   // Grouped state objects
   private player: PlayerState = {
@@ -592,6 +595,7 @@ export class TinySouls {
   private isBlockButtonPressed: boolean = false;
   private upgradeMenuTouchY: number | null = null;
   private wasSpaceHeld: boolean = false;
+  private upgradesShopScrollStartY: number | null = null;
 
   // Event handlers for cleanup
   private resizeHandler: () => void;
@@ -600,6 +604,7 @@ export class TinySouls {
   private touchstartHandler: (e: TouchEvent) => void;
   private touchendHandler: (e: TouchEvent) => void;
   private touchcancelHandler: (e: TouchEvent) => void;
+  private touchmoveHandler: (e: TouchEvent) => void;
   private clickHandler: (e: MouseEvent) => void;
   private mousemoveHandler: (e: MouseEvent) => void;
   private wheelHandler: (e: WheelEvent) => void;
@@ -638,6 +643,16 @@ export class TinySouls {
     back: false,
   };
   private upgradesShopScrollOffset: number = 0;
+
+  // Fog effect for title screen
+  private fogParticles: Array<{
+    x: number;
+    y: number;
+    radius: number;
+    speed: number;
+    opacity: number;
+    baseOpacity: number;
+  }> = [];
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -721,6 +736,9 @@ export class TinySouls {
       e.preventDefault();
       this.handleTouchEnd(e);
     };
+    this.touchmoveHandler = (e: TouchEvent) => {
+      this.handleTouchMove(e);
+    };
     this.clickHandler = (e: MouseEvent) => {
       const rect = this.canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -751,6 +769,18 @@ export class TinySouls {
         }
       }
 
+      // Handle death screen - click to return to title screen
+      if (this.gameStatus === "deathScreen" && this.deathScreenWaitingForInput) {
+        e.preventDefault();
+        const oldStatus = this.gameStatus;
+        // Save game data before returning to intro
+        this.saveGameData();
+        // Return to intro screen so player can access upgrades menu
+        this.gameStatus = "intro";
+        this.deathScreenWaitingForInput = false;
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
+        return;
+      }
       // Handle level complete screen - any click continues
       if (this.gameStatus === "levelComplete") {
         e.preventDefault();
@@ -789,6 +819,9 @@ export class TinySouls {
       passive: false,
     });
     this.canvas.addEventListener("touchcancel", this.touchcancelHandler, {
+      passive: false,
+    });
+    this.canvas.addEventListener("touchmove", this.touchmoveHandler, {
       passive: false,
     });
 
@@ -939,15 +972,13 @@ export class TinySouls {
   }
 
   private awardGold(): void {
-    const baseGold = GAME_CONSTANTS.GOLD.BASE_PER_LEVEL * this.currentLevel;
-    const victoryBonus =
-      GAME_CONSTANTS.GOLD.VICTORY_BONUS_MULTIPLIER *
-      this.currentLevel *
-      (1 + this.upgrades.newGamePlusLevel * 0.2);
+    const baseGold = 10 * this.currentLevel;
+    const ngPlusMultiplier = Math.pow(1.5, this.upgrades.newGamePlusLevel);
     const goldFindMultiplier = 1 + this.upgrades.goldFind * 0.1;
     const totalGold = Math.floor(
-      (baseGold + victoryBonus) * goldFindMultiplier
+      baseGold * ngPlusMultiplier * goldFindMultiplier
     );
+    this.lastGoldEarned = totalGold;
     this.upgrades.gold += totalGold;
     this.saveGameData();
   }
@@ -976,6 +1007,13 @@ export class TinySouls {
         this.buttonFadeProgress = 0;
         this.buttonFadeStartTime = 0;
       }
+      // Initialize fog particles for title screen
+      this.initializeFog();
+    }
+    
+    // Reinitialize fog when returning to intro from other screens
+    if (newStatus === "intro" && oldStatus !== "startScreen" && oldStatus !== "intro") {
+      this.initializeFog();
     }
 
     // Start combat music when entering playing state at 50% volume
@@ -1017,6 +1055,72 @@ export class TinySouls {
     if (newStatus === "level5Victory" && oldStatus !== "level5Victory") {
       this.audioManager.playSound("you-win.mp3");
     }
+  }
+
+  private initializeFog(): void {
+    this.fogParticles = [];
+    const particleCount = this.isMobile() ? 35 : 55;
+    
+    for (let i = 0; i < particleCount; i++) {
+      this.fogParticles.push({
+        x: Math.random() * this.displayWidth,
+        y: Math.random() * this.displayHeight,
+        radius: this.getMobileValue(80, 120) + Math.random() * this.getMobileValue(40, 80),
+        speed: 0.02 + Math.random() * 0.03,
+        opacity: 0.15 + Math.random() * 0.15,
+        baseOpacity: 0.15 + Math.random() * 0.15,
+      });
+    }
+  }
+
+  private updateFog(deltaTime: number): void {
+    const time = this.cachedCurrentTime;
+    
+    for (let i = 0; i < this.fogParticles.length; i++) {
+      const particle = this.fogParticles[i];
+      
+      // Move fog particles horizontally with slight vertical drift
+      particle.x += particle.speed * deltaTime;
+      particle.y += Math.sin(time / 2000 + i) * 0.01 * deltaTime;
+      
+      // Wrap around horizontally
+      if (particle.x > this.displayWidth + particle.radius) {
+        particle.x = -particle.radius;
+        particle.y = Math.random() * this.displayHeight;
+      }
+      
+      // Subtle pulsing opacity effect
+      particle.opacity = particle.baseOpacity + Math.sin(time / 3000 + i) * 0.05;
+    }
+  }
+
+  private drawFog(): void {
+    this.ctx.save();
+    
+    for (const particle of this.fogParticles) {
+      // Create radial gradient for fog particle
+      const gradient = this.ctx.createRadialGradient(
+        particle.x,
+        particle.y,
+        0,
+        particle.x,
+        particle.y,
+        particle.radius
+      );
+      
+      // Use colors that match the game's aesthetic (teal/blue mist)
+      const fogColor = `rgba(139, 184, 232, ${particle.opacity})`; // Light blue with opacity
+      gradient.addColorStop(0, fogColor);
+      gradient.addColorStop(0.5, `rgba(139, 184, 232, ${particle.opacity * 0.5})`);
+      gradient.addColorStop(1, `rgba(139, 184, 232, 0)`);
+      
+      this.ctx.fillStyle = gradient;
+      this.ctx.beginPath();
+      this.ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+      this.ctx.fill();
+    }
+    
+    this.ctx.restore();
   }
 
   private getMobileValue<T>(mobile: T, desktop: T): T {
@@ -1215,6 +1319,8 @@ export class TinySouls {
     this.deathScreenTimer = 0;
     this.enemyVanquishedTimer = 0;
     this.level5VictoryTimer = 0;
+    this.lastGoldEarned = 0;
+    this.lastNgPlusGoldEarned = 0;
 
     // Reset player state
     if (!preserveUpgrades) {
@@ -1509,6 +1615,11 @@ export class TinySouls {
         this.enemy.position.y = displayHeight * 0.5;
       }
       this.updateSpearPositions();
+      
+      // Reinitialize fog if on intro screen (to match new dimensions)
+      if (this.gameStatus === "intro") {
+        this.initializeFog();
+      }
     }
   }
 
@@ -1848,6 +1959,7 @@ export class TinySouls {
       const oldStatus = this.gameStatus;
       this.gameStatus = "deathScreen";
       this.deathScreenTimer = 0;
+      this.deathScreenWaitingForInput = false;
       this.handleGameStatusChange(oldStatus, this.gameStatus);
       // Create death explosion particles
       this.createDeathExplosion();
@@ -2191,6 +2303,11 @@ export class TinySouls {
   }
 
   private update(deltaTime: number): void {
+    // Update fog particles for intro screen
+    if (this.gameStatus === "intro") {
+      this.updateFog(deltaTime);
+    }
+    
     // Update logo fade progress
     if (
       this.gameStatus === "intro" &&
@@ -2290,14 +2407,18 @@ export class TinySouls {
     // Update death screen timer
     if (this.gameStatus === "deathScreen") {
       this.deathScreenTimer += deltaTime;
-      if (this.deathScreenTimer >= GAME_CONSTANTS.DEATH_SCREEN.TOTAL_DURATION) {
-        const oldStatus = this.gameStatus;
-        // Save game data before returning to intro
-        this.saveGameData();
-        // Return to intro screen so player can access upgrades menu
-        this.gameStatus = "intro";
-        this.handleGameStatusChange(oldStatus, this.gameStatus);
+      // After showing stats, wait for player input instead of auto-transitioning
+      const explosionDuration = GAME_CONSTANTS.DEATH_SCREEN.EXPLOSION_DURATION;
+      const fadeInDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_IN_DURATION;
+      const holdDuration = GAME_CONSTANTS.DEATH_SCREEN.HOLD_DURATION;
+      const moveUpDuration = GAME_CONSTANTS.DEATH_SCREEN.FADE_OUT_DURATION;
+      const statsShownDuration = explosionDuration + fadeInDuration + holdDuration + moveUpDuration;
+      
+      if (this.deathScreenTimer >= statsShownDuration && !this.deathScreenWaitingForInput) {
+        // Stats are now shown, wait for player input
+        this.deathScreenWaitingForInput = true;
       }
+      // Don't auto-transition - wait for click input
     }
 
     // Update enemy death timer
@@ -2350,7 +2471,8 @@ export class TinySouls {
           GAME_CONSTANTS.GOLD.NG_PLUS_BONUS_BASE *
           (this.upgrades.newGamePlusLevel + 1);
         const goldFindMultiplier = 1 + this.upgrades.goldFind * 0.1;
-        this.upgrades.gold += Math.floor(ngPlusBonus * goldFindMultiplier);
+        this.lastNgPlusGoldEarned = Math.floor(ngPlusBonus * goldFindMultiplier);
+        this.upgrades.gold += this.lastNgPlusGoldEarned;
         this.saveGameData();
         this.upgrades.selected = null;
         this.handleGameStatusChange(oldStatus, this.gameStatus);
@@ -2771,6 +2893,19 @@ export class TinySouls {
       const levelY = this.isMobile() ? 25 : 35;
       this.ctx.fillText(levelText, this.displayWidth / 2, levelY);
 
+      // Draw gold display under level/NG+ text (only during gameplay)
+      if (this.gameStatus === "playing") {
+        this.ctx.fillStyle = COLORS.GOLD;
+        this.ctx.font = `bold ${this.getFontSize(18)} sans-serif`;
+        this.ctx.textAlign = "center";
+        const goldY = levelY + (this.isMobile() ? 22 : 28);
+        this.ctx.fillText(
+          `Gold: ${this.upgrades.gold.toLocaleString()}`,
+          this.displayWidth / 2,
+          goldY
+        );
+      }
+
       // Draw score display (only during gameplay)
       if (this.gameStatus === "playing") {
         this.ctx.fillStyle = COLORS.GOLD;
@@ -2795,19 +2930,7 @@ export class TinySouls {
             scoreX,
             scoreY + (this.isMobile() ? 18 : 20)
           );
-          scoreY += this.isMobile() ? 36 : 40;
-        } else {
-          scoreY += this.isMobile() ? 18 : 20;
         }
-
-        // Draw gold display
-        this.ctx.fillStyle = COLORS.GOLD;
-        this.ctx.font = `bold ${this.getFontSize(18)} sans-serif`;
-        this.ctx.fillText(
-          `Gold: ${this.upgrades.gold.toLocaleString()}`,
-          scoreX,
-          scoreY
-        );
       }
 
       // Draw health bars
@@ -3047,6 +3170,12 @@ export class TinySouls {
     // Black background
     this.ctx.fillStyle = COLORS.BLACK;
     this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+
+    // Draw fog effect
+    this.ctx.save();
+    this.ctx.globalAlpha = overallOpacity;
+    this.drawFog();
+    this.ctx.restore();
 
     const centerX = this.displayWidth / 2;
     const centerY = this.displayHeight / 2;
@@ -3794,7 +3923,7 @@ export class TinySouls {
     // Back button
     const buttonWidth = this.getMobileValue(120, 150);
     const buttonHeight = this.getMobileValue(44, 50);
-    const buttonY = this.displayHeight - (this.isMobile() ? 60 : 80);
+    const buttonY = this.displayHeight - (this.isMobile() ? 80 : 100);
     const buttonX = centerX - buttonWidth / 2;
     this.drawButton(
       buttonX,
@@ -3806,8 +3935,36 @@ export class TinySouls {
     );
   }
 
-  private handleUpgradesShopClick(x: number, y: number): void {
+  private handleUpgradesShopClick(x: number, y: number): boolean {
+    // Don't handle clicks if already fading out
+    if (this.fadeOutStartTime > 0) {
+      return false;
+    }
+
     const centerX = this.displayWidth / 2;
+    const buttonWidth = this.getMobileValue(120, 150);
+    const buttonHeight = this.getMobileValue(44, 50);
+    const buttonY = this.displayHeight - (this.isMobile() ? 80 : 100);
+    const buttonX = centerX - buttonWidth / 2;
+
+    // Check back button first (before checking upgrades)
+    if (
+      this.isPointInRectButton(
+        x,
+        y,
+        buttonX,
+        buttonY,
+        buttonWidth,
+        buttonHeight
+      )
+    ) {
+      // Play button click sound
+      this.audioManager.playSound("button-click.mp3");
+      // Start fade-out, then transition back to intro
+      this.startFadeOut("intro");
+      return true;
+    }
+
     let currentY = this.isMobile() ? 30 : 40;
 
     // Title and gold display height
@@ -3878,20 +4035,8 @@ export class TinySouls {
     const optionWidth = this.displayWidth - (this.isMobile() ? 40 : 80);
     const optionX = (this.displayWidth - optionWidth) / 2;
 
-    // Check if clicked on back button first (before checking upgrades)
-    const buttonWidth = this.getMobileValue(120, 150);
-    const buttonHeight = this.getMobileValue(44, 50);
-    const buttonY = this.displayHeight - (this.isMobile() ? 60 : 80);
-    const buttonX = centerX - buttonWidth / 2;
-    const isBackButtonClick =
-      x >= buttonX &&
-      x <= buttonX + buttonWidth &&
-      y >= buttonY &&
-      y <= buttonY + buttonHeight;
-
     // Check if clicked on an upgrade option (accounting for scroll)
     const visibleUpgrades = upgrades.slice(scrollOffset, scrollOffset + maxVisible);
-    let clickedOnUpgrade = false;
     for (let i = 0; i < visibleUpgrades.length; i++) {
       const upgrade = visibleUpgrades[i];
       const optionY = optionStartY + i * optionSpacing;
@@ -3903,25 +4048,17 @@ export class TinySouls {
         y <= optionY + optionSpacing - 20;
 
       if (isUpgradeClick) {
-        // Only process upgrade click if it's not on the back button
-        if (!isBackButtonClick) {
-          const currentLevel = upgrade.getCurrentLevel();
-          const cost = upgrade.baseCost * (currentLevel + 1);
-          if (this.upgrades.gold >= cost) {
-            this.purchaseUpgrade(upgrade.type);
-            this.audioManager.playSound("button-click.mp3");
-          }
+        const currentLevel = upgrade.getCurrentLevel();
+        const cost = upgrade.baseCost * (currentLevel + 1);
+        if (this.upgrades.gold >= cost) {
+          this.purchaseUpgrade(upgrade.type);
+          this.audioManager.playSound("button-click.mp3");
         }
-        clickedOnUpgrade = true;
         break;
       }
     }
-
-    // Handle back button click (only if not clicking on an upgrade, or if upgrade click was on button area)
-    if (isBackButtonClick && !clickedOnUpgrade) {
-      this.audioManager.playSound("button-click.mp3");
-      this.startFadeOut("intro");
-    }
+    
+    return false;
   }
 
   private purchaseUpgrade(upgradeType: PermanentUpgradeType): void {
@@ -4484,6 +4621,23 @@ export class TinySouls {
 
     this.ctx.fillText(text, this.displayWidth / 2, textY);
 
+    // Draw gold earned below the "ENEMY VANQUISHED" text
+    if (this.lastGoldEarned > 0) {
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(255, 215, 0, 1)`; // Gold yellow
+      const goldFontSize = this.isMobile() ? 24 : 32;
+      this.ctx.font = `bold ${this.getFontSize(goldFontSize)} serif`;
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
+      this.ctx.shadowBlur = 15;
+      this.ctx.shadowOffsetX = 0;
+      this.ctx.shadowOffsetY = 0;
+      const goldY = textY + (this.isMobile() ? 50 : 70);
+      this.ctx.fillText(`Gold Earned: +${this.lastGoldEarned}`, this.displayWidth / 2, goldY);
+      this.ctx.restore();
+    }
+
     this.ctx.restore();
   }
 
@@ -4547,6 +4701,23 @@ export class TinySouls {
     this.ctx.shadowOffsetY = 0;
 
     this.ctx.fillText("YOU WIN", this.displayWidth / 2, textY);
+
+    // Draw gold earned below the "YOU WIN" text (from defeating level 5 enemy)
+    if (this.lastGoldEarned > 0) {
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(255, 215, 0, 1)`; // Gold yellow
+      const goldFontSize = this.isMobile() ? 24 : 32;
+      this.ctx.font = `bold ${this.getFontSize(goldFontSize)} serif`;
+      this.ctx.textAlign = "center";
+      this.ctx.textBaseline = "middle";
+      this.ctx.shadowColor = `rgba(0, 0, 0, 0.8)`;
+      this.ctx.shadowBlur = 15;
+      this.ctx.shadowOffsetX = 0;
+      this.ctx.shadowOffsetY = 0;
+      const goldY = textY + (this.isMobile() ? 50 : 70);
+      this.ctx.fillText(`Gold Earned: +${this.lastGoldEarned}`, this.displayWidth / 2, goldY);
+      this.ctx.restore();
+    }
 
     this.ctx.restore();
   }
@@ -4726,7 +4897,7 @@ export class TinySouls {
       upgradeBottomY = upgradeLabelY + (this.isMobile() ? 50 : 60);
     }
 
-    // Restart hint (below upgrades or stats, ensure it's visible)
+    // Restart hint or click to return text (below upgrades or stats, ensure it's visible)
     this.ctx.fillStyle = "#cccccc";
     this.ctx.font = `${this.getFontSize(this.isMobile() ? 18 : 20)} sans-serif`;
     this.ctx.textAlign = "center";
@@ -4734,10 +4905,24 @@ export class TinySouls {
     // Ensure restart hint is visible on screen
     const maxY = this.displayHeight - (this.isMobile() ? 100 : 120);
     const finalRestartY = Math.min(restartHintY, maxY);
-    const restartText = this.isMobile()
-      ? "Tap Restart button"
-      : "Press R to restart";
-    this.ctx.fillText(restartText, this.displayWidth / 2, finalRestartY);
+    
+    // Show "Click to return to title screen" if on death screen and waiting for input
+    if (this.gameStatus === "deathScreen" && this.deathScreenWaitingForInput) {
+      // Add pulsing effect for the click text
+      const pulse = Math.sin(this.cachedCurrentTime / 500) * 0.3 + 0.7;
+      this.ctx.save();
+      this.ctx.globalAlpha = pulse;
+      const clickText = this.isMobile()
+        ? "Tap to return to title screen"
+        : "Click to return to title screen";
+      this.ctx.fillText(clickText, this.displayWidth / 2, finalRestartY);
+      this.ctx.restore();
+    } else {
+      const restartText = this.isMobile()
+        ? "Tap Restart button"
+        : "Press R to restart";
+      this.ctx.fillText(restartText, this.displayWidth / 2, finalRestartY);
+    }
   }
 
   private drawControlsHint(): void {
@@ -5129,6 +5314,10 @@ export class TinySouls {
       this.logoFadeStartTime = performance.now();
       this.logoFadeProgress = 0;
     }
+    // Initialize fog if on intro screen
+    if (this.gameStatus === "intro" && this.fogParticles.length === 0) {
+      this.initializeFog();
+    }
     this.animationFrameId = requestAnimationFrame(this.gameLoop);
   }
 
@@ -5199,6 +5388,80 @@ export class TinySouls {
           return;
         }
         continue;
+      }
+
+      // Handle upgrades shop - back button and scroll tracking
+      if (this.gameStatus === "upgradesShop") {
+        e.preventDefault();
+        const centerX = this.displayWidth / 2;
+        const buttonWidth = this.getMobileValue(120, 150);
+        const buttonHeight = this.getMobileValue(44, 50);
+        const buttonY = this.displayHeight - (this.isMobile() ? 80 : 100);
+        const buttonX = centerX - buttonWidth / 2;
+
+        // Check if touch is on back button
+        if (
+          this.isPointInRectButton(
+            x,
+            y,
+            buttonX,
+            buttonY,
+            buttonWidth,
+            buttonHeight
+          )
+        ) {
+          if (this.handleUpgradesShopClick(x, y)) {
+            return;
+          }
+        } else {
+          // Check if touch is in upgrade area - if so, handle click on touch end
+          // Otherwise, track scroll start position
+          let currentY = this.isMobile() ? 30 : 40;
+          currentY += this.isMobile() ? 80 : 100; // Title and gold display height
+          const optionSpacing = this.isMobile() ? 35 : 40;
+          const optionStartY = currentY;
+          const maxVisible = this.isMobile() ? 8 : 10;
+          const upgradesCount = 10;
+          const maxScroll = Math.max(0, upgradesCount - maxVisible);
+          const scrollOffset = Math.min(this.upgradesShopScrollOffset, maxScroll);
+          const optionWidth = this.displayWidth - (this.isMobile() ? 40 : 80);
+          const optionX = (this.displayWidth - optionWidth) / 2;
+          
+          let isOnUpgrade = false;
+          // Check if touch is in visible upgrade area
+          const visibleUpgradesCount = Math.min(maxVisible, upgradesCount - scrollOffset);
+          for (let i = 0; i < visibleUpgradesCount; i++) {
+            const optionY = optionStartY + i * optionSpacing;
+            if (
+              x >= optionX &&
+              x <= optionX + optionWidth &&
+              y >= optionY - 15 &&
+              y <= optionY + optionSpacing - 20
+            ) {
+              isOnUpgrade = true;
+              break;
+            }
+          }
+          
+          // Only track scroll if not on upgrade area
+          if (!isOnUpgrade) {
+            this.upgradesShopScrollStartY = touch.clientY;
+          }
+        }
+        continue;
+      }
+
+      // Handle death screen - touch to return to title screen
+      if (this.gameStatus === "deathScreen" && this.deathScreenWaitingForInput) {
+        e.preventDefault();
+        const oldStatus = this.gameStatus;
+        // Save game data before returning to intro
+        this.saveGameData();
+        // Return to intro screen so player can access upgrades menu
+        this.gameStatus = "intro";
+        this.deathScreenWaitingForInput = false;
+        this.handleGameStatusChange(oldStatus, this.gameStatus);
+        return;
       }
 
       // Handle level complete screen - any touch continues
@@ -5275,6 +5538,33 @@ export class TinySouls {
       this.setUpgradeMenuTouchY(null);
     }
 
+    // Handle upgrades shop - process clicks if scroll didn't happen
+    if (this.gameStatus === "upgradesShop") {
+      const rect = this.canvas.getBoundingClientRect();
+      
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        
+        // If we were tracking scroll, check if it was actually a scroll or a click
+        if (this.upgradesShopScrollStartY !== null) {
+          const scrollDelta = Math.abs(this.upgradesShopScrollStartY - touch.clientY);
+          // If scroll delta is small, treat it as a click
+          if (scrollDelta < 10) {
+            // Process click (upgrade purchase)
+            this.handleUpgradesShopClick(x, y);
+          }
+        } else {
+          // No scroll tracking, process click normally
+          this.handleUpgradesShopClick(x, y);
+        }
+      }
+      
+      // Clear scroll tracking
+      this.upgradesShopScrollStartY = null;
+    }
+
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
       const touchData = this.activeTouches.get(touch.identifier);
@@ -5288,6 +5578,36 @@ export class TinySouls {
       }
 
       this.activeTouches.delete(touch.identifier);
+    }
+  }
+
+  public handleTouchMove(e: TouchEvent): void {
+    // Handle scrolling in upgrades shop on mobile
+    if (this.gameStatus === "upgradesShop" && this.upgradesShopScrollStartY !== null) {
+      e.preventDefault();
+      
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        const currentY = touch.clientY;
+        const deltaY = this.upgradesShopScrollStartY - currentY;
+        
+        // Update scroll offset (positive deltaY means scrolling up)
+        const scrollSpeed = 0.5; // Adjust sensitivity
+        const maxVisible = this.isMobile() ? 8 : 10;
+        const upgradesCount = 10; // Total number of upgrades
+        const maxScroll = Math.max(0, upgradesCount - maxVisible);
+        
+        this.upgradesShopScrollOffset = Math.max(
+          0,
+          Math.min(
+            maxScroll,
+            this.upgradesShopScrollOffset + deltaY * scrollSpeed
+          )
+        );
+        
+        // Update scroll start position for next move
+        this.upgradesShopScrollStartY = currentY;
+      }
     }
   }
 
@@ -5388,6 +5708,7 @@ export class TinySouls {
     this.canvas.removeEventListener("touchstart", this.touchstartHandler);
     this.canvas.removeEventListener("touchend", this.touchendHandler);
     this.canvas.removeEventListener("touchcancel", this.touchcancelHandler);
+    this.canvas.removeEventListener("touchmove", this.touchmoveHandler);
     this.canvas.removeEventListener("click", this.clickHandler);
     this.canvas.removeEventListener("mousemove", this.mousemoveHandler);
     if (this.wheelHandler) {
