@@ -33,15 +33,15 @@ module.exports = {
             color: theme('colors.zelda-light-blue'),
             h1: {
               color: theme('colors.zelda-gold'),
-              fontFamily: theme('fontFamily.serif').join(', '),
+              fontFamily: theme('fontFamily.serif'),
             },
             h2: {
               color: theme('colors.zelda-gold'),
-              fontFamily: theme('fontFamily.serif').join(', '),
+              fontFamily: theme('fontFamily.serif'),
             },
             h3: {
               color: theme('colors.zelda-gold'),
-              fontFamily: theme('fontFamily.serif').join(', '),
+              fontFamily: theme('fontFamily.serif'),
             },
             strong: {
               color: theme('colors.zelda-gold'),

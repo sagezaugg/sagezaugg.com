@@ -13,7 +13,7 @@ const Navbar: React.FC = () => {
   };
 
   return (
-    <nav className="sheikah-border-animated bg-zelda-dark/50 backdrop-blur-sm mx-4 sm:mx-8 my-4">
+    <nav className="sheikah-border-animated bg-zelda-dark/50 backdrop-blur-xs mx-4 sm:mx-8 my-4">
       <div className="flex items-center justify-between h-16 px-8">
         <Link
           to="/"

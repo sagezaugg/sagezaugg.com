@@ -5,7 +5,7 @@ import {
   ProjectMetadata,
 } from "../types/content";
 
-const CONTENT_BASE_URL = process.env.REACT_APP_CONTENT_BASE_URL || "/content";
+const CONTENT_BASE_URL = import.meta.env.VITE_CONTENT_BASE_URL || "/content";
 
 // Cache for storing fetched content
 const contentCache = new Map<string, any>();

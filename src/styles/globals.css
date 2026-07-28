@@ -1,9 +1,3 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:wght@400;500;600&display=swap');
-
 html, body {
   margin: 0;
   padding: 0;
@@ -89,7 +83,10 @@ body::after {
 }
 
 .project-card {
-  @apply sheikah-border p-6;
+  @apply border-2 border-zelda-light-blue rounded-lg shadow-sheikah p-6;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .project-card:hover {

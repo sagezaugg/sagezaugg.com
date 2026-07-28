@@ -23,14 +23,15 @@
 
 ## 🛠️ Tech Stack
 
-- React 18
+- React 19
 - TypeScript
+- Vite
 - TailwindCSS
 - Framer Motion
 - React Router
 - tsparticles
 - AWS SES
-- Jest & React Testing Library
+- Vitest & React Testing Library
 
 ## 🚀 Getting Started
 
@@ -51,14 +52,14 @@ npm install
 
 ```bash
 # For local development, content is served from /content by default
-# For production, set REACT_APP_CONTENT_BASE_URL to your S3 bucket URL
-# Example: REACT_APP_CONTENT_BASE_URL=https://your-bucket.s3.amazonaws.com
+# For production, set VITE_CONTENT_BASE_URL to your S3 bucket URL
+# Example: VITE_CONTENT_BASE_URL=https://your-bucket.s3.amazonaws.com
 ```
 
 4. Start the development server:
 
 ```bash
-npm start
+npm run dev
 ```
 
 5. Open [http://localhost:3000](http://localhost:3000) to view it in the browser.

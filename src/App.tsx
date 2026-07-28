@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -6,7 +6,6 @@ import {
   useLocation,
 } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import "./styles/globals.css";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import About from "./pages/About";
@@ -17,9 +16,15 @@ import BlogPost from "./pages/BlogPost";
 import Games from "./pages/Games";
 import Game from "./pages/Game";
 
-import Particles, { initParticlesEngine } from "@tsparticles/react";
+import Particles, { ParticlesProvider } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
-import { type ISourceOptions } from "@tsparticles/engine";
+import { type Engine, type ISourceOptions } from "@tsparticles/engine";
+
+// tsparticles v4 requires the init callback to be stable across the app
+// lifecycle, so it must live at module scope (not recreated per render).
+const initParticles = async (engine: Engine) => {
+  await loadSlim(engine);
+};
 
 const PageTransition: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -112,12 +117,6 @@ const AnimatedRoutes: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  useEffect(() => {
-    initParticlesEngine(async (engine) => {
-      await loadSlim(engine);
-    });
-  }, []);
-
   const options: ISourceOptions = useMemo(
     () => ({
       background: {
@@ -139,11 +138,13 @@ const App: React.FC = () => {
     <Router>
       <div className="min-h-screen relative overflow-hidden">
         <div className="absolute inset-0 w-full h-full">
-          <Particles
-            id="tsparticles"
-            options={options}
-            className="w-full h-full"
-          />
+          <ParticlesProvider init={initParticles}>
+            <Particles
+              id="tsparticles"
+              options={options}
+              className="w-full h-full"
+            />
+          </ParticlesProvider>
         </div>
         <div className="relative z-10">
           <Navbar />

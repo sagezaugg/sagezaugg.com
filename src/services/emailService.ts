@@ -1,10 +1,10 @@
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 
 const sesClient = new SESClient({
-  region: process.env.REACT_APP_AWS_REGION || "us-west-1",
+  region: import.meta.env.VITE_AWS_REGION || "us-west-1",
   credentials: {
-    accessKeyId: process.env.REACT_APP_AWS_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "",
+    accessKeyId: import.meta.env.VITE_AWS_ACCESS_KEY_ID || "",
+    secretAccessKey: import.meta.env.VITE_AWS_SECRET_ACCESS_KEY || "",
   },
 });
 
@@ -20,13 +20,13 @@ export const sendContactEmail = async (
 ): Promise<void> => {
   const { name, email, subject, message } = formData;
 
-  const verifiedEmail = process.env.REACT_APP_VERIFIED_EMAIL;
+  const verifiedEmail = import.meta.env.VITE_VERIFIED_EMAIL;
   if (!verifiedEmail) {
     throw new Error("Verified email address is not configured");
   }
 
   console.log("Using verified email:", verifiedEmail);
-  console.log("AWS Region:", process.env.REACT_APP_AWS_REGION);
+  console.log("AWS Region:", import.meta.env.VITE_AWS_REGION);
 
   const params = {
     Source: verifiedEmail,
