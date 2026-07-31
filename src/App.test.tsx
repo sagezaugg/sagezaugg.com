@@ -8,5 +8,5 @@ test('renders the site brand link in the navbar', () => {
       <Navbar />
     </MemoryRouter>
   );
-  expect(screen.getByText('Sage Zaugg')).toBeInTheDocument();
+  expect(screen.getByText('Sage Zora')).toBeInTheDocument();
 });

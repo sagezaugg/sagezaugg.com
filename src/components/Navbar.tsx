@@ -19,7 +19,7 @@ const Navbar: React.FC = () => {
           to="/"
           className="text-xl sm:text-2xl font-serif text-zelda-gold whitespace-nowrap ml-4"
         >
-          Sage Zaugg
+          Sage Zora
         </Link>
 
         {/* Mobile menu button */}

@@ -93,5 +93,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <div align="center">
-  <sub>Built with ❤️ by Sage Zaugg</sub>
+  <sub>Built with ❤️ by Sage Zora</sub>
 </div>

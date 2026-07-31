@@ -1,5 +1,5 @@
 ---
-title: "SageZaugg.com"
+title: "SageZora.com"
 description: "The website you're looking at right now."
 technologies: ["React", "TypeScript", "Node.js", "TailwindCSS", "Tsparticles"]
 imageUrl: "/assets/projects/project-sagezaugg.com.png"

@@ -9,7 +9,7 @@ export interface Project {
 
 export const projects: Project[] = [
   {
-    title: "SageZaugg.com",
+    title: "SageZora.com",
     description: "The website you're looking at right now.",
     technologies: [
       "React",

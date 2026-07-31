@@ -12,7 +12,7 @@ const Home: React.FC = () => {
         className="text-center"
       >
         <h1 className="text-5xl md:text-7xl font-serif text-zelda-gold mb-4">
-          Sage Zaugg
+          Sage Zora
         </h1>
         <p className="text-xl md:text-2xl text-zelda-light-blue mb-8">
           Engineer. Creator. Explorer of systems.
