@@ -38,6 +38,11 @@ body::after {
   filter: grayscale(100%);
 }
 
+/* Screen-hidden content that exists only for the printed resume. */
+.print-only {
+  display: none;
+}
+
 /* Anchored sections sit below the fixed status bar when scrolled to. */
 [id^="section-"] {
   scroll-margin-top: 5rem;
@@ -239,6 +244,17 @@ body::after {
 
   .print-hidden {
     display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* Panels fade in on scroll, so anything never scrolled to still carries an
+   * inline opacity of 0 and would otherwise print blank. */
+  .print-panel {
+    opacity: 1 !important;
+    transform: none !important;
   }
 
   .print-reset {
