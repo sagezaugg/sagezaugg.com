@@ -53,6 +53,21 @@ test("paints filled pips with the skill color", () => {
   expect(filled).toHaveStyle({ backgroundColor: "#3178C6" });
 });
 
+test("skips the meter when a skill is unrated flavor instead of a self-score", () => {
+  const flavor: Skill = {
+    name: "Ambiguity Navigation",
+    rating: 8,
+    icon: "ambiguity",
+    color: "#A8A29E",
+    rated: false,
+  };
+
+  render(<SkillCategoryEntry category={category([flavor])} />);
+
+  expect(screen.getByText("Ambiguity Navigation")).toBeInTheDocument();
+  expect(screen.queryByRole("meter")).not.toBeInTheDocument();
+});
+
 test("renders a distinct icon per skill", () => {
   render(<SkillCategoryEntry category={category([typescript, react])} />);
 

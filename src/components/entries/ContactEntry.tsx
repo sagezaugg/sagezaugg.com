@@ -1,13 +1,10 @@
 import React from "react";
 import SocialLinks from "../SocialLinks";
-import { EMAIL, PROFILE } from "../../data/resume";
+import { CONTACT_NOTE, EMAIL, PROFILE } from "../../data/resume";
 
 const ContactEntry: React.FC<{ className?: string }> = ({ className = "" }) => (
   <div className={`space-y-5 ${className}`}>
-    <p className="text-zelda-text">
-      Open to conversations about staff and lead engineering roles, systems
-      architecture, and developer enablement.
-    </p>
+    <p className="text-zelda-text">{CONTACT_NOTE}</p>
 
     <a
       href={`mailto:${EMAIL}`}

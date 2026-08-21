@@ -1,5 +1,6 @@
 import type {
   EducationEntry,
+  LifeEvent,
   Profile,
   Role,
   SkillCategory,
@@ -8,10 +9,11 @@ import type {
 
 export const PROFILE: Profile = {
   name: "Sage Zora",
-  tagline: "Engineer. Creator. Explorer of systems.",
+  tagline: "Engineer. Creator. Gamer.",
   summary: [
-    "Lead software engineer working across distributed systems, API design, and the operational health of production services.",
-    "I'm at my best in ambiguous problem spaces — decomposing monoliths, shortening delivery cycles, and growing the engineers around me.",
+    "Hey! I'm Sage. I like to build things and play games (and build those too!).",
+    "I'm based out of Asheville, NC where I spend my free time exploring the mountains, crafting my own games, and hanging out with all of my animals.",
+    "I'm currently on the hunt for a new challenge. If you're looking for a tinkerer and builder, please reach out!",
   ],
   availability: "Available for work",
   photo: "/assets/profile.jpg",
@@ -36,6 +38,9 @@ export const PROFILE: Profile = {
 
 export const EMAIL = "sage.mikel.zora@gmail.com";
 
+export const CONTACT_NOTE =
+  "On the hunt for a new challenge, reach out if you have an epic quest!";
+
 export const ROLES: Role[] = [
   {
     id: "alphasights-lead",
@@ -46,31 +51,8 @@ export const ROLES: Role[] = [
     start: "Jan 2025",
     end: "Aug 2026",
     location: "Remote",
-    groups: [
-      {
-        label: "Technical Ownership & Architecture",
-        bullets: [
-          "Serve as trusted technical advisor on architectural decisions across a federated service landscape, guiding teams through ambiguous and evolving problem spaces",
-          "Own on-call readiness and operational health for a set of production services, reducing mean time to resolution and improving system reliability month over month",
-          "Own end-to-end technical delivery for a product area serving thousands of users, translating complex constraints into clear trade-offs for cross-functional partners",
-        ],
-      },
-      {
-        label: "Engineering Enablement",
-        bullets: [
-          "Founded and led a cross-team DevOps Guild, driving ~35% reduction in deployment cycle time through improved CI/CD pipelines and local development workflows",
-          "Led delivery of an AI-assisted communication feature that improved outbound message quality and consistency, increasing operational throughput",
-          "Implemented AI-powered developer workflows to reduce routine engineering friction, saving an estimated 5+ hours per engineer per week on repetitive tasks",
-        ],
-      },
-      {
-        label: "Mentorship",
-        bullets: [
-          "Mentor senior engineers on technical decision-making and system design, expanding their scope on high-visibility initiatives",
-          "Partner closely with Product to define technical roadmaps and de-risk delivery through early architectural input",
-        ],
-      },
-    ],
+    summary:
+      "After a few years of working with some amazing people, it was time for me to become the party leader. This was the stretch where I was the person other teams pulled in when the architecture was messy and the problem wasn't well-defined yet. I owned delivery and on-call for a product area, stood up a DevOps Guild that cut deploy cycle time by about a third, and spent a lot of energy on AI tooling — both a communication feature for the business and developer workflows that gave engineers a few hours back each week. I also got to mentor other seniors and sit with Product early enough that the scary technical calls happened before they were emergencies.",
   },
   {
     id: "alphasights-senior",
@@ -81,62 +63,92 @@ export const ROLES: Role[] = [
     start: "Sept 2022",
     end: "Dec 2024",
     location: "Remote",
-    groups: [
-      {
-        bullets: [
-          "Served as a senior technical contributor, owning complex, multi-quarter initiatives spanning multiple teams and systems",
-          "Delivered a GraphQL performance optimization reducing query execution time by ~80%, directly improving responsiveness for thousands of internal and external users",
-          "Led the rebuild of a mission-critical product surface from a legacy Ruby and Ember stack to TypeScript, React, and Next.js, enabling significantly faster iteration cycles",
-          "Co-designed and built Transitional Services, a Kotlin-based microservice enabling safe, incremental decomposition of a large legacy monolith",
-          "Implemented a REST-to-GraphQL translation layer to decouple frontend delivery from backend constraints, unblocking parallel workstreams across 2 teams",
-          "Designed a custom DSL to standardize endpoint creation, reducing development time for other engineers",
-          "Mentored junior engineers and contributed to technical interviewing as the team scaled from 3 to 10+ engineers",
-        ],
-      },
-    ],
+    summary:
+      "A new guild, a new chapter. This was where I stopped being the person who shipped tickets and started being the person who unstuck the system. We rebuilt a critical surface off Ruby and Ember onto TypeScript, React, and Next; I knocked a GraphQL hotspot down by about 80%; and I helped carve Transitional Services out of the monolith so we could move without a big-bang rewrite. Along the way I built a REST-to-GraphQL layer so two teams could work in parallel, a little DSL so other engineers could stand up endpoints faster, and helped the team grow from three people to more than ten.",
   },
   {
-    id: "commerce-architects",
+    id: "commerce-architects-senior",
     title: "Senior Software Engineer II",
     organization: "Commerce Architects",
     organizationUrl: "https://www.commerce-architects.com/",
     logo: "/assets/logos/ca-logo.png",
-    start: "Jul 2017",
+    start: "Jul 2019",
     end: "Sept 2022",
     location: "Spokane, WA",
-    groups: [
-      {
-        bullets: [
-          "Led feature development and architectural improvements across enterprise client engagements supporting applications serving millions of daily users",
-          "Drove adoption of modern CI/CD practices and cloud-native architectures, reducing deployment risk and accelerating release cadence for multi-team programs",
-          "Mentored junior engineers and contributed to internal recruiting, onboarding, and technical standards",
-        ],
-      },
-      {
-        label: "Selected Engagements",
-        bullets: [
-          "HEB (Enterprise Grocery, 400+ Stores): Improved CI/CD pipelines (Jenkins, GitLab), contributed to an AWS-based search platform migration serving millions of product queries/day, and resolved high-impact production incidents in a large Oracle Commerce monolith",
-          "Central Market: Led end-to-end feature design and delivery, introduced agile process improvements, and optimized GraphQL layer performance and maintainability",
-        ],
-      },
-    ],
+    summary:
+      "Level up! After showcasing my skills, I was promoted to Senior Software Engineer (and later SSE II). Five years of client work on systems that actually had to stay up — grocery search for millions of queries a day, Oracle Commerce monoliths, the unglamorous production fires. I pushed CI/CD and cloud-native habits onto programs that didn't have them yet, and I spent as much time mentoring and hiring as I did writing code. HEB and Central Market were the ones that stuck: pipelines, an AWS search migration, and GraphQL that didn't make people miserable.",
+  },
+  {
+    id: "commerce-architects-junior",
+    title: "Junior Software Engineer",
+    organization: "Commerce Architects",
+    organizationUrl: "https://www.commerce-architects.com/",
+    logo: "/assets/logos/ca-logo.png",
+    start: "Jul 2017",
+    end: "Jul 2019",
+    location: "Spokane, WA",
+    summary:
+      "First real job out of college! This is where I really learned how to be a software engineer and how to work with clients. My first taste of traveling for work was a blast!",
   },
   {
     id: "itron",
     title: "Engineering Intern",
     organization: "Itron",
     organizationUrl: "https://www.itron.com/",
+    logo: "/assets/logos/itron-logo.png",
     start: "Sept 2016",
     end: "Jul 2017",
     location: "Liberty Lake, WA",
-    groups: [
-      {
-        bullets: [
-          "Built proof-of-concept cellular telemetry systems for battery-powered IoT devices deployed across utility infrastructure",
-          "Developed backend services in Go and frontend features in React/TypeScript; supported embedded development on STM32 Linux-based boards",
-        ],
-      },
-    ],
+    summary:
+      "My first real taste of software engineering! Proof-of-concept cellular telemetry for battery-powered IoT out in the utility world, bouncing between Go backends, React and TypeScript, and STM32 boards running Linux.",
+  },
+];
+
+export const LIFE_EVENTS: LifeEvent[] = [
+  {
+    id: "married",
+    title: "Got married",
+    date: "2026",
+    sortKey: "2026-04",
+    note: "Player 2 has joined the quest!",
+  },
+  {
+    id: "moved-asheville",
+    title: "Moved to Asheville, NC",
+    date: "2025",
+    sortKey: "2025-09",
+    location: "Asheville, NC",
+    note: "Mountains, animals, and a new base of operations.",
+  },
+  {
+    id: "moved-richland",
+    title: "Moved to Richland, WA",
+    date: "2019",
+    sortKey: "2019-08",
+    location: "Richland, WA",
+    note: "Returning home, sidequests with old and new party members",
+  },
+  {
+    id: "graduated-ewu",
+    title: "Graduated from EWU",
+    date: "2017",
+    sortKey: "2017-06",
+    note: "New skills acquired!",
+  },
+  {
+    id: "moved-spokane",
+    title: "Moved to Spokane, WA",
+    date: "2014",
+    sortKey: "2014-09",
+    location: "Spokane, WA",
+    note: "Furthering education at EWU",
+  },
+  {
+    id: "birth",
+    title: "Birth",
+    date: "February 1996",
+    sortKey: "1996-02",
+    note: "A new challenger approaches! Adventure Start!",
   },
 ];
 
@@ -220,24 +232,28 @@ export const SKILL_CATEGORIES: SkillCategory[] = [
       {
         name: "Cross-Team Collaboration",
         rating: 9,
+        rated: false,
         icon: "collaboration",
         color: "#60A5FA",
       },
       {
         name: "Technical Mentorship",
         rating: 8,
+        rated: false,
         icon: "mentorship",
         color: "#FBBF24",
       },
       {
         name: "Stakeholder Communication",
         rating: 8,
+        rated: false,
         icon: "communication",
         color: "#E7E5E4",
       },
       {
         name: "Ambiguity Navigation",
         rating: 8,
+        rated: false,
         icon: "ambiguity",
         color: "#A8A29E",
       },
@@ -271,6 +287,7 @@ export const WORK: WorkItem[] = [
     title: "SageZora.com",
     description:
       "The site you're reading right now — a Sheikah Slate shell over a single-page resume.",
+    featured: true,
     technologies: ["React", "TypeScript", "Vite", "TailwindCSS", "Tsparticles"],
     repoUrl: "https://github.com/sagezaugg/sagezaugg.com",
   },

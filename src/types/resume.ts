@@ -10,19 +10,11 @@ export interface Profile {
   name: string;
   tagline: string;
   summary: string[];
+  /** Optional extra line under the bio — alias, origin, whatever doesn't fit the pitch. */
+  aside?: string;
   availability: string;
   photo: string;
   links: SocialLink[];
-}
-
-/**
- * A set of bullets under an optional subheading. Roles with enough scope to
- * warrant grouping (e.g. "Engineering Enablement") use the label; simpler
- * roles use a single unlabeled group.
- */
-export interface BulletGroup {
-  label?: string;
-  bullets: string[];
 }
 
 export interface Role {
@@ -34,7 +26,19 @@ export interface Role {
   start: string;
   end: string;
   location: string;
-  groups: BulletGroup[];
+  /** First-person recap of the stop. */
+  summary: string;
+}
+
+/** A non-job beat on the quest log — moves, marriage, the unprofessional bits. */
+export interface LifeEvent {
+  id: string;
+  title: string;
+  date: string;
+  /** YYYY-MM so life events can sit between jobs on the track. */
+  sortKey: string;
+  location?: string;
+  note?: string;
 }
 
 export type SkillIconName =
@@ -63,8 +67,15 @@ export type SkillIconName =
 
 export interface Skill {
   name: string;
-  /** How many of the ten pips are filled. */
+  /** How many of the ten pips are filled. Ignored when `rated` is false. */
   rating: number;
+  /**
+   * False for flavor/traits that should not look like a self-score.
+   * Defaults to true.
+   */
+  rated?: boolean;
+  /** Optional one-liner under an unrated skill. */
+  note?: string;
   icon: SkillIconName;
   color: string;
 }
@@ -87,8 +98,15 @@ export interface EducationEntry {
 export interface WorkItem {
   id: string;
   title: string;
+  /** Short pitch shown under the title. */
+  hook?: string;
   description: string;
+  problem?: string;
+  approach?: string;
+  result?: string;
   technologies: string[];
   imageUrl?: string;
   repoUrl?: string;
+  /** When true, this piece is the one on the launcher home screen. */
+  featured?: boolean;
 }

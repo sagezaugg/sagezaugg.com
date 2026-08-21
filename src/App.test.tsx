@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { vi } from 'vitest';
-import App from './App';
+import App, { particleOptions } from './App';
 import { EMAIL, PROFILE, ROLES } from './data/resume';
 import { SECTIONS } from './data/sections';
 
@@ -17,6 +17,10 @@ vi.mock('./config/site', () => ({
     panelSweep: true,
   },
 }));
+
+test('keeps the particle canvas inside the slate instead of covering the viewport', () => {
+  expect(particleOptions.fullScreen).toEqual({ enable: false });
+});
 
 test('leads with the name as the top-level heading', () => {
   render(<App />);

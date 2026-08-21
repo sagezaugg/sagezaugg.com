@@ -1,7 +1,7 @@
 import React from "react";
 import Panel from "../os/Panel";
 import SocialLinks from "../SocialLinks";
-import { EMAIL, PROFILE } from "../../data/resume";
+import { EDUCATION, EMAIL, PROFILE } from "../../data/resume";
 import { SECTION_BY_ID } from "../../data/sections";
 
 const Profile: React.FC = () => (
@@ -16,11 +16,11 @@ const Profile: React.FC = () => (
     </p>
 
     <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-8">
-      <div className="print-hidden h-32 w-32 shrink-0 overflow-hidden rounded-full border-2 border-zelda-gold shadow-sheikah sm:h-40 sm:w-40">
+      <div className="print-hidden w-40 shrink-0 overflow-hidden rounded-2xl border-2 border-zelda-gold shadow-sheikah sm:w-48">
         <img
           src={PROFILE.photo}
           alt={PROFILE.name}
-          className="h-full w-full object-cover"
+          className="aspect-[3/4] h-auto w-full object-cover object-[center_18%]"
         />
       </div>
 
@@ -35,6 +35,29 @@ const Profile: React.FC = () => (
             </p>
           ))}
         </div>
+        {PROFILE.aside && (
+          <p className="mt-4 text-sm text-zelda-light-blue/80">{PROFILE.aside}</p>
+        )}
+        <ul className="mt-5 space-y-1 font-mono text-[11px] tracking-[0.12em] text-zelda-light-blue/80">
+          {EDUCATION.map((entry) => (
+            <li key={entry.id}>
+              {entry.degree}
+              {" · "}
+              {entry.institutionUrl ? (
+                <a
+                  href={entry.institutionUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-zelda-light-blue transition-colors hover:text-zelda-gold"
+                >
+                  {entry.institution}
+                </a>
+              ) : (
+                entry.institution
+              )}
+            </li>
+          ))}
+        </ul>
         <SocialLinks
           links={PROFILE.links}
           className="print-hidden mt-6 justify-center sm:justify-start"

@@ -21,7 +21,7 @@ const CollapsedProfile: React.FC<{ onBack: () => void }> = ({ onBack }) => (
       <img
         src={PROFILE.photo}
         alt={PROFILE.name}
-        className="h-full w-full object-cover"
+        className="h-full w-full object-cover object-[center_18%]"
       />
     </motion.div>
 
