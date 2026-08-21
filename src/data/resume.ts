@@ -283,11 +283,30 @@ export const EDUCATION: EducationEntry[] = [
 
 export const WORK: WorkItem[] = [
   {
+    id: "arcadeplex",
+    title: "ArcadePlex",
+    hook: "Build a world. Show your face. Play with friends.",
+    description:
+      "A social web game and content platform for remote workers. Design, build, and play your own game modes and maps. The twist: your avatar's head is your face from your webcam.",
+    featured: true,
+    technologies: ["React", "TypeScript", "Three.js"],
+    imageUrl: "/assets/work/arcadeplex.png",
+    url: "https://arcadeplex.app",
+  },
+  {
+    id: "tinysouls",
+    title: "TinySouls",
+    description:
+      "A simple arcade game with roguelike elements that runs in your browser. Build up your warrior and see how far you can get.",
+    technologies: ["TypeScript"],
+    imageUrl: "/assets/work/tinysouls.png",
+    url: "https://tinysouls.sagezora.com",
+  },
+  {
     id: "sagezaugg-com",
     title: "SageZora.com",
     description:
       "The site you're reading right now — a Sheikah Slate shell over a single-page resume.",
-    featured: true,
     technologies: ["React", "TypeScript", "Vite", "TailwindCSS", "Tsparticles"],
     repoUrl: "https://github.com/sagezaugg/sagezaugg.com",
   },
