@@ -304,6 +304,16 @@ body::after {
     background: transparent !important;
   }
 
+  .skill-pip[data-filled="true"] {
+    background: #111111 !important;
+    box-shadow: none !important;
+  }
+
+  .skill-pip[data-filled="false"] {
+    background: transparent !important;
+    box-shadow: inset 0 0 0 1px #999999 !important;
+  }
+
   a {
     text-decoration: none !important;
   }
