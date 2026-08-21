@@ -9,7 +9,6 @@ import RuneRail from "../os/RuneRail";
 import TopNav from "../os/TopNav";
 
 import Contact from "../sections/Contact";
-import Education from "../sections/Education";
 import Experience from "../sections/Experience";
 import Profile from "../sections/Profile";
 import Skills from "../sections/Skills";
@@ -41,9 +40,7 @@ const ScrollLayout: React.FC = () => {
       )}
 
       <main
-        className={`print-reset relative z-10 mx-auto max-w-4xl px-4 pb-[45vh] pt-16 sm:px-6 ${
-          EFFECTS.runeRail ? "md:pl-24 xl:pl-4" : ""
-        }`}
+        className="print-reset relative z-10 mx-auto max-w-4xl px-4 pb-[45vh] pt-16 sm:px-6"
       >
         {!EFFECTS.runeRail && <TopNav activeId={activeId} onSelect={select} />}
 
@@ -51,7 +48,6 @@ const ScrollLayout: React.FC = () => {
           <Profile />
           <Experience />
           <Skills />
-          <Education />
           <Work />
           <Contact />
         </div>

@@ -11,6 +11,7 @@ interface SkillCategoryEntryProps {
 
 const SkillRow: React.FC<{ skill: Skill }> = ({ skill }) => {
   const nameId = useId();
+  const showMeter = skill.rated !== false;
   const filledCount = Math.min(PIP_COUNT, Math.max(0, skill.rating));
 
   return (
@@ -25,32 +26,39 @@ const SkillRow: React.FC<{ skill: Skill }> = ({ skill }) => {
         className="min-w-0 flex-1 text-sm leading-snug text-zelda-text"
       >
         {skill.name}
+        {skill.note && (
+          <span className="mt-0.5 block text-xs text-zelda-text/65">
+            {skill.note}
+          </span>
+        )}
       </span>
-      <div
-        role="meter"
-        aria-labelledby={nameId}
-        aria-valuemin={0}
-        aria-valuemax={PIP_COUNT}
-        aria-valuenow={filledCount}
-        className="flex h-2 w-[6.75rem] shrink-0 gap-px sm:w-32"
-      >
-        {Array.from({ length: PIP_COUNT }, (_, index) => {
-          const filled = index < filledCount;
-          return (
-            <span
-              key={index}
-              data-filled={filled ? "true" : "false"}
-              className="skill-pip h-full flex-1 rounded-[1px]"
-              style={{
-                backgroundColor: filled ? skill.color : "transparent",
-                boxShadow: filled
-                  ? undefined
-                  : `inset 0 0 0 1px ${skill.color}55`,
-              }}
-            />
-          );
-        })}
-      </div>
+      {showMeter && (
+        <div
+          role="meter"
+          aria-labelledby={nameId}
+          aria-valuemin={0}
+          aria-valuemax={PIP_COUNT}
+          aria-valuenow={filledCount}
+          className="flex h-2 w-[6.75rem] shrink-0 gap-px sm:w-32"
+        >
+          {Array.from({ length: PIP_COUNT }, (_, index) => {
+            const filled = index < filledCount;
+            return (
+              <span
+                key={index}
+                data-filled={filled ? "true" : "false"}
+                className="skill-pip h-full flex-1 rounded-[1px]"
+                style={{
+                  backgroundColor: filled ? skill.color : "transparent",
+                  boxShadow: filled
+                    ? undefined
+                    : `inset 0 0 0 1px ${skill.color}55`,
+                }}
+              />
+            );
+          })}
+        </div>
+      )}
     </li>
   );
 };

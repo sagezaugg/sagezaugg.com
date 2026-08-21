@@ -6,6 +6,12 @@ html, body {
   scroll-behavior: smooth;
 }
 
+:root {
+  --slate-bezel: 0.75rem;
+  --slate-chassis: #04141a;
+  --slate-screen-gradient: linear-gradient(to bottom, #0b2e36 0%, #4e7c76 100%);
+}
+
 body {
   @apply bg-zelda-dark text-white;
   position: relative;
@@ -19,7 +25,7 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(to bottom, #0b2e36 0%, #4e7c76 100%);
+  background: var(--slate-screen-gradient);
   z-index: -3;
 }
 
@@ -36,6 +42,125 @@ body::after {
   mask-image: linear-gradient(to bottom, transparent, black);
   -webkit-mask-image: linear-gradient(to bottom, transparent, black);
   filter: grayscale(100%);
+}
+
+/* Chassis around the slate — atmosphere lives on .slate-screen instead. */
+html.slate-framed,
+body.slate-framed {
+  background: var(--slate-chassis);
+  overflow: hidden;
+  height: 100%;
+  height: 100dvh;
+}
+
+body.slate-framed::before,
+body.slate-framed::after {
+  content: none;
+}
+
+.slate-screen {
+  position: fixed;
+  top: calc(var(--slate-bezel) + env(safe-area-inset-top, 0px));
+  right: calc(var(--slate-bezel) + env(safe-area-inset-right, 0px));
+  bottom: calc(var(--slate-bezel) + env(safe-area-inset-bottom, 0px));
+  left: calc(var(--slate-bezel) + env(safe-area-inset-left, 0px));
+  z-index: 10;
+  overflow: hidden;
+  border-radius: 1rem;
+  isolation: isolate;
+}
+
+.slate-screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--slate-screen-gradient);
+}
+
+.slate-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: url('../assets/textures/swirls_seamless.png');
+  background-repeat: repeat;
+  background-size: 20%;
+  opacity: 0.05;
+  mask-image: linear-gradient(to bottom, transparent, black);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black);
+  filter: grayscale(100%);
+}
+
+.slate-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.slate-atmosphere #tsparticles {
+  width: 100%;
+  height: 100%;
+}
+
+.slate-scroll {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 184, 232, 0.28) transparent;
+}
+
+.slate-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.slate-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.slate-scroll::-webkit-scrollbar-thumb {
+  background: rgba(139, 184, 232, 0.28);
+  border-radius: 999px;
+}
+
+.slate-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.45);
+}
+
+html.slate-framed .slate-status {
+  top: calc(var(--slate-bezel) + env(safe-area-inset-top, 0px));
+  right: calc(var(--slate-bezel) + env(safe-area-inset-right, 0px));
+  left: calc(var(--slate-bezel) + env(safe-area-inset-left, 0px));
+  width: auto;
+}
+
+html.slate-framed .slate-dock {
+  right: calc(var(--slate-bezel) + env(safe-area-inset-right, 0px));
+  bottom: calc(var(--slate-bezel) + env(safe-area-inset-bottom, 0px));
+  left: calc(var(--slate-bezel) + env(safe-area-inset-left, 0px));
+  width: auto;
+}
+
+body:not(.slate-framed) .slate-status {
+  top: env(safe-area-inset-top, 0px);
+}
+
+body:not(.slate-framed) .slate-dock {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (min-width: 768px) {
+  html.slate-framed .slate-dock {
+    bottom: calc(var(--slate-bezel) + 1.25rem);
+  }
 }
 
 /* Screen-hidden content that exists only for the printed resume. */
@@ -114,53 +239,53 @@ body::after {
  * ------------------------------------------------------------------------- */
 
 .screen-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 40;
+  z-index: 1;
 }
 
 .screen-overlay-scanlines {
   background: repeating-linear-gradient(
     to bottom,
-    rgba(139, 184, 232, 0.04) 0px,
-    rgba(139, 184, 232, 0.04) 1px,
+    rgba(139, 184, 232, 0.02) 0px,
+    rgba(139, 184, 232, 0.02) 1px,
     transparent 1px,
-    transparent 3px
+    transparent 5px
   );
 }
 
 .screen-overlay-vignette {
   background: radial-gradient(
     ellipse at center,
-    transparent 55%,
-    rgba(4, 20, 24, 0.45) 100%
+    transparent 70%,
+    rgba(4, 20, 24, 0.22) 100%
   );
 }
 
 /* ---------------------------------------------------------------------------
- * Device frame — the bezel of the slate itself
+ * Device frame — hardware around the screen, not a filter over it
  * ------------------------------------------------------------------------- */
 
 .device-frame {
   position: fixed;
-  inset: 0.5rem;
+  top: calc(var(--slate-bezel) + env(safe-area-inset-top, 0px));
+  right: calc(var(--slate-bezel) + env(safe-area-inset-right, 0px));
+  bottom: calc(var(--slate-bezel) + env(safe-area-inset-bottom, 0px));
+  left: calc(var(--slate-bezel) + env(safe-area-inset-left, 0px));
   border-radius: 1rem;
-  border: 1px solid rgba(139, 184, 232, 0.35);
-  box-shadow:
-    inset 0 0 30px rgba(11, 46, 54, 0.6),
-    0 0 18px rgba(139, 184, 232, 0.25);
+  border: 1px solid rgba(212, 175, 55, 0.4);
   pointer-events: none;
-  /* Above the status bar so all four corner brackets stay visible. */
+  /* Above the screen well so the edge reads as hardware, not a line on the wallpaper. */
   z-index: 55;
 }
 
 .device-corner {
   position: absolute;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 0.9rem;
+  height: 0.9rem;
   border-color: #D4AF37;
-  opacity: 0.75;
+  opacity: 0.55;
 }
 
 /* ---------------------------------------------------------------------------
@@ -235,11 +360,23 @@ body::after {
     height: auto;
     background: #ffffff !important;
     color: #111111 !important;
+    overflow: visible !important;
   }
 
   body::before,
-  body::after {
+  body::after,
+  .slate-screen::before,
+  .slate-screen::after {
     display: none !important;
+  }
+
+  .slate-screen,
+  .slate-scroll {
+    position: static !important;
+    inset: auto !important;
+    overflow: visible !important;
+    transform: none !important;
+    border-radius: 0 !important;
   }
 
   .print-hidden {
@@ -290,6 +427,13 @@ body::after {
   .print-panel * {
     color: #111111 !important;
     text-shadow: none !important;
+  }
+
+  /* Quest-log motion leaves inline opacity/scale; print never plays the
+   * animation, so force the settled state without flattening CSS diamonds. */
+  .quest-enter {
+    opacity: 1 !important;
+    transform: none !important;
   }
 
   .print-heading {

@@ -8,7 +8,7 @@ const BackButton: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    aria-label="Back to shortcuts"
+    aria-label="Back home"
     className="group flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zelda-gold/60 bg-zelda-dark/50 text-zelda-gold transition-all duration-300 hover:border-zelda-gold hover:shadow-rune-active"
   >
     <svg

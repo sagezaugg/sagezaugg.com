@@ -8,8 +8,16 @@ export interface AppRoute {
   closeApp: () => void;
 }
 
+const HASH_ALIASES: Record<string, string> = {
+  experience: "quests",
+};
+
 const readHash = (): string | null => {
-  const id = window.location.hash.replace(/^#/, "");
+  const raw = window.location.hash.replace(/^#/, "");
+  const id = HASH_ALIASES[raw] ?? raw;
+  if (id !== raw && APP_IDS.includes(id)) {
+    window.history.replaceState(null, "", `#${id}`);
+  }
   return APP_IDS.includes(id) ? id : null;
 };
 

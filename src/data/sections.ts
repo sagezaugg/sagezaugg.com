@@ -6,33 +6,38 @@ export interface SectionDef {
   code: string;
   /** Display heading, also used as the rune tooltip. */
   label: string;
-  /** Used where all six labels share a phone's width; falls back to label. */
+  /** Used where several labels share a phone's width; falls back to label. */
   shortLabel?: string;
   rune: RuneName;
 }
 
 export const SECTIONS: SectionDef[] = [
   { id: "profile", code: "01", label: "Profile", rune: "eye" },
-  { id: "experience", code: "02", label: "Experience", rune: "monolith" },
+  { id: "quests", code: "02", label: "Quest Log", shortLabel: "Quests", rune: "monolith" },
   { id: "skills", code: "03", label: "Skills", rune: "hex" },
-  { id: "education", code: "04", label: "Education", rune: "beacon" },
   {
     id: "work",
-    code: "05",
+    code: "04",
     label: "Selected Work",
     shortLabel: "Work",
     rune: "diamond",
   },
-  { id: "contact", code: "06", label: "Contact", rune: "signal" },
+  { id: "contact", code: "05", label: "Contact", rune: "signal" },
 ];
 
 export const SECTION_IDS = SECTIONS.map((section) => section.id);
 
 /**
- * The launcher treats the profile as the home screen rather than a shortcut,
- * so everything except it becomes an openable app.
+ * Launcher home is the profile. Education and contact are folded into the
+ * profile and status bar rather than getting their own apps.
  */
-export const APP_SECTIONS = SECTIONS.filter(
+const LAUNCHER_IDS = ["profile", "quests", "skills", "work"] as const;
+
+export const LAUNCHER_SECTIONS: SectionDef[] = SECTIONS.filter((section) =>
+  (LAUNCHER_IDS as readonly string[]).includes(section.id)
+);
+
+export const APP_SECTIONS = LAUNCHER_SECTIONS.filter(
   (section) => section.id !== "profile"
 );
 
@@ -43,3 +48,14 @@ export const SECTION_BY_ID: Record<string, SectionDef> = Object.fromEntries(
 );
 
 export const sectionDomId = (id: string) => `section-${id}`;
+
+/**
+ * Dock order as a slide direction: 1 = toward Work, -1 = toward Quests,
+ * 0 = no horizontal move (same app, or not on the rail).
+ */
+export const appDirection = (fromId: string, toId: string): number => {
+  const from = LAUNCHER_SECTIONS.findIndex((section) => section.id === fromId);
+  const to = LAUNCHER_SECTIONS.findIndex((section) => section.id === toId);
+  if (from < 0 || to < 0 || from === to) return 0;
+  return to > from ? 1 : -1;
+};

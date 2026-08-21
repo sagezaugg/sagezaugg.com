@@ -1,35 +1,50 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import ProfileCard from "./ProfileCard";
-import ShortcutTile from "./ShortcutTile";
+import WorkEntry from "../entries/WorkEntry";
 import AppScreen from "./AppScreen";
 import PrintResume from "../PrintResume";
 import RuneRail from "../os/RuneRail";
 import { EFFECTS } from "../../config/site";
-import { APP_SECTIONS, SECTION_BY_ID } from "../../data/sections";
+import { WORK } from "../../data/resume";
+import { LAUNCHER_SECTIONS, SECTION_BY_ID } from "../../data/sections";
+import { markQuestLogIntroPlayed } from "../../data/questLog";
 import { useAppRoute } from "../../hooks/useAppRoute";
+
+const featuredWork = WORK.find((item) => item.featured) ?? WORK[0];
 
 const LauncherLayout: React.FC = () => {
   const { openAppId, openApp, closeApp } = useAppRoute();
-  const tiles = useRef<Record<string, HTMLButtonElement | null>>({});
   const lastOpened = useRef<string | null>(null);
 
   const handleOpen = useCallback(
     (id: string) => {
       lastOpened.current = id;
       openApp(id);
+      document.querySelector(".slate-scroll")?.scrollTo?.({ top: 0 });
       window.scrollTo({ top: 0 });
     },
     [openApp]
   );
 
-  // Returning home puts focus back on the tile that was opened, so tabbing
-  // resumes where it left off rather than at the top of the document.
+  // Returning home puts focus back on the rune that was opened.
   useEffect(() => {
     if (openAppId !== null) return;
     const previous = lastOpened.current;
     if (!previous) return;
     lastOpened.current = null;
-    tiles.current[previous]?.focus();
+    document
+      .querySelector<HTMLButtonElement>(`[data-section-id="${previous}"]`)
+      ?.focus();
+  }, [openAppId]);
+
+  const visitedQuests = useRef(false);
+
+  useEffect(() => {
+    if (openAppId === "quests") {
+      visitedQuests.current = true;
+      return;
+    }
+    if (visitedQuests.current) markQuestLogIntroPlayed();
   }, [openAppId]);
 
   useEffect(() => {
@@ -49,15 +64,14 @@ const LauncherLayout: React.FC = () => {
     <>
       {EFFECTS.runeRail && (
         <RuneRail
+          sections={LAUNCHER_SECTIONS}
           activeId={openAppId ?? "profile"}
           onSelect={(id) => (id === "profile" ? closeApp() : handleOpen(id))}
         />
       )}
 
       <main
-        className={`print-hidden relative z-10 mx-auto max-w-4xl px-4 pb-24 pt-20 sm:px-6 ${
-          EFFECTS.runeRail ? "md:pl-24 xl:pl-4" : ""
-        }`}
+        className="print-hidden relative z-10 mx-auto max-w-4xl px-4 pb-28 pt-20 sm:px-6"
       >
         {openSection ? (
           <AppScreen section={openSection} onBack={closeApp} />
@@ -65,34 +79,20 @@ const LauncherLayout: React.FC = () => {
           <div>
             <ProfileCard />
 
-            {/* On a phone the docked rail already lists every app, so the grid
-                would be the same six runes a second time. */}
-            <div className={EFFECTS.runeRail ? "mt-10 hidden md:block" : "mt-10"}>
-              <div className="mb-3 flex items-center gap-2 font-mono text-[10px] tracking-[0.24em] text-zelda-light-blue/60">
-                <span>&sect; APPLICATIONS</span>
-                <span
-                  className="h-px flex-1 bg-zelda-light-blue/20"
-                  aria-hidden="true"
-                />
-              </div>
-
-              <nav
-                aria-label="Applications"
-                className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5"
-              >
-                {APP_SECTIONS.map((section, index) => (
-                  <ShortcutTile
-                    key={section.id}
-                    section={section}
-                    index={index}
-                    onOpen={handleOpen}
-                    buttonRef={(el) => {
-                      tiles.current[section.id] = el;
-                    }}
+            {featuredWork && (
+              <div className="mx-auto mt-10 max-w-3xl">
+                <div className="mb-3 flex items-center gap-2 font-mono text-[10px] tracking-[0.24em] text-zelda-light-blue/60">
+                  <span>&sect; FEATURED</span>
+                  <span
+                    className="h-px flex-1 bg-zelda-light-blue/20"
+                    aria-hidden="true"
                   />
-                ))}
-              </nav>
-            </div>
+                </div>
+                <div className="sheikah-border bg-zelda-dark/40 p-5 backdrop-blur-[2px] sm:p-8">
+                  <WorkEntry item={featuredWork} />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
