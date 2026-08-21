@@ -57,6 +57,10 @@ export type SkillIconName =
   | "aws"
   | "docker"
   | "terraform"
+  | "threejs"
+  | "vite"
+  | "tailwindcss"
+  | "tsparticles"
   | "llm"
   | "ai-tooling"
   | "workflow"
@@ -106,6 +110,8 @@ export interface WorkItem {
   result?: string;
   technologies: string[];
   imageUrl?: string;
+  /** Live site or playable build. */
+  url?: string;
   repoUrl?: string;
   /** When true, this piece is the one on the launcher home screen. */
   featured?: boolean;

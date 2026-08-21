@@ -1,5 +1,7 @@
 import React from "react";
 import type { WorkItem } from "../../types/resume";
+import { techFor } from "../../data/tech";
+import SkillIcon from "./SkillIcon";
 
 interface WorkEntryProps {
   item: WorkItem;
@@ -60,25 +62,50 @@ const WorkEntry: React.FC<WorkEntryProps> = ({ item, className = "" }) => {
       )}
 
       <ul className="mt-3 flex flex-wrap gap-2">
-        {item.technologies.map((tech) => (
-          <li
-            key={tech}
-            className="print-chip rounded-full border border-zelda-light-blue/20 bg-zelda-dark/25 px-3 py-1 text-xs text-zelda-text"
-          >
-            {tech}
-          </li>
-        ))}
+        {item.technologies.map((tech) => {
+          const meta = techFor(tech);
+          return (
+            <li
+              key={tech}
+              className="print-chip inline-flex items-center gap-1.5 rounded-full border border-zelda-light-blue/20 bg-zelda-dark/25 px-3 py-1 text-xs text-zelda-text"
+              style={meta ? { borderColor: `${meta.color}55` } : undefined}
+            >
+              {meta && (
+                <SkillIcon
+                  name={meta.icon}
+                  color={meta.color}
+                  className="h-3.5 w-3.5 shrink-0"
+                />
+              )}
+              {tech}
+            </li>
+          );
+        })}
       </ul>
 
-      {item.repoUrl && (
-        <a
-          href={item.repoUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 inline-block self-start font-mono text-[11px] uppercase tracking-[0.18em] text-zelda-gold transition-colors hover:text-zelda-light-blue"
-        >
-          View source
-        </a>
+      {(item.url || item.repoUrl) && (
+        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+          {item.url && (
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-[11px] uppercase tracking-[0.18em] text-zelda-gold transition-colors hover:text-zelda-light-blue"
+            >
+              Play
+            </a>
+          )}
+          {item.repoUrl && (
+            <a
+              href={item.repoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-[11px] uppercase tracking-[0.18em] text-zelda-gold transition-colors hover:text-zelda-light-blue"
+            >
+              View source
+            </a>
+          )}
+        </div>
       )}
     </article>
   );
