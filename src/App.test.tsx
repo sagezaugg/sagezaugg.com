@@ -7,6 +7,7 @@ import { SECTIONS } from './data/sections';
 // The boot overlay and particle canvas are effects, not content; disabling them
 // keeps these assertions about the resume itself.
 vi.mock('./config/site', () => ({
+  LAYOUT: 'scroll',
   EFFECTS: {
     bootSequence: false,
     deviceFrame: true,

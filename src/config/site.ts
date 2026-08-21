@@ -1,13 +1,22 @@
 /* ==========================================================================
  * TEMPORARY — DESIGN SCAFFOLDING, MEANT TO BE REMOVED
  *
- * These toggles exist so the Sheikah Slate treatment can be dialed up or down
- * while settling on a direction. All true is the full device UI; all false is
- * a plain scrolling one-pager.
+ * LAYOUT picks between two competing designs; EFFECTS dials the Sheikah Slate
+ * treatment up or down within whichever one is showing. All effects true is the
+ * full device UI; all false is a plain page.
  *
  * Once a direction is picked: inline the winning values at each call site and
  * delete this file along with the `EFFECTS` imports.
  * ========================================================================== */
+
+/**
+ * "scroll" reads top to bottom with every section on the page at once.
+ * "launcher" opens the profile card over a grid of app shortcuts, and each
+ * shortcut expands into its own screen.
+ */
+export type Layout = "scroll" | "launcher";
+
+export const LAYOUT: Layout = "launcher";
 
 export interface Effects {
   /** Rune-forming authentication overlay on first paint (~1.2s). */

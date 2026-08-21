@@ -4,24 +4,15 @@ import Particles, { ParticlesProvider } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
 import { type Engine, type ISourceOptions } from "@tsparticles/engine";
 
-import { EFFECTS } from "./config/site";
-import { SECTION_IDS } from "./data/sections";
-import { useActiveSection } from "./hooks/useActiveSection";
-import { useHashScroll } from "./hooks/useHashScroll";
+import { EFFECTS, LAYOUT } from "./config/site";
 
 import BootSequence from "./components/os/BootSequence";
 import DeviceFrame from "./components/os/DeviceFrame";
-import RuneRail from "./components/os/RuneRail";
 import ScreenOverlay from "./components/os/ScreenOverlay";
 import StatusBar from "./components/os/StatusBar";
-import TopNav from "./components/os/TopNav";
 
-import Contact from "./components/sections/Contact";
-import Education from "./components/sections/Education";
-import Experience from "./components/sections/Experience";
-import Profile from "./components/sections/Profile";
-import Skills from "./components/sections/Skills";
-import Work from "./components/sections/Work";
+import LauncherLayout from "./components/launcher/LauncherLayout";
+import ScrollLayout from "./components/layouts/ScrollLayout";
 
 // tsparticles v4 requires the init callback to be stable across the app
 // lifecycle, so it must live at module scope (not recreated per render).
@@ -31,10 +22,7 @@ const initParticles = async (engine: Engine) => {
 
 const App: React.FC = () => {
   const [booting, setBooting] = useState(EFFECTS.bootSequence);
-  const { activeId, select } = useActiveSection(SECTION_IDS);
   const finishBoot = useCallback(() => setBooting(false), []);
-
-  useHashScroll(select);
 
   const particleOptions: ISourceOptions = useMemo(
     () => ({
@@ -82,28 +70,8 @@ const App: React.FC = () => {
         {EFFECTS.deviceFrame && <DeviceFrame />}
 
         <StatusBar />
-        {EFFECTS.runeRail && (
-          <RuneRail activeId={activeId} onSelect={select} />
-        )}
 
-        <main
-          className={`print-reset relative z-10 mx-auto max-w-4xl px-4 pb-[45vh] pt-16 sm:px-6 ${
-            EFFECTS.runeRail ? "md:pl-24 xl:pl-4" : ""
-          }`}
-        >
-          {!EFFECTS.runeRail && (
-            <TopNav activeId={activeId} onSelect={select} />
-          )}
-
-          <div className="space-y-8">
-            <Profile />
-            <Experience />
-            <Skills />
-            <Education />
-            <Work />
-            <Contact />
-          </div>
-        </main>
+        {LAYOUT === "launcher" ? <LauncherLayout /> : <ScrollLayout />}
 
         {booting && <BootSequence onComplete={finishBoot} />}
       </div>

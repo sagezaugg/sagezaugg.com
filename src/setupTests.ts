@@ -8,6 +8,9 @@ if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {};
 }
 
+// jsdom does not scroll, so window.scrollTo is a stub that warns when called.
+window.scrollTo = () => {};
+
 // jsdom has no IntersectionObserver, which Framer Motion's whileInView and the
 // rune rail's active-section tracking both rely on.
 if (!('IntersectionObserver' in globalThis)) {
