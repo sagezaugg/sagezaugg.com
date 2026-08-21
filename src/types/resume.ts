@@ -37,9 +37,41 @@ export interface Role {
   groups: BulletGroup[];
 }
 
+export type SkillIconName =
+  | "distributed-systems"
+  | "api-design"
+  | "monolith-decomposition"
+  | "reliability"
+  | "cicd"
+  | "kotlin"
+  | "java"
+  | "typescript"
+  | "python"
+  | "spring"
+  | "react"
+  | "nextjs"
+  | "aws"
+  | "docker"
+  | "terraform"
+  | "llm"
+  | "ai-tooling"
+  | "workflow"
+  | "mentorship"
+  | "collaboration"
+  | "communication"
+  | "ambiguity";
+
+export interface Skill {
+  name: string;
+  /** How many of the ten pips are filled. */
+  rating: number;
+  icon: SkillIconName;
+  color: string;
+}
+
 export interface SkillCategory {
   label: string;
-  skills: string[];
+  skills: Skill[];
 }
 
 export interface EducationEntry {
