@@ -1,6 +1,6 @@
 {
-  "short_name": "Sage Zora Portfolio",
-  "name": "Sage Zora's Portfolio Website",
+  "short_name": "Sage Zora",
+  "name": "Sage Zora — Lead Software Engineer",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +20,6 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#0b2e36",
+  "background_color": "#0b2e36"
 }
